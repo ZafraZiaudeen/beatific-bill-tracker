@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Heart,
   Pencil,
@@ -32,6 +34,8 @@ import sprig from "@/assets/doodle-sprig.png";
 import vase from "@/assets/doodle-vase.png";
 import springBinding from "@/assets/springFourX.png";
 
+const BILLS_PER_PAGE = 8;
+
 export function Bills() {
   const today = useMemo(() => startOfDay(new Date()), []);
   const bills = useBillStore((s) => s.bills);
@@ -50,6 +54,7 @@ export function Bills() {
   const setDeleteTarget = useUIStore((s) => s.setDeleteTarget);
 
   const { filteredBills } = useBills();
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fmt = (n: number) => fmtCurrency(n, settings.currency, settings.currencyPosition);
 
@@ -57,6 +62,18 @@ export function Bills() {
   const paidList = bills.filter((b) => b.paid);
   const overList = bills.filter((b) => getBillStatus(b) === "overdue");
   const unpaidList = bills.filter((b) => getBillStatus(b) === "upcoming");
+  const pageCount = Math.max(1, Math.ceil(filteredBills.length / BILLS_PER_PAGE));
+  const activePage = Math.min(currentPage, pageCount);
+  const pageStart = filteredBills.length === 0 ? 0 : (activePage - 1) * BILLS_PER_PAGE + 1;
+  const pageEnd = Math.min(activePage * BILLS_PER_PAGE, filteredBills.length);
+  const visibleBills = filteredBills.slice((activePage - 1) * BILLS_PER_PAGE, activePage * BILLS_PER_PAGE);
+  const pageNumbers = useMemo(() => {
+    const pages = new Set<number>([1, pageCount]);
+    for (let page = activePage - 1; page <= activePage + 1; page += 1) {
+      if (page >= 1 && page <= pageCount) pages.add(page);
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  }, [activePage, pageCount]);
 
   const handleDelete = (bill: Bill) => {
     if (bill.frequency !== "one-time") {
@@ -154,7 +171,7 @@ export function Bills() {
       {/* Filter pills + Add Bill */}
       <div className="mb-6 flex flex-wrap items-center gap-3 xl:mb-7">
         <div className="relative">
-          <select value={billFilter} onChange={(e) => setBillFilter(e.target.value as BillFilter)}
+          <select value={billFilter} onChange={(e) => { setBillFilter(e.target.value as BillFilter); setCurrentPage(1); }}
             className="min-w-44 appearance-none cursor-pointer rounded-full border border-lilac/50 bg-lilac/60 py-2.5 pl-5 pr-10 font-hand text-base text-lilac-deep outline-none transition-colors hover:bg-lilac/80">
             <option value="All">All Statuses</option>
             <option value="Upcoming">Upcoming</option>
@@ -164,7 +181,7 @@ export function Bills() {
           <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-lilac-deep" strokeWidth={2} />
         </div>
         <div className="relative">
-          <select value={listCategoryFilter} onChange={(e) => setListCategoryFilter(e.target.value)}
+          <select value={listCategoryFilter} onChange={(e) => { setListCategoryFilter(e.target.value); setCurrentPage(1); }}
             className="min-w-44 appearance-none cursor-pointer rounded-full border border-mint/50 bg-mint/50 py-2.5 pl-5 pr-10 font-hand text-base text-mint-deep outline-none transition-colors hover:bg-mint/70">
             <option value="all">All Categories</option>
             {settings.categoryNames.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -172,7 +189,7 @@ export function Bills() {
           <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-mint-deep" strokeWidth={2} />
         </div>
         <div className="relative">
-          <select value={listMonthFilter} onChange={(e) => setListMonthFilter(e.target.value)}
+          <select value={listMonthFilter} onChange={(e) => { setListMonthFilter(e.target.value); setCurrentPage(1); }}
             className="min-w-44 appearance-none cursor-pointer rounded-full border border-blush/50 bg-blush/50 py-2.5 pl-5 pr-10 font-hand text-base text-blush-deep outline-none transition-colors hover:bg-blush/70">
             <option value="all">All Months</option>
             {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
@@ -193,7 +210,7 @@ export function Bills() {
         {filteredBills.length === 0 && (
           <div className="py-12 text-center font-hand text-sm text-ink-soft">No bills match your filters. ♡</div>
         )}
-        {filteredBills.map((b) => {
+        {visibleBills.map((b) => {
           const BillIcon = ICON_MAP[b.iconKey] ?? Wallet;
           const status = getBillStatus(b);
           const statusLabel = b.paid ? "Paid" : status === "overdue" ? "Overdue" : "Upcoming";
@@ -264,6 +281,56 @@ export function Bills() {
           );
         })}
       </div>
+
+      {filteredBills.length > 0 && (
+        <div className="paper-card mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] bg-white/80 px-4 py-3 sm:px-5">
+          <p className="font-hand text-sm text-ink-soft">
+            Showing <span className="font-bold text-lilac-deep">{pageStart}-{pageEnd}</span> of{" "}
+            <span className="font-bold text-blush-deep">{filteredBills.length}</span> bills
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={activePage === 1}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-lilac/60 text-lilac-deep transition-colors hover:bg-lilac disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+            </button>
+            {pageNumbers.map((page, idx) => {
+              const previousPage = pageNumbers[idx - 1];
+              const showGap = previousPage != null && page - previousPage > 1;
+              return (
+                <span key={page} className="flex items-center gap-2">
+                  {showGap && <span className="font-hand text-sm text-ink/35">...</span>}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`h-9 min-w-9 rounded-full px-3 font-hand text-sm transition-colors ${
+                      activePage === page
+                        ? "bg-lilac-deep/75 text-white shadow-sm"
+                        : "bg-blush/35 text-blush-deep hover:bg-blush/60"
+                    }`}
+                    aria-current={activePage === page ? "page" : undefined}
+                  >
+                    {page}
+                  </button>
+                </span>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+              disabled={activePage === pageCount}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-lilac/60 text-lilac-deep transition-colors hover:bg-lilac disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quote banner */}
       <footer className="paper-card relative mt-8 min-h-40 overflow-hidden rounded-[1.6rem] border-blush-deep/40 bg-blush/60 px-5 py-6 sm:px-9 sm:py-7 xl:min-h-45">

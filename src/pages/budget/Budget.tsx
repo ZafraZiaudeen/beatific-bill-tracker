@@ -27,7 +27,7 @@ export function Budget() {
   const budgetMonth = useUIStore((s) => s.budgetMonth);
   const setBudgetMonth = useUIStore((s) => s.setBudgetMonth);
 
-  const { monthBills, totalExpected, totalPaid, paidPct, getCatBills } = useBudget(budgetMonth);
+  const { totalExpected, totalPaid, paidPct, getCatBills } = useBudget(budgetMonth);
 
   const fmt = (n: number) => fmtCurrency(n, settings.currency, settings.currencyPosition);
 
@@ -108,7 +108,7 @@ export function Budget() {
               </span>
             </div>
           </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="themed-scrollbar max-h-[6rem] min-w-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
             {!hasBills && <p className="font-hand text-xs text-ink-soft">No bills<br />this month</p>}
             {catBillList.map((b, i) => (
               <div key={b.id} className="flex items-center gap-2">
@@ -122,6 +122,11 @@ export function Budget() {
         </div>
 
         <table className="w-full border-t border-ink/10 text-left">
+          <colgroup>
+            <col className="w-1/2" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+          </colgroup>
           <thead>
             <tr className="bg-ink/[0.03]">
               <th className="px-4 py-2 font-hand text-[0.65rem] uppercase tracking-widest text-ink-soft">Bill Name</th>
@@ -129,12 +134,20 @@ export function Budget() {
               <th className="px-4 py-2 text-right font-hand text-[0.65rem] uppercase tracking-widest text-ink-soft">Paid</th>
             </tr>
           </thead>
+        </table>
+        <div className="themed-scrollbar max-h-[8.25rem] overflow-y-auto">
+          <table className="w-full text-left">
+          <colgroup>
+            <col className="w-1/2" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+          </colgroup>
           <tbody>
             {!hasBills && (
               <tr><td colSpan={3} className="py-3 text-center font-hand text-xs text-ink-soft">No bills this month</td></tr>
             )}
             {catBillList.map((b) => (
-              <tr key={b.id} className="border-t border-ink/5">
+              <tr key={b.id} className="h-11 border-t border-ink/5">
                 <td className="px-4 py-2 font-script text-lg leading-tight">
                   {b.name}{b.type === "refund" && <span className="ml-1 text-xs text-mint-deep">(refund)</span>}
                 </td>
@@ -147,6 +160,14 @@ export function Budget() {
               </tr>
             ))}
           </tbody>
+          </table>
+        </div>
+        <table className="w-full text-left">
+          <colgroup>
+            <col className="w-1/2" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+          </colgroup>
           <tfoot>
             <tr className="border-t border-ink/15">
               <td className="px-4 py-2 font-hand text-[0.65rem] uppercase tracking-widest text-ink">Total</td>

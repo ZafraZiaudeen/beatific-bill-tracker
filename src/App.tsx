@@ -1,3 +1,4 @@
+import { Menu } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { Sidebar } from "@/components/common/Sidebar";
 import { AddBillDialog } from "@/components/common/dialogs/AddBillDialog";
@@ -11,9 +12,11 @@ import { Budget } from "@/pages/budget/Budget";
 import { Yearly } from "@/pages/yearly/Yearly";
 import { Backup } from "@/pages/backup/Backup";
 import { Settings } from "@/pages/settings/Settings";
+import { Management } from "@/pages/management/Management";
 
 export default function App() {
   const activeSection = useUIStore((s) => s.activeSection);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
   const page = (() => {
     switch (activeSection) {
@@ -24,12 +27,21 @@ export default function App() {
       case "Yearly Overview":  return <Yearly />;
       case "Backup":           return <Backup />;
       case "Settings":         return <Settings />;
+      case "Management":       return import.meta.env.VITE_CUSTOMER_BUILD === "true" ? <Dashboard /> : <Management />;
       default:                 return <Dashboard />;
     }
   })();
 
   return (
     <div className="flex h-screen overflow-hidden bg-paper font-sans text-ink">
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="fixed left-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-lilac-deep/80 text-white shadow-md transition-colors hover:bg-lilac-deep lg:hidden"
+        aria-label="Open navigation"
+      >
+        <Menu className="h-5 w-5" strokeWidth={1.8} />
+      </button>
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         {page}

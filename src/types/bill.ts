@@ -28,4 +28,5 @@ export type Section =
   | "Budget"
   | "Yearly Overview"
   | "Backup"
-  | "Settings";
+  | "Settings"
+  | "Management";

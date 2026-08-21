@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Download,
   Settings,
+  KeyRound,
 } from "lucide-react";
 import type { AppSettings, BillGroup } from "@/types/settings";
 import type { Bill, Section } from "@/types/bill";
@@ -133,7 +134,7 @@ export const DEFAULT_BILL_GROUPS: BillGroup[] = [
   { title: "Other", names: ["Credit Card", "Loan Payment"] },
 ];
 
-export const UNLOCK_CODE = "ui4GMBVpIDnv";
+export const UNLOCK_CODE_HASH = "22be9918546fc3d06fbc14b64abe36750ebc576ceeb5bb6b53a59eb21c60a1cd";
 
 export const FULL_CURRENCIES = [
   { symbol: "$", label: "US Dollar ($)" },
@@ -265,6 +266,9 @@ export const NAV_ITEMS: { label: Section; icon: LucideIcon }[] = [
   { label: "Yearly Overview", icon: TrendingUp },
   { label: "Backup", icon: Download },
   { label: "Settings", icon: Settings },
+  ...(import.meta.env.VITE_CUSTOMER_BUILD === "true"
+    ? []
+    : [{ label: "Management" as Section, icon: KeyRound }]),
 ];
 
 export const SEED_BILLS: Bill[] = [

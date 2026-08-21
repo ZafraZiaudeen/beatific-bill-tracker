@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AppSettings, BillGroup } from "@/types/settings";
-import { DEFAULT_SETTINGS, DEFAULT_BILL_GROUPS, UNLOCK_CODE } from "@/lib/constants";
+import { DEFAULT_SETTINGS, DEFAULT_BILL_GROUPS, UNLOCK_CODE_HASH } from "@/lib/constants";
+import { sha256, HASH_SALT } from "@/lib/crypto";
 
 interface SettingsStore {
   settings: AppSettings;
@@ -15,7 +16,7 @@ interface SettingsStore {
   setBillGroups: (g: BillGroup[] | ((prev: BillGroup[]) => BillGroup[])) => void;
   setBudgetLimit: (cat: string, limit: number) => void;
   setMonthlyNote: (key: string, text: string) => void;
-  tryUnlock: (code: string) => boolean;
+  tryUnlock: (code: string) => Promise<boolean>;
   resetToDefaults: () => void;
   importData: (raw: {
     settings?: Partial<AppSettings>;
@@ -93,8 +94,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
 
-  tryUnlock(code) {
-    if (code !== UNLOCK_CODE) return false;
+  async tryUnlock(code) {
+    const hash = await sha256(HASH_SALT + code);
+    const target =
+      (window as Window & { __PDJ_LICENSE_HASH__?: string }).__PDJ_LICENSE_HASH__
+      ?? UNLOCK_CODE_HASH;
+    if (hash !== target) return false;
     localStorage.setItem(LS.activated, "true");
     set({ activated: true });
     return true;

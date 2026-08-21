@@ -9,7 +9,7 @@ import {
   Plus,
   Wallet,
 } from "lucide-react";
-import { addMonths, format, isSameMonth, parseISO, startOfDay, startOfMonth, subMonths } from "date-fns";
+import { addMonths, format, isSameMonth, parseISO, startOfDay, subMonths } from "date-fns";
 import { useBillStore } from "@/stores/billStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -43,8 +43,6 @@ export function CalendarView() {
   const setCalendarMonth = useUIStore((s) => s.setCalendarMonth);
   const selectedDay = useUIStore((s) => s.selectedDay);
   const setSelectedDay = useUIStore((s) => s.setSelectedDay);
-  const calStatusFilter = useUIStore((s) => s.calStatusFilter);
-  const setCalStatusFilter = useUIStore((s) => s.setCalStatusFilter);
   const draggedBillId = useUIStore((s) => s.draggedBillId);
   const setDraggedBillId = useUIStore((s) => s.setDraggedBillId);
   const setAddOpen = useUIStore((s) => s.setAddOpen);

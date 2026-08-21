@@ -6,6 +6,9 @@ import type { BillFilter, Section } from "@/types/bill";
 interface UIStore {
   activeSection: Section;
   setActiveSection: (s: Section) => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
 
   // Modals
   addOpen: boolean;
@@ -26,7 +29,7 @@ interface UIStore {
   calendarMonth: Date;
   setCalendarMonth: (m: Date | ((prev: Date) => Date)) => void;
   selectedDay: number | null;
-  setSelectedDay: (d: number | null) => void;
+  setSelectedDay: (d: number | null | ((prev: number | null) => number | null)) => void;
   calStatusFilter: string;
   setCalStatusFilter: (f: string) => void;
   draggedBillId: string | null;
@@ -56,6 +59,9 @@ interface UIStore {
 export const useUIStore = create<UIStore>((set) => ({
   activeSection: "Dashboard",
   setActiveSection: (s) => set({ activeSection: s }),
+  sidebarOpen: false,
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
   addOpen: false,
   addDefaultCategory: "",
@@ -78,7 +84,10 @@ export const useUIStore = create<UIStore>((set) => ({
         typeof m === "function" ? m(s.calendarMonth) : m,
     })),
   selectedDay: null,
-  setSelectedDay: (d) => set({ selectedDay: d }),
+  setSelectedDay: (d) =>
+    set((s) => ({
+      selectedDay: typeof d === "function" ? d(s.selectedDay) : d,
+    })),
   calStatusFilter: "all",
   setCalStatusFilter: (f) => set({ calStatusFilter: f }),
   draggedBillId: null,

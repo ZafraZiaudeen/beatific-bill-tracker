@@ -15,8 +15,8 @@ export function UnlockModal() {
   const setShowUnlockModal = useUIStore((s) => s.setShowUnlockModal);
   const tryUnlock = useSettingsStore((s) => s.tryUnlock);
 
-  const handleSubmit = () => {
-    const ok = tryUnlock(code.trim());
+  const handleSubmit = async () => {
+    const ok = await tryUnlock(code.trim());
     if (!ok) setError("Invalid code. Please try again.");
     else setShowUnlockModal(false);
   };

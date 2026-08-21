@@ -148,6 +148,30 @@
   clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%);
 }
 
+.themed-scrollbar {
+  scrollbar-color: oklch(0.72 0.11 300 / 70%) oklch(0.945 0.028 300 / 35%);
+  scrollbar-width: thin;
+}
+
+.themed-scrollbar::-webkit-scrollbar {
+  height: 0.45rem;
+  width: 0.45rem;
+}
+
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: oklch(0.945 0.028 300 / 35%);
+  border-radius: 999px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.72 0.11 300 / 70%);
+  border-radius: 999px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.72 0.11 300 / 90%);
+}
+
 .bill-row {
   display: grid;
   grid-template-areas: "binding identity category amount status actions";

@@ -1,4 +1,4 @@
-import { Unlock } from "lucide-react";
+import { Unlock, X } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { NAV_ITEMS } from "@/lib/constants";
@@ -10,11 +10,13 @@ import washiImg from "@/assets/washi.png";
 export function Sidebar() {
   const activeSection = useUIStore((s) => s.activeSection);
   const setActiveSection = useUIStore((s) => s.setActiveSection);
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const setShowUnlockModal = useUIStore((s) => s.setShowUnlockModal);
   const activated = useSettingsStore((s) => s.activated);
 
-  return (
-    <aside className="hidden w-64 shrink-0 flex-col bg-lilac/70 px-5 py-8 lg:flex">
+  const renderContent = (closeOnNavigate = false) => (
+    <>
       <div className="relative px-2 text-center">
         <span className="absolute -left-1 top-2 text-lilac-deep">♡</span>
         <span className="absolute left-8 -top-2 text-lilac-deep">♡</span>
@@ -27,7 +29,7 @@ export function Sidebar() {
           height={512}
           className="absolute right-2 top-2 h-8 w-8 object-contain opacity-70"
         />
-        <h1 className="font-script text-4xl leading-tight">
+        <h1 className="font-script text-[2.35rem] leading-tight">
           Pastel
           <br />
           <span className="text-blush-deep">Dream</span>
@@ -40,12 +42,15 @@ export function Sidebar() {
         </p>
       </div>
 
-      <nav className="mt-8 space-y-1">
+      <nav className="mt-6 space-y-1">
         {NAV_ITEMS.map(({ label, icon: Icon }) => (
           <button
             key={label}
-            onClick={() => setActiveSection(label as Section)}
-            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 font-script text-xl transition-colors ${
+            onClick={() => {
+              setActiveSection(label as Section);
+              if (closeOnNavigate) setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 font-script text-[1.35rem] leading-tight transition-colors ${
               activeSection === label
                 ? "bg-lilac-deep/60 text-white shadow-sm"
                 : "text-ink hover:bg-white/40"
@@ -59,7 +64,10 @@ export function Sidebar() {
 
       {!activated && (
         <button
-          onClick={() => setShowUnlockModal(true)}
+          onClick={() => {
+            setShowUnlockModal(true);
+            if (closeOnNavigate) setSidebarOpen(false);
+          }}
           className="mt-4 flex w-full items-center gap-2 rounded-2xl border border-lilac-deep/30 bg-white/30 px-4 py-2.5 font-hand text-sm text-lilac-deep transition-colors hover:bg-white/50"
         >
           <Unlock className="h-4 w-4" strokeWidth={1.6} />
@@ -67,7 +75,7 @@ export function Sidebar() {
         </button>
       )}
 
-      <div className="relative mt-8 pt-10">
+      <div className="relative mt-6 pt-9">
         <img
           src={washiImg}
           alt=""
@@ -75,10 +83,10 @@ export function Sidebar() {
           loading="lazy"
           width={1600}
           height={320}
-          className="absolute left-1/2 top-5 h-9 w-36 -translate-x-1/2 -rotate-2 object-contain opacity-90"
+          className="absolute left-1/2 top-4 h-9 w-36 -translate-x-1/2 -rotate-2 object-contain opacity-90"
         />
-        <div className="relative rotate-[-1.5deg] rounded-sm bg-lilac/80 px-6 py-6 text-center shadow-sm">
-          <p className="font-script text-xl leading-relaxed">
+        <div className="relative rotate-[-1.5deg] rounded-sm bg-lilac/80 px-5 py-5 text-center shadow-sm">
+          <p className="font-script text-xl leading-snug">
             Small steps
             <br />
             big dreams
@@ -95,6 +103,40 @@ export function Sidebar() {
           />
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      <aside className="themed-scrollbar hidden h-screen w-64 shrink-0 flex-col overflow-y-auto bg-lilac/70 px-5 py-6 lg:flex">
+        {renderContent()}
+      </aside>
+
+      <div
+        className={`fixed inset-0 z-40 bg-ink/25 transition-opacity lg:hidden ${
+          sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
+      <aside
+        className={`themed-scrollbar fixed inset-y-0 left-0 z-50 flex w-[min(18rem,88vw)] flex-col overflow-y-auto bg-lilac/90 px-5 py-5 shadow-xl transition-transform duration-300 lg:hidden ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Navigation"
+        aria-hidden={!sidebarOpen}
+      >
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(false)}
+          className="mb-4 ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/65 text-ink-soft shadow-sm transition-colors hover:bg-white"
+          aria-label="Close navigation"
+        >
+          <X className="h-5 w-5" strokeWidth={1.8} />
+        </button>
+        {renderContent(true)}
+      </aside>
+    </>
   );
 }
