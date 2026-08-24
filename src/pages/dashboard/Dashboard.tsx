@@ -189,12 +189,15 @@ export function Dashboard() {
       {/* Middle section */}
       <section className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr_0.9fr]">
         {/* Upcoming Bills */}
-        <div className="paper-card relative rounded-3xl bg-white/85 py-6 pl-12 pr-6">
-          <div className="absolute left-5 top-8 flex flex-col gap-[1.625rem]">
+        <div className="notebook-paper-card relative flex h-full flex-col pt-3">
+          <Washi className="notebook-paper-tape absolute left-1/2 top-0 z-20 h-8 w-28 -translate-x-1/2" />
+          <div className="notebook-paper-sheet relative flex flex-1">
+          <div className="notebook-paper-binding flex w-11 shrink-0 flex-col items-center justify-evenly py-8">
             {Array.from({ length: 5 }).map((_, i) => (
-              <span key={i} className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+              <span key={i} className="notebook-paper-hole h-3.5 w-3.5 rounded-full" />
             ))}
           </div>
+          <div className="notebook-paper-body relative min-w-0 flex-1 py-7 pl-3 pr-6">
           <div className="flex items-end gap-3">
             <div className="relative -rotate-1 rounded-sm px-6 py-1.5">
               <p className="font-script text-2xl">Upcoming Bills ♡</p>
@@ -224,6 +227,8 @@ export function Dashboard() {
             View All Bills <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
           </button>
           <img src={sprig} alt="" loading="lazy" className="absolute -bottom-3 right-2 h-16 w-16 object-contain" />
+          </div>
+          </div>
         </div>
 
         {/* Calendar widget */}
