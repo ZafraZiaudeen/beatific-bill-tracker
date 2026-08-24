@@ -4,6 +4,7 @@ import {
   getDay,
   isBefore,
   parseISO,
+  startOfDay,
   startOfMonth,
   subMonths,
 } from "date-fns";
@@ -27,10 +28,9 @@ export function getBillDisplayAmount(bill: Bill): number {
   return bill.actualAmount ?? bill.amount;
 }
 
-export function getBillStatus(bill: Bill): BillStatus {
+export function getBillStatus(bill: Bill, referenceDate = new Date()): BillStatus {
   if (bill.paid) return "paid";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfDay(referenceDate);
   const due = parseLocalDate(getBillDisplayDate(bill));
   return due < today ? "overdue" : "upcoming";
 }

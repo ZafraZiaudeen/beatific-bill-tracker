@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Reset the controlled form from the selected record when opening. */
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -7,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { useIncomeStore } from "@/stores/incomeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
+import { toLocalDateString } from "@/lib/billUtils";
 import type { IncomeEntry } from "@/types/income";
 
 interface Props {
@@ -21,6 +24,7 @@ export function AddIncomeDialog({ open, onOpenChange, entry }: Props) {
   const addEntry = useIncomeStore((s) => s.addEntry);
   const updateEntry = useIncomeStore((s) => s.updateEntry);
   const settings = useSettingsStore((s) => s.settings);
+  const referenceDate = useUIStore((s) => s.referenceDate);
   const cur = settings.currency;
 
   const [form, setForm] = useState(EMPTY);
@@ -35,10 +39,10 @@ export function AddIncomeDialog({ open, onOpenChange, entry }: Props) {
           notes: entry.notes ?? "",
         });
       } else {
-        setForm({ ...EMPTY, date: new Date().toISOString().slice(0, 10) });
+        setForm({ ...EMPTY, date: toLocalDateString(referenceDate) });
       }
     }
-  }, [open, entry]);
+  }, [open, entry, referenceDate]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

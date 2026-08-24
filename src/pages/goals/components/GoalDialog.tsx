@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Reset the controlled form from the selected record when opening. */
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import {
@@ -6,6 +7,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useGoalStore } from "@/stores/goalStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import type { Goal, GoalColor, GoalPriority } from "@/types/goal";
 
 const ICONS: { key: string; Icon: React.ElementType }[] = [
@@ -58,6 +60,7 @@ export function GoalDialog({ open, onOpenChange, goal, onDeleteRequest }: Props)
   const addGoal    = useGoalStore((s) => s.addGoal);
   const updateGoal = useGoalStore((s) => s.updateGoal);
   const settings   = useSettingsStore((s) => s.settings);
+  const referenceDate = useUIStore((s) => s.referenceDate);
   const cur = settings.currency;
 
   const [form, setForm] = useState(EMPTY);
@@ -88,7 +91,7 @@ export function GoalDialog({ open, onOpenChange, goal, onDeleteRequest }: Props)
     const target = parseFloat(form.target);
     const monthlyContribution = parseFloat(form.monthlyContribution) || 0;
     if (!form.title.trim() || isNaN(target) || target <= 0) return;
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = format(referenceDate, "yyyy-MM-dd");
     if (goal) {
       updateGoal(goal.id, {
         title: form.title.trim(), description: form.description.trim(),

@@ -27,7 +27,7 @@ function persist(bills: Bill[]) {
   localStorage.setItem(LS_BILLS, JSON.stringify(bills));
 }
 
-export const useBillStore = create<BillStore>((set, get) => ({
+export const useBillStore = create<BillStore>((set) => ({
   bills: [],
   hydrated: false,
 

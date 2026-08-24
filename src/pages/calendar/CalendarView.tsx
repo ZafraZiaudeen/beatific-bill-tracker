@@ -2,14 +2,11 @@ import { useMemo } from "react";
 import {
   AlertCircle,
   CalendarDays,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Heart,
   Plus,
   Wallet,
 } from "lucide-react";
-import { addMonths, format, isSameMonth, parseISO, startOfDay, subMonths } from "date-fns";
+import { format, isSameMonth, parseISO, startOfDay } from "date-fns";
 import { useBillStore } from "@/stores/billStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -25,6 +22,7 @@ import { ICON_MAP } from "@/lib/constants";
 import { BillRow } from "@/components/common/BillRow";
 import { Washi } from "@/components/common/Washi";
 import type { Bill } from "@/types/bill";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import cloudImg from "@/assets/cloud (1).png";
 import sprig from "@/assets/doodle-sprig.png";
@@ -32,7 +30,6 @@ import flower from "@/assets/doodle-flower.png";
 import vase from "@/assets/doodle-vase.png";
 
 export function CalendarView() {
-  const today = useMemo(() => startOfDay(new Date()), []);
   const bills = useBillStore((s) => s.bills);
   const togglePaid = useBillStore((s) => s.togglePaid);
   const deleteBillById = useBillStore((s) => s.deleteBillById);
@@ -40,7 +37,9 @@ export function CalendarView() {
   const settings = useSettingsStore((s) => s.settings);
 
   const calendarMonth = useUIStore((s) => s.calendarMonth);
-  const setCalendarMonth = useUIStore((s) => s.setCalendarMonth);
+  const referenceDate = useUIStore((s) => s.referenceDate);
+  const setReferenceDate = useUIStore((s) => s.setReferenceDate);
+  const today = useMemo(() => startOfDay(referenceDate), [referenceDate]);
   const selectedDay = useUIStore((s) => s.selectedDay);
   const setSelectedDay = useUIStore((s) => s.setSelectedDay);
   const draggedBillId = useUIStore((s) => s.draggedBillId);
@@ -57,16 +56,19 @@ export function CalendarView() {
     const monthBills = bills.filter((b) => isSameMonth(parseISO(getBillDisplayDate(b)), calendarMonth));
     const monthUnpaid = monthBills.filter((b) => !b.paid);
     const monthPaid = monthBills.filter((b) => b.paid);
-    const monthOverdue = monthBills.filter((b) => getBillStatus(b) === "overdue");
+    const monthOverdue = monthBills.filter((b) => getBillStatus(b, referenceDate) === "overdue");
     return {
       total: { amount: Math.abs(sumBills(monthBills)), count: monthBills.length },
       due: { amount: Math.abs(sumBills(monthUnpaid)), count: monthUnpaid.length },
       paid: { amount: Math.abs(sumBills(monthPaid)), count: monthPaid.length },
       overdue: { amount: Math.abs(sumBills(monthOverdue)), count: monthOverdue.length },
     };
-  }, [bills, calendarMonth]);
+  }, [bills, calendarMonth, referenceDate]);
 
-  const overdueBills = useMemo(() => bills.filter((b) => getBillStatus(b) === "overdue"), [bills]);
+  const overdueBills = useMemo(
+    () => bills.filter((b) => getBillStatus(b, referenceDate) === "overdue"),
+    [bills, referenceDate],
+  );
 
   const handleDelete = (bill: Bill) => {
     if (bill.frequency !== "one-time") {
@@ -88,25 +90,7 @@ export function CalendarView() {
           Calendar <span className="text-blush-deep">♡</span>
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-1.5 rounded-full bg-white/85 px-4 py-2.5">
-            <CalendarDays className="h-5 w-5 text-lilac-deep" strokeWidth={1.6} />
-            <button
-              onClick={() => { setCalendarMonth((m) => subMonths(m, 1)); setSelectedDay(null); }}
-              className="rounded-full p-0.5 transition-colors hover:bg-ink/10"
-              aria-label="Previous month">
-              <ChevronLeft className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-            </button>
-            <span className="min-w-36 text-center font-script text-xl">
-              {format(calendarMonth, "MMMM yyyy")}
-            </span>
-            <button
-              onClick={() => { setCalendarMonth((m) => addMonths(m, 1)); setSelectedDay(null); }}
-              className="rounded-full p-0.5 transition-colors hover:bg-ink/10"
-              aria-label="Next month">
-              <ChevronRight className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-            </button>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <button onClick={() => setAddOpen(true)}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-lilac-deep/80 text-white shadow-sm transition-colors hover:bg-lilac-deep"
             aria-label="Add bill">
@@ -204,7 +188,12 @@ export function CalendarView() {
               : "";
             return (
               <div key={i}
-                onClick={() => !cell.muted && setSelectedDay((d) => d === cell.day ? null : cell.day)}
+                onClick={() => {
+                  if (!cell.muted) {
+                    setReferenceDate(parseISO(cellDateStr));
+                    setSelectedDay(cell.day);
+                  }
+                }}
                 onDoubleClick={() => {
                   if (!cell.muted) { setAddDefaultDate(cellDateStr); setAddOpen(true); }
                 }}
@@ -229,7 +218,7 @@ export function CalendarView() {
                 <div className="space-y-1">
                   {dayBills.map((b) => {
                     const BillIcon = ICON_MAP[b.iconKey] ?? Wallet;
-                    const status = getBillStatus(b);
+                    const status = getBillStatus(b, referenceDate);
                     return (
                       <div key={b.id}
                         draggable
@@ -312,16 +301,21 @@ export function CalendarView() {
         </div>
 
         {/* Quote */}
-        <div className="paper-card relative overflow-hidden rounded-3xl bg-blush/60 px-8 py-8">
-          <div className="flex items-center gap-4">
-            <span className="font-script text-6xl leading-none text-blush-deep">"</span>
-            <p className="font-script text-xl sm:text-3xl">
-              The secret of getting ahead is getting{" "}
-              <span className="underline decoration-ink/40 underline-offset-4">started</span>.
+        <div className="paper-card relative overflow-hidden rounded-3xl bg-blush/60 px-6 py-5 sm:px-8 sm:py-8 sm:pr-28 md:pr-32">
+          <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-4">
+            <span className="font-script text-4xl leading-none text-blush-deep sm:text-6xl">"</span>
+            <p className="min-w-0 flex-1 font-script text-xl leading-snug sm:text-3xl">
+              The secret of getting ahead is getting
+              <span className="block w-fit underline decoration-ink/40 underline-offset-4">started.</span>
             </p>
-            <Heart className="h-7 w-7 shrink-0 text-blush-deep" strokeWidth={1.4} />
+            <Heart className="mt-1 h-5 w-5 shrink-0 text-blush-deep sm:mt-0 sm:h-7 sm:w-7" strokeWidth={1.4} />
           </div>
-          <img src={vase} alt="" loading="lazy" className="absolute bottom-0 right-16 h-40 w-auto object-contain" />
+          <img
+            src={vase}
+            alt=""
+            loading="lazy"
+            className="pointer-events-none absolute bottom-1 right-3 hidden h-20 w-auto object-contain sm:block md:bottom-2 md:right-4 md:h-24"
+          />
         </div>
       </div>
     </main>

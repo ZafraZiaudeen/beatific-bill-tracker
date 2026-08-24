@@ -15,6 +15,7 @@ import {
 import { ChevronLeft, ChevronRight, Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useExpenseStore } from "@/stores/expenseStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import { EXPENSE_CATEGORIES, EXPENSE_ICON_MAP } from "@/lib/constants";
 import type { Expense } from "@/types/expense";
 
@@ -39,7 +40,9 @@ export function AllExpensesModal({ open, onOpenChange, onEdit, onDelete, onAdd }
   const expenses = useExpenseStore((s) => s.expenses);
   const settings = useSettingsStore((s) => s.settings);
 
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()));
+  const referenceDate = useUIStore((s) => s.referenceDate);
+  const setReferenceDate = useUIStore((s) => s.setReferenceDate);
+  const viewMonth = startOfMonth(referenceDate);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -93,14 +96,14 @@ export function AllExpensesModal({ open, onOpenChange, onEdit, onDelete, onAdd }
           {/* Month nav */}
           <div className="mb-3 flex items-center gap-2">
             <button
-              onClick={() => setViewMonth(startOfMonth(subMonths(viewMonth, 1)))}
+              onClick={() => setReferenceDate(subMonths(viewMonth, 1))}
               className="rounded-full border border-ink/15 bg-white/60 p-1.5 hover:bg-white/80"
             >
               <ChevronLeft className="h-3.5 w-3.5 text-ink-soft" strokeWidth={2} />
             </button>
             <span className="min-w-[110px] text-center font-hand text-sm font-bold text-ink">{monthLabel}</span>
             <button
-              onClick={() => setViewMonth(startOfMonth(addMonths(viewMonth, 1)))}
+              onClick={() => setReferenceDate(addMonths(viewMonth, 1))}
               className="rounded-full border border-ink/15 bg-white/60 p-1.5 hover:bg-white/80"
             >
               <ChevronRight className="h-3.5 w-3.5 text-ink-soft" strokeWidth={2} />

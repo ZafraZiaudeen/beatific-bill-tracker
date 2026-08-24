@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -28,6 +27,7 @@ import {
 } from "@/lib/billUtils";
 import { ICON_MAP, ICON_TINT_MAP } from "@/lib/constants";
 import type { Bill, BillFilter } from "@/types/bill";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import cloudImg from "@/assets/cloud (1).png";
 import sprig from "@/assets/doodle-sprig.png";
@@ -37,7 +37,6 @@ import springBinding from "@/assets/springFourX.png";
 const BILLS_PER_PAGE = 8;
 
 export function Bills() {
-  const today = useMemo(() => startOfDay(new Date()), []);
   const bills = useBillStore((s) => s.bills);
   const togglePaid = useBillStore((s) => s.togglePaid);
   const deleteBillById = useBillStore((s) => s.deleteBillById);
@@ -52,16 +51,20 @@ export function Bills() {
   const setAddOpen = useUIStore((s) => s.setAddOpen);
   const setEditingBill = useUIStore((s) => s.setEditingBill);
   const setDeleteTarget = useUIStore((s) => s.setDeleteTarget);
+  const referenceDate = useUIStore((s) => s.referenceDate);
+  const today = useMemo(() => startOfDay(referenceDate), [referenceDate]);
 
   const { filteredBills } = useBills();
   const [currentPage, setCurrentPage] = useState(1);
 
   const fmt = (n: number) => fmtCurrency(n, settings.currency, settings.currencyPosition);
 
-  const totalAmt = Math.abs(sumBills(bills));
-  const paidList = bills.filter((b) => b.paid);
-  const overList = bills.filter((b) => getBillStatus(b) === "overdue");
-  const unpaidList = bills.filter((b) => getBillStatus(b) === "upcoming");
+  const referenceMonthKey = format(referenceDate, "yyyy-MM");
+  const periodBills = bills.filter((b) => getBillDisplayDate(b).startsWith(referenceMonthKey));
+  const totalAmt = Math.abs(sumBills(periodBills));
+  const paidList = periodBills.filter((b) => b.paid);
+  const overList = periodBills.filter((b) => getBillStatus(b, referenceDate) === "overdue");
+  const unpaidList = periodBills.filter((b) => getBillStatus(b, referenceDate) === "upcoming");
   const pageCount = Math.max(1, Math.ceil(filteredBills.length / BILLS_PER_PAGE));
   const activePage = Math.min(currentPage, pageCount);
   const pageStart = filteredBills.length === 0 ? 0 : (activePage - 1) * BILLS_PER_PAGE + 1;
@@ -95,11 +98,7 @@ export function Bills() {
             className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12" />
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
-            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-lg sm:text-xl">{format(new Date(), "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden="true" loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -213,7 +212,7 @@ export function Bills() {
         {visibleBills.map((b) => {
           const BillIcon = ICON_MAP[b.iconKey] ?? Wallet;
           const iconTint = ICON_TINT_MAP[b.iconKey] ?? "bg-lilac/40 text-lilac-deep";
-          const status = getBillStatus(b);
+          const status = getBillStatus(b, referenceDate);
           const statusLabel = b.paid ? "Paid" : status === "overdue" ? "Overdue" : "Upcoming";
           const dueBadge = getDueBadge(b, today);
           const rowBg = b.paid ? "bg-mint/15" : status === "overdue" ? "bg-blush/10" : "bg-white/75";
@@ -335,7 +334,7 @@ export function Bills() {
 
       {/* Quote banner */}
       <footer className="paper-card relative mt-6 overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
-        <div className="relative z-10 flex items-center gap-2 pr-20 sm:gap-4 sm:pr-44">
+        <div className="relative z-10 flex items-center gap-2 pr-0 sm:gap-4 sm:pr-44">
           <span className="font-script text-5xl leading-none text-blush-deep/70 sm:text-6xl">"</span>
           <p className="font-script text-lg leading-snug sm:text-xl">
             The secret of getting ahead is getting{" "}
@@ -344,7 +343,7 @@ export function Bills() {
           <Heart className="h-5 w-5 shrink-0 -rotate-12 text-blush-deep/60" strokeWidth={1.4} />
         </div>
         <img src={vase} alt="" aria-hidden="true" loading="lazy"
-          className="absolute bottom-0 right-4 h-24 w-auto object-contain sm:right-8 sm:h-28" />
+          className="absolute bottom-0 right-4 hidden h-24 w-auto object-contain sm:right-8 sm:block sm:h-28" />
       </footer>
     </main>
   );

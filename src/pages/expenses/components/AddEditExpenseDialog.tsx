@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Reset the controlled form from the selected record when opening. */
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -7,8 +8,9 @@ import {
 } from "@/components/ui/dialog";
 import { EXPENSE_CATEGORIES, EXPENSE_ICON_MAP } from "@/lib/constants";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import type { Expense, ExpenseCategory } from "@/types/expense";
-import { format } from "date-fns";
+import { toLocalDateString } from "@/lib/billUtils";
 
 interface Props {
   open: boolean;
@@ -18,7 +20,7 @@ interface Props {
 }
 
 const EMPTY = {
-  date: format(new Date(), "yyyy-MM-dd"),
+  date: "",
   description: "",
   category: "Food & Drinks" as ExpenseCategory,
   iconKey: "Coffee",
@@ -33,6 +35,7 @@ function ExpIcon({ iconKey }: { iconKey: string }) {
 
 export function AddEditExpenseDialog({ open, onOpenChange, expense, onSave }: Props) {
   const settings = useSettingsStore((s) => s.settings);
+  const referenceDate = useUIStore((s) => s.referenceDate);
   const [form, setForm] = useState({ ...EMPTY });
 
   useEffect(() => {
@@ -47,10 +50,10 @@ export function AddEditExpenseDialog({ open, onOpenChange, expense, onSave }: Pr
           notes: expense.notes ?? "",
         });
       } else {
-        setForm({ ...EMPTY, date: format(new Date(), "yyyy-MM-dd") });
+        setForm({ ...EMPTY, date: toLocalDateString(referenceDate) });
       }
     }
-  }, [open, expense]);
+  }, [open, expense, referenceDate]);
 
   function handleCategoryChange(cat: ExpenseCategory) {
     const meta = EXPENSE_CATEGORIES.find((c) => c.label === cat);

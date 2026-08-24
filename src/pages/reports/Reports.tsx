@@ -12,15 +12,16 @@ import {
   LabelList,
 } from "recharts";
 import { format, subMonths, startOfMonth } from "date-fns";
-import { CalendarDays, ChevronDown, Heart, Wallet } from "lucide-react";
+import { Heart, Wallet } from "lucide-react";
 import { useBillStore } from "@/stores/billStore";
 import { useExpenseStore } from "@/stores/expenseStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useIncomeStore } from "@/stores/incomeStore";
+import { useUIStore } from "@/stores/uiStore";
 import { getBillDisplayDate, getBillDisplayAmount, fmtCurrency, sumBills } from "@/lib/billUtils";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import sprig from "@/assets/doodle-sprig.png";
-import vase from "@/assets/doodle-vase.png";
 import cloudImg from "@/assets/cloud (1).png";
 
 const CAT_COLORS = ["#9b7ecc", "#c97b7d", "#5aaa88", "#c5a44a", "#8ab0cc", "#b0c0a8"];
@@ -33,12 +34,19 @@ const TOOLTIP_STYLE = {
   background: "oklch(0.98 0.002 240)",
 };
 
+const toChartNumber = (value: unknown) => Number(value ?? 0);
+
+function loadReflection(key: string): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, string>; }
+  catch { return {}; }
+}
+
 export function Reports() {
   const bills = useBillStore((s) => s.bills);
   const expenses = useExpenseStore((s) => s.expenses);
   const settings = useSettingsStore((s) => s.settings);
 
-  const now = useMemo(() => new Date(), []);
+  const now = useUIStore((s) => s.referenceDate);
   const incomeEntries = useIncomeStore((s) => s.entries);
   const staticIncome = settings.monthlyIncome ?? 0;
   const cur = settings.currency;
@@ -49,12 +57,13 @@ export function Reports() {
 
   // Reflection notes — always current month
   const reflectionKey = `pdj-reports-reflection-${currentKey}`;
-  const [reflection, setReflection] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(reflectionKey) ?? "{}"); } catch { return {}; }
-  });
+  const [reflections, setReflections] = useState<Record<string, Record<string, string>>>(() => ({
+    [currentKey]: loadReflection(reflectionKey),
+  }));
+  const reflection = reflections[currentKey] ?? loadReflection(reflectionKey);
   function updateReflection(field: string, val: string) {
     const next = { ...reflection, [field]: val };
-    setReflection(next);
+    setReflections((current) => ({ ...current, [currentKey]: next }));
     localStorage.setItem(reflectionKey, JSON.stringify(next));
   }
 
@@ -114,11 +123,7 @@ export function Reports() {
             className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12" />
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
-            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-lg sm:text-xl">{format(now, "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -188,7 +193,7 @@ export function Reports() {
                   tick={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.55 0.01 240)" }}
                   tickFormatter={(v) => `${cur}${v >= 1000 ? `${Math.round(v / 1000)}k` : v}`} />
                 <Tooltip contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number, name: string) => [fmt(v), name === "income" ? "Income" : "Expenses"]} />
+                  formatter={(value, name) => [fmt(toChartNumber(value)), name === "income" ? "Income" : "Expenses"]} />
                 <Line type="monotone" dataKey="income" stroke="#5aaa88" strokeWidth={2}
                   dot={{ r: 4, fill: "#5aaa88", strokeWidth: 0 }} activeDot={{ r: 5 }} />
                 <Line type="monotone" dataKey="expenses" stroke="#c97b7d" strokeWidth={2}
@@ -216,7 +221,7 @@ export function Reports() {
                   tick={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.55 0.01 240)" }}
                   tickFormatter={(v) => `${v}%`} />
                 <Tooltip contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [`${v}%`, "Savings Rate"]} />
+                  formatter={(value) => [`${toChartNumber(value)}%`, "Savings Rate"]} />
                 <Line type="monotone" dataKey="savings" stroke="#9b7ecc" strokeWidth={2}
                   dot={{ r: 4, fill: "#9b7ecc", strokeWidth: 0 }} activeDot={{ r: 5 }} />
               </LineChart>
@@ -269,13 +274,13 @@ export function Reports() {
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={82}
                     tick={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.45 0.01 240)" }} />
                   <Tooltip contentStyle={TOOLTIP_STYLE}
-                    formatter={(v: number) => [fmt(v), "Amount"]} />
+                    formatter={(value) => [fmt(toChartNumber(value)), "Amount"]} />
                   <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                     {topCategories.map((_, i) => (
                       <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]!} fillOpacity={0.8} />
                     ))}
                     <LabelList dataKey="value" position="right"
-                      formatter={(v: number) => fmt(v)}
+                      formatter={(value) => fmt(toChartNumber(value))}
                       style={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.45 0.01 240)" }} />
                   </Bar>
                 </BarChart>

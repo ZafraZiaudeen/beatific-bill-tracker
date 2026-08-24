@@ -1,5 +1,5 @@
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
-import { addMonths, format, subMonths } from "date-fns";
+import { Wallet } from "lucide-react";
+import { format } from "date-fns";
 import {
   PieChart as RPieChart,
   Pie,
@@ -12,6 +12,7 @@ import { useBudget } from "@/hooks/useBudget";
 import { fmtCurrency, sumBills, getBillDisplayAmount } from "@/lib/billUtils";
 import { BUDGET_CAT_ICONS, BUDGET_CAT_BG, BUDGET_CHART_COLORS } from "@/lib/constants";
 import { Washi } from "@/components/common/Washi";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import cloudImg from "@/assets/cloud (1).png";
 import sprig from "@/assets/doodle-sprig.png";
@@ -25,7 +26,6 @@ export function Budget() {
   const setMonthlyNote = useSettingsStore((s) => s.setMonthlyNote);
 
   const budgetMonth = useUIStore((s) => s.budgetMonth);
-  const setBudgetMonth = useUIStore((s) => s.setBudgetMonth);
 
   const { totalExpected, totalPaid, paidPct, getCatBills } = useBudget(budgetMonth);
 
@@ -190,19 +190,7 @@ export function Budget() {
           <span className="text-xl">✨</span>
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-1.5 rounded-full bg-white/85 px-4 py-2.5">
-            <CalendarDays className="h-5 w-5 text-lilac-deep" strokeWidth={1.6} />
-            <button onClick={() => setBudgetMonth((m) => subMonths(m, 1))}
-              className="rounded-full p-0.5 transition-colors hover:bg-ink/10" aria-label="Previous month">
-              <ChevronLeft className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-            </button>
-            <span className="min-w-36 text-center font-script text-xl">{format(budgetMonth, "MMMM yyyy")}</span>
-            <button onClick={() => setBudgetMonth((m) => addMonths(m, 1))}
-              className="rounded-full p-0.5 transition-colors hover:bg-ink/10" aria-label="Next month">
-              <ChevronRight className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-            </button>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden="true" loading="lazy" className="h-7 w-7 object-contain opacity-80" />
           </div>
@@ -265,7 +253,7 @@ export function Budget() {
           className="relative mt-3 w-full resize-none bg-transparent font-hand text-sm text-ink outline-none placeholder:text-ink/30"
         />
         <img src={vase} alt="" aria-hidden="true" loading="lazy"
-          className="absolute bottom-0 right-24 h-32 w-auto object-contain opacity-80 sm:right-36 sm:h-40" />
+          className="absolute bottom-0 right-24 hidden h-32 w-auto object-contain opacity-80 sm:right-36 sm:block sm:h-40" />
         <img src={sprig} alt="" aria-hidden="true" loading="lazy"
           className="absolute -bottom-1 right-4 h-16 w-16 object-contain sm:right-8" />
       </div>

@@ -3,7 +3,6 @@ import {
   AlertCircle,
   ArrowRight,
   CalendarDays,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Heart,
@@ -21,6 +20,7 @@ import { useCalendar } from "@/hooks/useCalendar";
 import { getBillDisplayDate, getBillStatus, fmtCurrency, sumBills, tintToDot, getGreeting } from "@/lib/billUtils";
 import { BillRow } from "@/components/common/BillRow";
 import { Washi } from "@/components/common/Washi";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 import type { Bill } from "@/types/bill";
 
 import sprig from "@/assets/doodle-sprig.png";
@@ -42,6 +42,7 @@ export function Dashboard() {
   const setActiveSection = useUIStore((s) => s.setActiveSection);
   const setDeleteTarget = useUIStore((s) => s.setDeleteTarget);
   const setBillFilter = useUIStore((s) => s.setBillFilter);
+  const referenceDate = useUIStore((s) => s.referenceDate);
 
   const { sortedBills } = useBills();
   const { calendarCells, calendarMarks, calendarAgenda } = useCalendar();
@@ -51,30 +52,30 @@ export function Dashboard() {
   const incomeEntries = useIncomeStore((s) => s.entries);
 
   const stats = useMemo(() => {
-    const thisMonth = startOfMonth(new Date());
+    const thisMonth = startOfMonth(referenceDate);
     const thisMonthBills = bills.filter((b) => isSameMonth(parseISO(getBillDisplayDate(b)), thisMonth));
     const thisMonthUnpaid = thisMonthBills.filter((b) => !b.paid);
     const thisMonthPaid = thisMonthBills.filter((b) => b.paid);
-    const overdue = bills.filter((b) => getBillStatus(b) === "overdue");
+    const overdue = bills.filter((b) => getBillStatus(b, referenceDate) === "overdue");
     return {
-      total: { amount: Math.abs(sumBills(bills)), count: bills.length },
+      total: { amount: Math.abs(sumBills(thisMonthBills)), count: thisMonthBills.length },
       due: { amount: Math.abs(sumBills(thisMonthUnpaid)), count: thisMonthUnpaid.length },
       paid: { amount: Math.abs(sumBills(thisMonthPaid)), count: thisMonthPaid.length },
       overdue: { amount: Math.abs(sumBills(overdue)), count: overdue.length },
     };
-  }, [bills]);
+  }, [bills, referenceDate]);
 
   const income = useMemo(() => {
-    const key = format(startOfMonth(new Date()), "yyyy-MM");
+    const key = format(startOfMonth(referenceDate), "yyyy-MM");
     const fromEntries = incomeEntries.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
     return fromEntries > 0 ? fromEntries : (settings.monthlyIncome ?? 0);
-  }, [incomeEntries, settings.monthlyIncome]);
+  }, [incomeEntries, referenceDate, settings.monthlyIncome]);
   const expenses = stats.due.amount + stats.paid.amount;
   const remaining = income - expenses;
   const savingsPercent = income > 0 ? Math.max(0, Math.min(100, Math.round((remaining / income) * 100))) : 0;
   const actionBillList = useMemo(
-    () => sortedBills.filter((b) => getBillStatus(b) !== "paid"),
-    [sortedBills],
+    () => sortedBills.filter((b) => getBillStatus(b, referenceDate) !== "paid"),
+    [sortedBills, referenceDate],
   );
   const actionBills = actionBillList.slice(0, 5);
   const hiddenActionBillCount = Math.max(0, actionBillList.length - actionBills.length);
@@ -99,11 +100,7 @@ export function Dashboard() {
           <p className="mt-1 font-hand text-sm text-ink-soft">Here's your financial overview for today.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-3 rounded-full bg-white/85 px-5 py-3">
-            <CalendarDays className="h-5 w-5 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-xl">{format(new Date(), "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden="true" loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -329,16 +326,16 @@ export function Dashboard() {
       </section>
 
       {/* Quote banner */}
-      <section className="paper-card relative mt-6 overflow-hidden rounded-3xl bg-blush/60 px-8 py-8">
+      <section className="paper-card relative mt-6 overflow-hidden rounded-3xl bg-blush/60 px-6 py-5 sm:px-8 sm:py-8">
         <div className="flex items-center gap-4">
           <span className="font-script text-6xl leading-none text-blush-deep">"</span>
-          <p className="font-script text-3xl">
+          <p className="font-script text-xl sm:text-3xl">
             The secret of getting ahead is getting{" "}
             <span className="underline decoration-ink/40 underline-offset-4">started</span>.
           </p>
           <Heart className="h-7 w-7 text-blush-deep" strokeWidth={1.4} />
         </div>
-        <img src={vase} alt="" loading="lazy" className="absolute bottom-0 right-24 h-40 w-100 object-contain" />
+        <img src={vase} alt="" loading="lazy" className="absolute bottom-0 right-24 hidden h-40 w-100 object-contain sm:block" />
       </section>
     </main>
   );

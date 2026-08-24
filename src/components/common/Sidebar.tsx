@@ -14,6 +14,14 @@ export function Sidebar() {
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const setShowUnlockModal = useUIStore((s) => s.setShowUnlockModal);
   const activated = useSettingsStore((s) => s.activated);
+  const settings = useSettingsStore((s) => s.settings);
+
+  const visibleNavItems = NAV_ITEMS.filter(({ label }) => {
+    if (!settings.menuVisible && label !== "Dashboard" && label !== "Settings") return false;
+    if (!settings.quickStartVisible && label === "Startup Guide") return false;
+    if (!settings.contactVisible && label === "Contact") return false;
+    return true;
+  });
 
   const renderContent = (closeOnNavigate = false) => (
     <>
@@ -43,7 +51,7 @@ export function Sidebar() {
       </div>
 
       <nav className="mt-6 space-y-1">
-        {NAV_ITEMS.map(({ label, icon: Icon }) => (
+        {visibleNavItems.map(({ label, icon: Icon }) => (
           <button
             key={label}
             onClick={() => {
@@ -83,7 +91,7 @@ export function Sidebar() {
           loading="lazy"
           width={1600}
           height={320}
-          className="absolute left-1/2 top-4 h-9 w-36 -translate-x-1/2 -rotate-2 object-contain opacity-90"
+          className="absolute left-1/2 top-4 h-9 w-36 -translate-x-1/2 -rotate-2 object-contain opacity-100"
         />
         <div className="relative rotate-[-1.5deg] rounded-sm bg-lilac/80 px-5 py-5 text-center shadow-sm">
           <p className="font-script text-xl leading-snug">

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarDays, ChevronDown, Heart, Mail, ShoppingBag } from "lucide-react";
+import { Heart, Mail, ShoppingBag } from "lucide-react";
 import { Washi } from "@/components/common/Washi";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import flowerImg from "@/assets/doodle-flower.png";
 import vaseImg from "@/assets/doodle-vase.png";
@@ -62,7 +62,6 @@ function InlineField({ label, value, onChange, placeholder }: InlineFieldProps) 
 }
 
 export function Contact() {
-  const now = new Date();
   const [email, setEmail] = useState(() => load(EMAIL_KEY, "hello@pasteldreamjournal.com"));
   const [etsy,  setEtsy]  = useState(() => load(ETSY_KEY,  "etsy.com/shop/pasteldreamjournal"));
 
@@ -82,11 +81,7 @@ export function Contact() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
-            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-lg sm:text-xl">{format(now, "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blush shadow-sm">
             <img src={cloudImg} alt="" aria-hidden loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -143,7 +138,7 @@ export function Contact() {
             <div className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-5 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-8">
               <div className="relative flex h-16 w-16 items-center justify-center sm:h-20 sm:w-20">
                 <ShoppingBag className="h-12 w-12 text-ink sm:h-16 sm:w-16" strokeWidth={1.25} />
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center pt-3 font-script text-2xl text-ink sm:text-3xl">E</span>
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center pb-1 pt-3 font-script text-3xl leading-none text-ink sm:text-4xl">e</span>
                 <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-paper sm:right-1">
                   <Heart className="h-5 w-5 fill-blush text-blush-deep/75" strokeWidth={1.35} />
                 </span>

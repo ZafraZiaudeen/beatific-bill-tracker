@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Copy, Download, KeyRound, RefreshCw, Trash2, Terminal } from "lucide-react";
 import { sha256, HASH_SALT } from "@/lib/crypto";
 
@@ -34,7 +34,7 @@ async function buildProtectedHtml(hash: string): Promise<string> {
     );
   }
   const html = await res.text();
-  const hashScript = `<script>window.__PDJ_LICENSE_HASH__="${hash}";<\/script>`;
+  const hashScript = `<script>window.__PDJ_LICENSE_HASH__="${hash}";</script>`;
   return html.replace("</head>", `${hashScript}\n</head>`);
 }
 
@@ -57,9 +57,7 @@ export function Management() {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
-  const [registry, setRegistry] = useState<LicenseEntry[]>([]);
-
-  useEffect(() => { setRegistry(loadRegistry()); }, []);
+  const [registry, setRegistry] = useState<LicenseEntry[]>(loadRegistry);
 
   const handleAutoGenerate = () => {
     setCode(generateCode());

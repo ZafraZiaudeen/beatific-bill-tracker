@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Copy the selected bill into an editable draft when the dialog opens. */
 import { useEffect, useState } from "react";
 import {
   Dialog,

@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Menu } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { Sidebar } from "@/components/common/Sidebar";
 import { AddBillDialog } from "@/components/common/dialogs/AddBillDialog";
 import { RecurringEditDialog } from "@/components/common/dialogs/RecurringEditDialog";
@@ -23,7 +25,16 @@ import { Notes } from "@/pages/notes/Notes";
 
 export default function App() {
   const activeSection = useUIStore((s) => s.activeSection);
+  const setActiveSection = useUIStore((s) => s.setActiveSection);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const settings = useSettingsStore((s) => s.settings);
+
+  useEffect(() => {
+    const hiddenByMenu = !settings.menuVisible && activeSection !== "Dashboard" && activeSection !== "Settings";
+    const hiddenGuide = !settings.quickStartVisible && activeSection === "Startup Guide";
+    const hiddenContact = !settings.contactVisible && activeSection === "Contact";
+    if (hiddenByMenu || hiddenGuide || hiddenContact) setActiveSection("Dashboard");
+  }, [activeSection, setActiveSection, settings.contactVisible, settings.menuVisible, settings.quickStartVisible]);
 
   const page = (() => {
     switch (activeSection) {

@@ -1,4 +1,3 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   PieChart as RPieChart,
   Pie,
@@ -20,6 +19,7 @@ import {
   YEARLY_CAT_BAR_FILL,
 } from "@/lib/constants";
 import { Washi } from "@/components/common/Washi";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import cloudImg from "@/assets/cloud (1).png";
 import leaves from "@/assets/doodle-leaves.png";
@@ -32,10 +32,8 @@ export function Yearly() {
   const setMonthlyNote = useSettingsStore((s) => s.setMonthlyNote);
 
   const yearlyYear = useUIStore((s) => s.yearlyYear);
-  const setYearlyYear = useUIStore((s) => s.setYearlyYear);
 
   const {
-    yearBills,
     yearExpected,
     yearPaid,
     yearPct,
@@ -79,7 +77,7 @@ export function Yearly() {
             <XAxis dataKey="month" tick={{ fontSize: 7, fontFamily: "Kalam" }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <RTooltip
-              formatter={(v: number) => [fmt(v), "Expected"]}
+              formatter={(v: unknown) => [fmt(Number(v ?? 0)), "Expected"]}
               contentStyle={{ fontFamily: "Kalam", fontSize: 11, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.95)" }}
             />
             <Bar dataKey="expected" fill={barFill} radius={[3, 3, 0, 0]} barSize={8} />
@@ -190,17 +188,7 @@ export function Yearly() {
           <span className="text-xl">✨</span>
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-1.5 rounded-full bg-white/85 px-4 py-2.5">
-            <button onClick={() => setYearlyYear((y) => y - 1)}
-              className="rounded-full p-0.5 transition-colors hover:bg-ink/10" aria-label="Previous year">
-              <ChevronLeft className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-            </button>
-            <span className="min-w-16 text-center font-script text-xl">{yearlyYear}</span>
-            <button onClick={() => setYearlyYear((y) => y + 1)}
-              className="rounded-full p-0.5 transition-colors hover:bg-ink/10" aria-label="Next year">
-              <ChevronRight className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-            </button>
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden="true" loading="lazy" className="h-7 w-7 object-contain opacity-80" />
           </div>
@@ -246,7 +234,7 @@ export function Yearly() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="cat" width={96} tick={{ fontSize: 9, fontFamily: "Kalam" }} axisLine={false} tickLine={false} />
               <RTooltip
-                formatter={(v: number) => [fmt(v), "Expected"]}
+                formatter={(v: unknown) => [fmt(Number(v ?? 0)), "Expected"]}
                 contentStyle={{ fontFamily: "Kalam", fontSize: 11, borderRadius: 12, border: "none", background: "rgba(255,255,255,0.95)" }}
               />
               <Bar dataKey="expected" radius={[0, 3, 3, 0]} barSize={10}>
@@ -404,7 +392,7 @@ export function Yearly() {
           className="relative mt-3 w-full resize-none bg-transparent font-hand text-sm text-ink outline-none placeholder:text-ink/30"
         />
         <img src={vase} alt="" aria-hidden="true" loading="lazy"
-          className="absolute bottom-0 right-24 h-32 w-auto object-contain opacity-80 sm:right-36 sm:h-40" />
+          className="absolute bottom-0 right-24 hidden h-32 w-auto object-contain opacity-80 sm:right-36 sm:block sm:h-40" />
         <img src={sprig} alt="" aria-hidden="true" loading="lazy"
           className="absolute -bottom-1 right-4 h-16 w-16 object-contain sm:right-8" />
       </div>

@@ -27,10 +27,12 @@ import {
 } from "lucide-react";
 import { useExpenseStore } from "@/stores/expenseStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import { EXPENSE_CATEGORIES, EXPENSE_ICON_MAP } from "@/lib/constants";
 import type { Expense } from "@/types/expense";
 import { AddEditExpenseDialog } from "./components/AddEditExpenseDialog";
 import { AllExpensesModal } from "./components/AllExpensesModal";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 function fmt(amount: number, currency: string, pos: "before" | "after") {
   const s = amount.toFixed(2);
@@ -53,17 +55,21 @@ export function Expenses() {
   const deleteExpense = useExpenseStore((s) => s.deleteExpense);
   const settings = useSettingsStore((s) => s.settings);
 
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()));
+  const referenceDate = useUIStore((s) => s.referenceDate);
+  const setReferenceDate = useUIStore((s) => s.setReferenceDate);
+  const viewMonth = startOfMonth(referenceDate);
   const [addOpen, setAddOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [allOpen, setAllOpen] = useState(false);
-  const [notes, setNotes] = useState(() => {
-    const key = `pdj-expense-notes-${format(startOfMonth(new Date()), "yyyy-MM")}`;
-    return localStorage.getItem(key) ?? "";
+  const [notesByMonth, setNotesByMonth] = useState<Record<string, string>>(() => {
+    const key = `pdj-expense-notes-${format(startOfMonth(referenceDate), "yyyy-MM")}`;
+    return { [format(startOfMonth(referenceDate), "yyyy-MM")]: localStorage.getItem(key) ?? "" };
   });
 
   const monthKey = format(viewMonth, "yyyy-MM");
   const monthLabel = format(viewMonth, "MMMM yyyy");
+
+  const notes = notesByMonth[monthKey] ?? localStorage.getItem(`pdj-expense-notes-${monthKey}`) ?? "";
 
   const monthExpenses = useMemo(
     () => expenses.filter((e) => e.date.startsWith(monthKey)).sort((a, b) => b.date.localeCompare(a.date)),
@@ -94,11 +100,9 @@ export function Expenses() {
   );
 
   const avgPerDay = useMemo(() => {
-    const today = new Date();
-    const isCurrentMonth = format(today, "yyyy-MM") === monthKey;
-    const daysElapsed = isCurrentMonth ? Math.max(getDate(today), 1) : getDaysInMonth(viewMonth);
+    const daysElapsed = Math.min(Math.max(getDate(referenceDate), 1), getDaysInMonth(viewMonth));
     return totalExpenses / daysElapsed;
-  }, [totalExpenses, viewMonth, monthKey]);
+  }, [referenceDate, totalExpenses, viewMonth]);
 
   const highestDay = useMemo(() => {
     const byDay: Record<string, number> = {};
@@ -132,16 +136,14 @@ export function Expenses() {
   }
 
   function handleNotesChange(val: string) {
-    setNotes(val);
+    setNotesByMonth((current) => ({ ...current, [monthKey]: val }));
     const key = `pdj-expense-notes-${monthKey}`;
     localStorage.setItem(key, val);
   }
 
   function changeMonth(dir: 1 | -1) {
     const next = dir === 1 ? addMonths(viewMonth, 1) : subMonths(viewMonth, 1);
-    setViewMonth(startOfMonth(next));
-    const key = `pdj-expense-notes-${format(next, "yyyy-MM")}`;
-    setNotes(localStorage.getItem(key) ?? "");
+    setReferenceDate(next);
   }
 
   return (
@@ -157,13 +159,16 @@ export function Expenses() {
             <p className="mt-1 font-hand text-sm text-ink-soft">Track your daily & variable spending</p>
           </div>
         </div>
-        <button
-          onClick={() => { setEditingExpense(null); setAddOpen(true); }}
-          className="flex items-center gap-2 rounded-full bg-blush-deep/80 px-4 py-2.5 font-hand text-sm text-white transition-colors hover:bg-blush-deep"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2} />
-          Add Expense
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <HeaderDatePicker />
+          <button
+            onClick={() => { setEditingExpense(null); setAddOpen(true); }}
+            className="flex items-center gap-2 rounded-full bg-blush-deep/80 px-4 py-2.5 font-hand text-sm text-white transition-colors hover:bg-blush-deep"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Add Expense
+          </button>
+        </div>
       </header>
 
       {/* Total Variable Expenses card */}
@@ -325,7 +330,7 @@ export function Expenses() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(v: number) => [fmt(v, cur, curPos), ""]}
+                        formatter={(v: unknown) => [fmt(Number(v ?? 0), cur, curPos), ""]}
                         contentStyle={{ fontFamily: "inherit", fontSize: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.1)" }}
                       />
                     </RPieChart>

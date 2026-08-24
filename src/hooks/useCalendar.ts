@@ -15,6 +15,7 @@ export function useCalendar() {
   const calendarMonth = useUIStore((s) => s.calendarMonth);
   const calStatusFilter = useUIStore((s) => s.calStatusFilter);
   const selectedDay = useUIStore((s) => s.selectedDay);
+  const referenceDate = useUIStore((s) => s.referenceDate);
 
   const calendarCells = useMemo(
     () => buildCalendarCells(calendarMonth),
@@ -49,7 +50,7 @@ export function useCalendar() {
     const map: Record<number, Bill[]> = {};
     calendarAgenda.forEach((b) => {
       if (calStatusFilter !== "all") {
-        const status = getBillStatus(b);
+        const status = getBillStatus(b, referenceDate);
         if (calStatusFilter === "paid" && !b.paid) return;
         if (calStatusFilter === "upcoming" && status !== "upcoming") return;
         if (calStatusFilter === "overdue" && status !== "overdue") return;
@@ -63,7 +64,7 @@ export function useCalendar() {
       }
     });
     return map;
-  }, [calendarAgenda, calStatusFilter, calendarMonth]);
+  }, [calendarAgenda, calStatusFilter, calendarMonth, referenceDate]);
 
   const selectedDayBills: Bill[] = useMemo(() => {
     if (!selectedDay) return [];

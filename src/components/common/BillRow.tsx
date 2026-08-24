@@ -9,6 +9,7 @@ import {
   fmtCurrency,
 } from "@/lib/billUtils";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import { startOfDay } from "date-fns";
 
 interface BillRowProps {
@@ -19,7 +20,7 @@ interface BillRowProps {
 
 export function BillRow({ bill, onTogglePaid, onDelete }: BillRowProps) {
   const settings = useSettingsStore((s) => s.settings);
-  const today = startOfDay(new Date());
+  const today = startOfDay(useUIStore((s) => s.referenceDate));
   const BillIcon = ICON_MAP[bill.iconKey] ?? Wallet;
   const status = getBillStatusLabel(bill, today);
   const dueBadge = getDueBadge(bill, today);

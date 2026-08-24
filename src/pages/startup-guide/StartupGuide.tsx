@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { ArrowRight, CalendarDays, ChevronDown, Heart } from "lucide-react";
+import { ArrowRight, Heart } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import type { Section } from "@/types/bill";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
+import { Washi } from "@/components/common/Washi";
 
-import sprig from "@/assets/doodle-sprig.png";
 import flowerImg from "@/assets/doodle-flower.png";
 import cloudImg from "@/assets/cloud (1).png";
+import plantWatering from "@/assets/plant-watering.png";
 
 const GUIDE_KEY = "pdj-guide-steps";
 
@@ -66,7 +67,6 @@ function loadSteps(): boolean[] {
 
 export function StartupGuide() {
   const setActiveSection = useUIStore((s) => s.setActiveSection);
-  const now = new Date();
 
   const [completed, setCompleted] = useState<boolean[]>(loadSteps);
 
@@ -95,11 +95,7 @@ export function StartupGuide() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
-            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-lg sm:text-xl">{format(now, "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -126,28 +122,30 @@ export function StartupGuide() {
       </div>
 
       {/* Two-column */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_480px] lg:items-start">
         {/* LEFT — Notebook step card */}
-        <div className="paper-card relative flex overflow-hidden rounded-3xl bg-white/85">
-          {/* Spring holes */}
-          <div className="flex shrink-0 flex-col items-center gap-3 bg-ink/4 px-2.5 py-6 pt-8">
+        <div className="notebook-paper-card relative self-start pt-3">
+          <Washi className="notebook-paper-tape absolute left-1/2 top-0 z-20 h-9 w-32 -translate-x-1/2 -rotate-2" />
+          <div className="notebook-paper-sheet relative flex min-h-[27rem] overflow-hidden">
+          {/* Punched notebook holes */}
+          <div className="notebook-paper-binding flex w-11 shrink-0 flex-col items-center justify-evenly py-8 sm:w-12">
             {[0,1,2,3,4,5,6,7].map((i) => (
-              <span key={i} className="block h-2.5 w-2.5 rounded-full border border-ink/20 bg-paper" />
+              <span key={i} className="notebook-paper-hole block h-3.5 w-3.5 rounded-full sm:h-4 sm:w-4" />
             ))}
           </div>
 
-          {/* Body */}
-          <div className="relative min-w-0 flex-1 px-6 py-5">
+          {/* Ruled paper body */}
+          <div className="notebook-paper-body relative min-w-0 flex-1 pb-7 pl-3 pr-5 pt-8 sm:pl-4 sm:pr-7">
             {/* Step card header */}
-            <div className="mb-3 inline-flex items-center rounded-full bg-lilac/40 px-4 py-1.5">
-              <span className="font-script text-lg text-lilac-deep">Your first little steps ♡</span>
+            <div className="relative z-10 mb-3 flex justify-center">
+              <span className="rounded-full bg-lilac/35 px-5 py-1.5 font-script text-xl text-lilac-deep shadow-sm">Your first little steps ♡</span>
             </div>
-            <div className="dashed-rule mb-4" />
+            <div className="relative z-10 dashed-rule mb-2" />
 
             {/* Steps */}
-            <div className="space-y-0">
+            <div className="relative z-10 space-y-0">
               {STEPS.map((step, i) => (
-                <div key={i} className="flex items-start gap-3 border-b border-ink/8 py-3 last:border-b-0">
+                <div key={i} className="flex items-start gap-3 border-b border-dashed border-ink/12 py-2.5 last:border-b-0">
                   {/* Number circle */}
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${step.color}`}>
                     <span className="font-hand text-sm font-bold text-white">{i + 1}</span>
@@ -164,7 +162,7 @@ export function StartupGuide() {
                     aria-label={completed[i] ? "Mark incomplete" : "Mark complete"}
                   >
                     <span className={`block h-5 w-5 rounded-full border-2 transition-colors ${
-                      completed[i] ? step.checkColor : "border-ink/30 bg-white"
+                      completed[i] ? step.checkColor : "border-ink/30 bg-paper/80"
                     }`} />
                   </button>
                 </div>
@@ -172,7 +170,7 @@ export function StartupGuide() {
             </div>
 
             {/* "Open next step" button */}
-            <div className="mt-5 text-center">
+            <div className="relative z-10 mt-4 text-center">
               <button
                 onClick={openNextStep}
                 className="inline-flex items-center gap-2 rounded-full bg-lilac-deep/80 px-6 py-2.5 font-hand text-sm text-white hover:bg-lilac-deep"
@@ -181,20 +179,19 @@ export function StartupGuide() {
               </button>
             </div>
 
-            {/* Mint washi tape bottom-left */}
-            <div className="absolute bottom-0 left-0 h-4 w-28 rounded-tr-sm bg-mint/50 opacity-70" />
             {/* Flower doodle */}
             <img src={flowerImg} alt="" aria-hidden loading="lazy"
-              className="pointer-events-none absolute bottom-4 left-8 h-14 w-14 object-contain opacity-40" />
+              className="pointer-events-none absolute bottom-3 right-3 hidden h-14 w-14 object-contain opacity-35 sm:block" />
+          </div>
           </div>
         </div>
 
         {/* RIGHT — Mint sticky note */}
-        <div className="paper-card relative overflow-hidden rounded-3xl bg-mint/15 px-6 py-7">
+        <div className="paper-card relative flex self-start flex-col overflow-hidden rounded-3xl bg-mint/15 px-6 py-5">
           {/* Washi tape top-center */}
           <div className="absolute left-1/2 top-0 h-4 w-20 -translate-x-1/2 rounded-b-sm bg-mint/60 opacity-80" />
 
-          <div className="mt-4 flex flex-col items-start gap-3">
+          <div className="mt-2 flex flex-col items-start gap-3">
             <Heart className="h-6 w-6 text-mint-deep/60" strokeWidth={1.4} />
             <p className="font-script text-2xl text-mint-deep underline decoration-mint-deep/40 underline-offset-4">
               A gentle beginning ♡
@@ -206,10 +203,15 @@ export function StartupGuide() {
           </div>
 
           {/* Bottom decorations */}
-          <div className="mt-8 flex items-end justify-between">
+          <div className="mt-6 flex items-end justify-between gap-3 pt-4">
             <Heart className="h-6 w-6 text-blush-deep/40" strokeWidth={1.2} />
-            <img src={sprig} alt="" aria-hidden loading="lazy"
-              className="h-14 w-14 object-contain opacity-50" />
+            <img
+              src={plantWatering}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              className="h-44 min-w-0 flex-[1.35] object-contain object-bottom opacity-75 sm:h-52 lg:h-64 xl:h-72"
+            />
           </div>
         </div>
       </div>

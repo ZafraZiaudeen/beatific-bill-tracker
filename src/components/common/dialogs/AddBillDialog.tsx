@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Reset the draft only when this controlled dialog opens. */
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -11,7 +12,7 @@ import {
   ICON_OPTIONS,
   TINT_OPTIONS,
 } from "@/lib/constants";
-import { generateRecurringBills } from "@/lib/billUtils";
+import { generateRecurringBills, toLocalDateString } from "@/lib/billUtils";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useBillStore } from "@/stores/billStore";
@@ -40,6 +41,7 @@ export function AddBillDialog() {
   const setAddOpen = useUIStore((s) => s.setAddOpen);
   const addDefaultCategory = useUIStore((s) => s.addDefaultCategory);
   const addDefaultDate = useUIStore((s) => s.addDefaultDate);
+  const referenceDate = useUIStore((s) => s.referenceDate);
   const setShowUnlockModal = useUIStore((s) => s.setShowUnlockModal);
 
   const settings = useSettingsStore((s) => s.settings);
@@ -56,13 +58,13 @@ export function AddBillDialog() {
       setForm({
         ...EMPTY_FORM,
         category: addDefaultCategory,
-        dueDate: addDefaultDate,
+        dueDate: addDefaultDate || toLocalDateString(referenceDate),
         tint: addDefaultCategory
           ? (CATEGORY_TINT[addDefaultCategory] ?? TINT_OPTIONS[0]!.value)
           : TINT_OPTIONS[0]!.value,
       });
     }
-  }, [addOpen, addDefaultCategory, addDefaultDate]);
+  }, [addOpen, addDefaultCategory, addDefaultDate, referenceDate]);
 
   const selectClass =
     "w-full rounded-2xl border border-ink/15 bg-white/70 px-3 py-2.5 font-hand text-sm text-ink outline-none focus:border-lilac-deep/40";

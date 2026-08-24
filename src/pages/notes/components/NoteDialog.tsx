@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Reset the controlled form from the selected record when opening. */
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Heart, Bell, Star, Pencil } from "lucide-react";
@@ -8,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useNoteStore } from "@/stores/noteStore";
+import { useUIStore } from "@/stores/uiStore";
 import type { Note, NoteType } from "@/types/note";
 
 import sprig from "@/assets/doodle-sprig.png";
@@ -41,9 +43,10 @@ const labelClass = "font-hand text-[0.65rem] uppercase tracking-widest text-ink-
 export function NoteDialog({ open, onOpenChange, note, onDeleteRequest }: Props) {
   const addNote = useNoteStore((s) => s.addNote);
   const updateNote = useNoteStore((s) => s.updateNote);
+  const referenceDate = useUIStore((s) => s.referenceDate);
 
   const [form, setForm] = useState(EMPTY);
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = format(referenceDate, "yyyy-MM-dd");
 
   useEffect(() => {
     if (open) {
@@ -135,7 +138,7 @@ export function NoteDialog({ open, onOpenChange, note, onDeleteRequest }: Props)
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className={labelClass.replace("mb-1.5 block", "")}>Title</span>
-                <span className="font-hand text-[0.6rem] text-ink-soft">{format(new Date(), "MMM d, yyyy")}</span>
+                <span className="font-hand text-[0.6rem] text-ink-soft">{format(referenceDate, "MMM d, yyyy")}</span>
               </div>
               <input
                 type="text"

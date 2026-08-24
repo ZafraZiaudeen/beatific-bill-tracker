@@ -11,6 +11,7 @@ export function useBills() {
   const listYearFilter = useUIStore((s) => s.listYearFilter);
   const listPriorityFilter = useUIStore((s) => s.listPriorityFilter);
   const listCategoryFilter = useUIStore((s) => s.listCategoryFilter);
+  const referenceDate = useUIStore((s) => s.referenceDate);
 
   const sortedBills = useMemo(() => sortBills(bills), [bills]);
 
@@ -20,7 +21,7 @@ export function useBills() {
       if (billFilter === "Paid") result = result.filter((b) => b.paid);
       else {
         const target = billFilter.toLowerCase() as "upcoming" | "overdue";
-        result = result.filter((b) => getBillStatus(b) === target);
+        result = result.filter((b) => getBillStatus(b, referenceDate) === target);
       }
     }
     if (listMonthFilter !== "all") {
@@ -51,6 +52,7 @@ export function useBills() {
     listYearFilter,
     listPriorityFilter,
     listCategoryFilter,
+    referenceDate,
   ]);
 
   const uniqueSeriesCount = useMemo(

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { startOfMonth } from "date-fns";
+import { getDaysInMonth, startOfDay, startOfMonth } from "date-fns";
 import type { Bill } from "@/types/bill";
 import type { BillFilter, Section } from "@/types/bill";
 
@@ -9,6 +9,10 @@ interface UIStore {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
+
+  // App-wide date used by all date-aware views and new-entry defaults.
+  referenceDate: Date;
+  setReferenceDate: (date: Date | ((prev: Date) => Date)) => void;
 
   // Modals
   addOpen: boolean;
@@ -56,12 +60,38 @@ interface UIStore {
   setListCategoryFilter: (f: string) => void;
 }
 
+function dateInMonth(reference: Date, month: Date): Date {
+  return startOfDay(new Date(
+    month.getFullYear(),
+    month.getMonth(),
+    Math.min(reference.getDate(), getDaysInMonth(month)),
+  ));
+}
+
+function syncedDateState(date: Date) {
+  const referenceDate = startOfDay(date);
+  return {
+    referenceDate,
+    calendarMonth: startOfMonth(referenceDate),
+    budgetMonth: startOfMonth(referenceDate),
+    yearlyYear: referenceDate.getFullYear(),
+    selectedDay: referenceDate.getDate(),
+    addDefaultDate: `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${String(referenceDate.getDate()).padStart(2, "0")}`,
+    listMonthFilter: String(referenceDate.getMonth() + 1),
+    listYearFilter: String(referenceDate.getFullYear()),
+  };
+}
+
 export const useUIStore = create<UIStore>((set) => ({
   activeSection: "Dashboard",
   setActiveSection: (s) => set({ activeSection: s }),
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+
+  referenceDate: startOfDay(new Date()),
+  setReferenceDate: (date) =>
+    set((s) => syncedDateState(typeof date === "function" ? date(s.referenceDate) : date)),
 
   addOpen: false,
   addDefaultCategory: "",
@@ -79,10 +109,10 @@ export const useUIStore = create<UIStore>((set) => ({
 
   calendarMonth: startOfMonth(new Date()),
   setCalendarMonth: (m) =>
-    set((s) => ({
-      calendarMonth:
-        typeof m === "function" ? m(s.calendarMonth) : m,
-    })),
+    set((s) => {
+      const month = typeof m === "function" ? m(s.calendarMonth) : m;
+      return syncedDateState(dateInMonth(s.referenceDate, month));
+    }),
   selectedDay: null,
   setSelectedDay: (d) =>
     set((s) => ({
@@ -95,16 +125,22 @@ export const useUIStore = create<UIStore>((set) => ({
 
   budgetMonth: startOfMonth(new Date()),
   setBudgetMonth: (m) =>
-    set((s) => ({
-      budgetMonth:
-        typeof m === "function" ? m(s.budgetMonth) : m,
-    })),
+    set((s) => {
+      const month = typeof m === "function" ? m(s.budgetMonth) : m;
+      return syncedDateState(dateInMonth(s.referenceDate, month));
+    }),
 
   yearlyYear: new Date().getFullYear(),
   setYearlyYear: (y) =>
-    set((s) => ({
-      yearlyYear: typeof y === "function" ? y(s.yearlyYear) : y,
-    })),
+    set((s) => {
+      const year = typeof y === "function" ? y(s.yearlyYear) : y;
+      const next = new Date(
+        year,
+        s.referenceDate.getMonth(),
+        Math.min(s.referenceDate.getDate(), getDaysInMonth(new Date(year, s.referenceDate.getMonth()))),
+      );
+      return syncedDateState(next);
+    }),
 
   billFilter: "All",
   setBillFilter: (f) => set({ billFilter: f }),

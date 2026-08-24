@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- shadcn exports the component and its variant helper together. */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"

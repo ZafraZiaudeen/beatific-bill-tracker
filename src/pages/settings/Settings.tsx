@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import { FULL_CURRENCIES } from "@/lib/constants";
 
 import sprig from "@/assets/doodle-sprig.png";
@@ -31,6 +32,8 @@ export function Settings() {
   const billGroups = useSettingsStore((s) => s.billGroups);
   const setSettings = useSettingsStore((s) => s.setSettings);
   const setBillGroups = useSettingsStore((s) => s.setBillGroups);
+  const activeSection = useUIStore((s) => s.activeSection);
+  const setActiveSection = useUIStore((s) => s.setActiveSection);
 
   const sSelectClass = "w-full rounded-2xl border border-ink/15 bg-white/70 px-3 py-2.5 font-hand text-sm text-ink outline-none focus:border-lilac-deep/40 appearance-none cursor-pointer";
   const sLabelClass = "font-hand text-[0.65rem] uppercase tracking-widest text-ink-soft mb-1.5 flex items-center gap-1.5";
@@ -55,7 +58,7 @@ export function Settings() {
         <p className="relative font-hand text-base italic text-ink sm:text-lg">
           Customize your budget and app experience to fit your dreamy life. ♡
         </p>
-        <img src={vase} alt="" aria-hidden className="absolute bottom-0 right-24 h-24 w-auto object-contain opacity-70 sm:right-32" />
+        <img src={vase} alt="" aria-hidden className="absolute bottom-0 right-24 hidden h-24 w-auto object-contain opacity-70 sm:right-32 sm:block" />
         <img src={flower} alt="" aria-hidden className="absolute right-8 top-4 h-8 w-8 object-contain opacity-60" />
       </div>
 
@@ -235,9 +238,20 @@ export function Settings() {
             <div key={key} className="flex items-center justify-between py-3">
               <span className="font-hand text-sm text-ink">{label}</span>
               <div className="flex items-center gap-3">
-                <span className={`font-hand text-sm ${settings[key] ? "text-ink" : "text-ink/40"}`}>Visible</span>
+                <span className={`font-hand text-sm ${settings[key] ? "text-ink" : "text-ink/40"}`}>
+                  {settings[key] ? "Visible" : "Hidden"}
+                </span>
                 <button
-                  onClick={() => setSettings((s) => ({ ...s, [key]: !s[key] }))}
+                  onClick={() => {
+                    const nextVisible = !settings[key];
+                    setSettings((s) => ({ ...s, [key]: nextVisible }));
+                    if (!nextVisible) {
+                      const hiddenByMenu = key === "menuVisible" && activeSection !== "Dashboard" && activeSection !== "Settings";
+                      const hiddenGuide = key === "quickStartVisible" && activeSection === "Startup Guide";
+                      const hiddenContact = key === "contactVisible" && activeSection === "Contact";
+                      if (hiddenByMenu || hiddenGuide || hiddenContact) setActiveSection("Dashboard");
+                    }
+                  }}
                   className={`font-hand text-sm underline transition-colors ${settings[key] ? "text-blush-deep hover:text-blush-deep/70" : "text-mint-deep hover:text-mint-deep/70"}`}>
                   {settings[key] ? "Hide" : "Show"}
                 </button>

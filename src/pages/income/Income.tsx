@@ -9,8 +9,6 @@ import {
 } from "recharts";
 import { format, subMonths, startOfMonth, parseISO } from "date-fns";
 import {
-  CalendarDays,
-  ChevronDown,
   Heart,
   Pencil,
   PiggyBank,
@@ -24,9 +22,11 @@ import { useIncomeStore } from "@/stores/incomeStore";
 import { useBillStore } from "@/stores/billStore";
 import { useExpenseStore } from "@/stores/expenseStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUIStore } from "@/stores/uiStore";
 import { getBillDisplayDate, fmtCurrency, sumBills } from "@/lib/billUtils";
 import { AddIncomeDialog } from "@/pages/income/components/AddIncomeDialog";
 import type { IncomeEntry } from "@/types/income";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import sprig from "@/assets/doodle-sprig.png";
 import vase from "@/assets/doodle-vase.png";
@@ -48,7 +48,7 @@ export function Income() {
   const expenses = useExpenseStore((s) => s.expenses);
   const settings = useSettingsStore((s) => s.settings);
 
-  const now = useMemo(() => new Date(), []);
+  const now = useUIStore((s) => s.referenceDate);
   const cur = settings.currency;
   const curPos = settings.currencyPosition as "before" | "after";
   const fmt = (n: number) => fmtCurrency(n, cur, curPos);
@@ -98,11 +98,7 @@ export function Income() {
             className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12" />
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
-            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-lg sm:text-xl">{format(now, "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -327,7 +323,7 @@ export function Income() {
                     tick={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.55 0.01 240)" }}
                     tickFormatter={(v) => `${v}%`} />
                   <Tooltip contentStyle={TOOLTIP_STYLE}
-                    formatter={(v: number) => [`${v}%`, "Savings Rate"]} />
+                    formatter={(v: unknown) => [`${Number(v ?? 0)}%`, "Savings Rate"]} />
                   <Line type="monotone" dataKey="rate" stroke="#9b7ecc" strokeWidth={2}
                     strokeDasharray={hasAnyIncome ? undefined : "4 4"}
                     dot={{ r: hasAnyIncome ? 4 : 3, fill: "#9b7ecc", strokeWidth: 0 }}
@@ -357,7 +353,7 @@ export function Income() {
 
       {/* Footer quote banner */}
       <footer className="paper-card relative mt-6 overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
-        <div className="relative z-10 flex items-center gap-2 pr-20 sm:gap-4 sm:pr-44">
+        <div className="relative z-10 flex items-center gap-2 pr-0 sm:gap-4 sm:pr-44">
           <span className="font-script text-5xl leading-none text-blush-deep/70 sm:text-6xl">"</span>
           <p className="font-script text-lg leading-snug sm:text-xl">
             The secret of getting ahead is getting{" "}
@@ -366,7 +362,7 @@ export function Income() {
           <Heart className="h-5 w-5 shrink-0 -rotate-12 text-blush-deep/60" strokeWidth={1.4} />
         </div>
         <img src={vase} alt="" aria-hidden loading="lazy"
-          className="absolute bottom-0 right-4 h-24 w-auto object-contain sm:right-8 sm:h-28" />
+          className="absolute bottom-0 right-4 hidden h-24 w-auto object-contain sm:right-8 sm:block sm:h-28" />
       </footer>
 
       <AddIncomeDialog

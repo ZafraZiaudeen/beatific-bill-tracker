@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarDays, ChevronDown, Heart, Plus } from "lucide-react";
+import { Heart, Plus } from "lucide-react";
 import { useNoteStore } from "@/stores/noteStore";
 import type { Note } from "@/types/note";
 import { NoteCard } from "@/pages/notes/components/NoteCard";
 import { NoteDialog } from "@/pages/notes/components/NoteDialog";
 import { DeleteNoteDialog } from "@/pages/notes/components/DeleteNoteDialog";
+import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
 
 import sprig from "@/assets/doodle-sprig.png";
 import vase from "@/assets/doodle-vase.png";
@@ -14,7 +14,6 @@ import flowerDoodle from "@/assets/doodle-sprig.png";
 
 export function Notes() {
   const notes = useNoteStore((s) => s.notes);
-  const now = new Date();
 
   const [addOpen, setAddOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | undefined>();
@@ -45,11 +44,7 @@ export function Notes() {
           />
         </h2>
         <div className="flex items-center gap-3">
-          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
-            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
-            <span className="font-script text-lg sm:text-xl">{format(now, "MMMM d, yyyy")}</span>
-            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-          </div>
+          <HeaderDatePicker />
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac shadow-sm">
             <img src={cloudImg} alt="" aria-hidden loading="lazy" className="h-8 w-8 object-contain opacity-80" />
           </div>
@@ -109,7 +104,7 @@ export function Notes() {
 
       {/* Footer quote banner */}
       <footer className="paper-card relative mt-6 overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
-        <div className="relative z-10 flex items-center gap-2 pr-20 sm:gap-4 sm:pr-44">
+        <div className="relative z-10 flex items-center gap-2 pr-0 sm:gap-4 sm:pr-44">
           <span className="font-script text-5xl leading-none text-blush-deep/70 sm:text-6xl">"</span>
           <p className="font-script text-lg leading-snug sm:text-xl">
             Dream big, plan well, and take action. Your future self will thank you.
@@ -121,7 +116,7 @@ export function Notes() {
           alt=""
           aria-hidden
           loading="lazy"
-          className="absolute bottom-0 right-4 h-24 w-auto object-contain sm:right-8 sm:h-28"
+          className="absolute bottom-0 right-4 hidden h-24 w-auto object-contain sm:right-8 sm:block sm:h-28"
         />
       </footer>
 
