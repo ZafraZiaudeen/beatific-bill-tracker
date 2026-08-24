@@ -19,6 +19,7 @@ import { Expenses } from "@/pages/expenses/Expenses";
 import { Income } from "@/pages/income/Income";
 import { Reports } from "@/pages/reports/Reports";
 import { StartupGuide } from "@/pages/startup-guide/StartupGuide";
+import { OnboardingModal } from "@/pages/startup-guide/OnboardingModal";
 import { Contact } from "@/pages/contact/Contact";
 import { Goals } from "@/pages/goals/Goals";
 import { Notes } from "@/pages/notes/Notes";
@@ -75,6 +76,7 @@ export default function App() {
       <RecurringEditDialog />
       <RecurringDeleteDialog />
       <UnlockModal />
+      <OnboardingModal />
     </div>
   );
 }

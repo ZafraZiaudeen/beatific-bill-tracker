@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, ChevronRight, Heart } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import type { Section } from "@/types/bill";
 import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
@@ -30,8 +30,8 @@ const STEPS: Step[] = [
   {
     title: "Add a variable expense",
     description: "Add something like groceries, dining out, or anything that changes.",
-    color: "bg-lilac/80",
-    checkColor: "bg-lilac/80 border-lilac/80",
+    color: "bg-lilac-deep/60",
+    checkColor: "bg-lilac-deep/60 border-lilac-deep/60",
     navigateTo: "Expenses",
   },
   {
@@ -145,7 +145,10 @@ export function StartupGuide() {
             {/* Steps */}
             <div className="relative z-10 space-y-0">
               {STEPS.map((step, i) => (
-                <div key={i} className="flex items-start gap-3 border-b border-dashed border-ink/12 py-2.5 last:border-b-0">
+                <div key={i}
+                  className="group flex cursor-pointer items-start gap-3 rounded-xl border-b border-dashed border-ink/12 py-2.5 last:border-b-0 hover:bg-ink/[0.03] transition-colors"
+                  onClick={() => setActiveSection(step.navigateTo)}
+                >
                   {/* Number circle */}
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${step.color}`}>
                     <span className="font-hand text-sm font-bold text-white">{i + 1}</span>
@@ -155,16 +158,19 @@ export function StartupGuide() {
                     <p className="font-script text-lg leading-snug">{step.title}</p>
                     <p className="font-hand text-xs text-ink-soft leading-snug">{step.description}</p>
                   </div>
-                  {/* Checkbox */}
-                  <button
-                    onClick={() => toggleStep(i)}
-                    className="mt-1 shrink-0"
-                    aria-label={completed[i] ? "Mark incomplete" : "Mark complete"}
-                  >
-                    <span className={`block h-5 w-5 rounded-full border-2 transition-colors ${
-                      completed[i] ? step.checkColor : "border-ink/30 bg-paper/80"
-                    }`} />
-                  </button>
+                  {/* Nav arrow + Checkbox */}
+                  <div className="mt-1 flex shrink-0 items-center gap-2">
+                    <ChevronRight className="h-4 w-4 text-ink/30 opacity-0 transition-opacity group-hover:opacity-100" strokeWidth={2} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleStep(i); }}
+                      className="shrink-0"
+                      aria-label={completed[i] ? "Mark incomplete" : "Mark complete"}
+                    >
+                      <span className={`block h-5 w-5 rounded-full border-2 transition-colors ${
+                        completed[i] ? step.checkColor : "border-ink/30 bg-paper/80"
+                      }`} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

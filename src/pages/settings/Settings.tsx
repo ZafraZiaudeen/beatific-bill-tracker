@@ -245,6 +245,9 @@ export function Settings() {
                   onClick={() => {
                     const nextVisible = !settings[key];
                     setSettings((s) => ({ ...s, [key]: nextVisible }));
+                    if (key === "quickStartVisible" && nextVisible) {
+                      localStorage.removeItem("pdj-onboarding-seen");
+                    }
                     if (!nextVisible) {
                       const hiddenByMenu = key === "menuVisible" && activeSection !== "Dashboard" && activeSection !== "Settings";
                       const hiddenGuide = key === "quickStartVisible" && activeSection === "Startup Guide";
