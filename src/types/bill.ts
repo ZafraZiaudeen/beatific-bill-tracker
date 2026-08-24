@@ -27,10 +27,13 @@ export type Section =
   | "Calendar"
   | "Budget"
   | "Expenses"
+  | "Income"
   | "Reports"
   | "Goals"
   | "Notes"
   | "Yearly Overview"
   | "Backup"
   | "Settings"
+  | "Startup Guide"
+  | "Contact"
   | "Management";

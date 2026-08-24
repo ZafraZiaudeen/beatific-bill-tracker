@@ -32,6 +32,9 @@ import {
   Leaf,
   Scissors,
   UtensilsCrossed,
+  PiggyBank,
+  Rocket,
+  Mail,
 } from "lucide-react";
 import type { AppSettings, BillGroup } from "@/types/settings";
 import type { Bill, Section } from "@/types/bill";
@@ -118,6 +121,25 @@ export const DEFAULT_SETTINGS: AppSettings = {
   menuVisible: true,
   quickStartVisible: true,
   contactVisible: true,
+  monthlyIncome: 0,
+};
+
+export const ICON_TINT_MAP: Record<string, string> = {
+  Wifi:         "bg-mint/70 text-mint-deep",
+  Home:         "bg-lilac/60 text-lilac-deep",
+  Lightbulb:    "bg-blush/60 text-blush-deep",
+  CreditCard:   "bg-butter/70 text-[oklch(0.58_0.12_80)]",
+  Car:          "bg-mint/50 text-mint-deep",
+  Phone:        "bg-mint/40 text-mint-deep",
+  Wallet:       "bg-lilac/50 text-lilac-deep",
+  Zap:          "bg-butter/60 text-[oklch(0.58_0.12_80)]",
+  Droplets:     "bg-mint/60 text-mint-deep",
+  Flame:        "bg-blush/55 text-blush-deep",
+  ShoppingCart: "bg-butter/50 text-[oklch(0.58_0.12_80)]",
+  Music:        "bg-blush/50 text-blush-deep",
+  Tv:           "bg-lilac/50 text-lilac-deep",
+  Coffee:       "bg-butter/65 text-[oklch(0.58_0.12_80)]",
+  Dumbbell:     "bg-mint/55 text-mint-deep",
 };
 
 export const DEFAULT_BILL_GROUPS: BillGroup[] = [
@@ -309,12 +331,15 @@ export const NAV_ITEMS: { label: Section; icon: LucideIcon }[] = [
   { label: "Calendar",        icon: CalendarDays },
   { label: "Budget",          icon: PieChart     },
   { label: "Expenses",        icon: Banknote     },
+  { label: "Income",          icon: PiggyBank    },
   { label: "Reports",         icon: BarChart2    },
   { label: "Goals",           icon: Target       },
   { label: "Notes",           icon: NotebookPen  },
   { label: "Yearly Overview", icon: TrendingUp   },
   { label: "Backup",          icon: Download     },
   { label: "Settings",        icon: Settings     },
+  { label: "Startup Guide",  icon: Rocket       },
+  { label: "Contact",        icon: Mail         },
   ...(import.meta.env.VITE_CUSTOMER_BUILD === "true"
     ? []
     : [{ label: "Management" as Section, icon: KeyRound }]),

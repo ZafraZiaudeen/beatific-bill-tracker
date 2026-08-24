@@ -14,7 +14,10 @@ import { Backup } from "@/pages/backup/Backup";
 import { Settings } from "@/pages/settings/Settings";
 import { Management } from "@/pages/management/Management";
 import { Expenses } from "@/pages/expenses/Expenses";
+import { Income } from "@/pages/income/Income";
 import { Reports } from "@/pages/reports/Reports";
+import { StartupGuide } from "@/pages/startup-guide/StartupGuide";
+import { Contact } from "@/pages/contact/Contact";
 import { Goals } from "@/pages/goals/Goals";
 import { Notes } from "@/pages/notes/Notes";
 
@@ -29,12 +32,15 @@ export default function App() {
       case "Calendar":         return <CalendarView />;
       case "Budget":           return <Budget />;
       case "Expenses":         return <Expenses />;
+      case "Income":           return <Income />;
       case "Reports":          return <Reports />;
       case "Goals":            return <Goals />;
       case "Notes":            return <Notes />;
       case "Yearly Overview":  return <Yearly />;
       case "Backup":           return <Backup />;
       case "Settings":         return <Settings />;
+      case "Startup Guide":   return <StartupGuide />;
+      case "Contact":         return <Contact />;
       case "Management":       return import.meta.env.VITE_CUSTOMER_BUILD === "true" ? <Dashboard /> : <Management />;
       default:                 return <Dashboard />;
     }

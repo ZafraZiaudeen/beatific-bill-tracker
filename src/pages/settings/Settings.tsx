@@ -104,6 +104,29 @@ export function Settings() {
             </div>
           </div>
         </div>
+        <div className="mt-5">
+          <p className={sLabelClass}>💰 Monthly income</p>
+          <div className="relative max-w-xs">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-hand text-sm text-ink-soft">
+              {settings.currency}
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={settings.monthlyIncome || ""}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setSettings((s) => ({ ...s, monthlyIncome: isNaN(val) ? 0 : val }));
+              }}
+              placeholder="0.00"
+              className="w-full rounded-2xl border border-ink/15 bg-white/70 py-2.5 pl-8 pr-4 font-hand text-sm text-ink outline-none focus:border-lilac-deep/40"
+            />
+          </div>
+          <p className="mt-1.5 font-hand text-[0.65rem] text-ink/40">
+            Used in the Dashboard "This Month at a Glance" card to calculate remaining budget and savings %.
+          </p>
+        </div>
       </div>
 
       {/* Card 2: Bill name groups */}

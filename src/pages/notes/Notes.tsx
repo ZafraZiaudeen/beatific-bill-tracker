@@ -1,80 +1,145 @@
 import { useState } from "react";
-import { format, startOfMonth, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, NotebookPen } from "lucide-react";
+import { format } from "date-fns";
+import { CalendarDays, ChevronDown, Heart, Plus } from "lucide-react";
+import { useNoteStore } from "@/stores/noteStore";
+import type { Note } from "@/types/note";
+import { NoteCard } from "@/pages/notes/components/NoteCard";
+import { NoteDialog } from "@/pages/notes/components/NoteDialog";
+import { DeleteNoteDialog } from "@/pages/notes/components/DeleteNoteDialog";
+
+import sprig from "@/assets/doodle-sprig.png";
+import vase from "@/assets/doodle-vase.png";
+import cloudImg from "@/assets/cloud (1).png";
+import flowerDoodle from "@/assets/doodle-sprig.png";
 
 export function Notes() {
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()));
+  const notes = useNoteStore((s) => s.notes);
+  const now = new Date();
 
-  const monthKey = format(viewMonth, "yyyy-MM");
-  const monthLabel = format(viewMonth, "MMMM yyyy");
-  const lsKey = `pdj-notes-${monthKey}`;
+  const [addOpen, setAddOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | undefined>();
+  const [deletingNote, setDeletingNote] = useState<Note | undefined>();
 
-  const [text, setText] = useState(() => localStorage.getItem(lsKey) ?? "");
-
-  function handleChange(val: string) {
-    setText(val);
-    localStorage.setItem(lsKey, val);
+  function openEdit(note: Note) {
+    setEditingNote(note);
+    setAddOpen(true);
   }
 
-  function changeMonth(dir: 1 | -1) {
-    const next = dir === 1 ? addMonths(viewMonth, 1) : subMonths(viewMonth, 1);
-    const nextStart = startOfMonth(next);
-    setViewMonth(nextStart);
-    const key = `pdj-notes-${format(nextStart, "yyyy-MM")}`;
-    setText(localStorage.getItem(key) ?? "");
+  function closeDialog(o: boolean) {
+    setAddOpen(o);
+    if (!o) setEditingNote(undefined);
   }
 
   return (
     <main className="dot-grid min-w-0 flex-1 px-5 py-8 sm:px-8">
       {/* Header */}
-      <header className="mb-6 flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-butter/40">
-          <NotebookPen className="h-7 w-7 text-[oklch(0.62_0.1_80)]" strokeWidth={1.6} />
-        </div>
-        <div>
-          <h2 className="font-script text-5xl sm:text-6xl">Notes ♡</h2>
-          <p className="mt-1 font-hand text-sm text-ink-soft">Your monthly journal &amp; thoughts</p>
+      <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
+        <h2 className="flex min-w-0 items-center gap-2 font-script text-4xl leading-none sm:gap-3 sm:text-[3.25rem]">
+          Notes &amp; Journal ♡
+          <img
+            src={sprig}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12"
+          />
+        </h2>
+        <div className="flex items-center gap-3">
+          <div className="paper-card flex items-center gap-2 rounded-full bg-white/85 px-4 py-2.5 sm:px-5 sm:py-3">
+            <CalendarDays className="h-5 w-5 shrink-0 text-lilac-deep" strokeWidth={1.6} />
+            <span className="font-script text-lg sm:text-xl">{format(now, "MMMM d, yyyy")}</span>
+            <ChevronDown className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac shadow-sm">
+            <img src={cloudImg} alt="" aria-hidden loading="lazy" className="h-8 w-8 object-contain opacity-80" />
+          </div>
         </div>
       </header>
 
-      {/* Month nav */}
-      <div className="mb-5 flex items-center gap-3">
-        <button
-          onClick={() => changeMonth(-1)}
-          className="rounded-full border border-ink/15 bg-white/60 p-1.5 hover:bg-white/80"
-        >
-          <ChevronLeft className="h-4 w-4 text-ink-soft" strokeWidth={2} />
-        </button>
-        <span className="min-w-[130px] text-center font-hand text-sm font-bold text-ink">{monthLabel}</span>
-        <button
-          onClick={() => changeMonth(1)}
-          className="rounded-full border border-ink/15 bg-white/60 p-1.5 hover:bg-white/80"
-        >
-          <ChevronRight className="h-4 w-4 text-ink-soft" strokeWidth={2} />
-        </button>
+      {/* Tagline banner */}
+      <div className="paper-card relative mb-6 overflow-hidden rounded-[2rem] bg-blush/40 px-7 py-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <Heart className="mt-0.5 h-5 w-5 shrink-0 text-blush-deep/60" strokeWidth={1.4} />
+            <div className="min-w-0">
+              <p className="font-script text-xl text-ink sm:text-2xl">
+                Capture your thoughts, reflect on your journey, and stay inspired.
+              </p>
+              <p className="font-script text-xl text-ink sm:text-2xl">
+                Every note you write brings you closer to your dreams.
+              </p>
+            </div>
+          </div>
+          <img
+            src={flowerDoodle}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            className="hidden shrink-0 h-14 w-14 object-contain opacity-60 sm:block"
+          />
+          <button
+            onClick={() => { setEditingNote(undefined); setAddOpen(true); }}
+            className="shrink-0 flex items-center gap-2 rounded-full bg-lilac-deep/80 px-5 py-2.5 font-hand text-sm text-white hover:bg-lilac-deep shadow-sm"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Add Note
+          </button>
+        </div>
       </div>
 
-      {/* Notes card */}
-      <div className="paper-card rounded-3xl bg-white/85 p-6 sm:p-8">
-        <p className="mb-6 font-hand text-xs uppercase tracking-widest text-ink-soft">
-          {format(viewMonth, "MMMM yyyy")} Journal
-        </p>
-        <textarea
-          value={text}
-          onChange={(e) => handleChange(e.target.value)}
-          placeholder={`Write your thoughts for ${monthLabel}...\n\nReflect on your spending, set intentions, or just journal freely.`}
-          className="min-h-[480px] w-full resize-none rounded-2xl border-0 bg-transparent font-hand text-sm text-ink outline-none placeholder:text-ink/25 leading-[2rem]"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(transparent, transparent 30px, oklch(0.75 0.01 240 / 0.2) 30px, oklch(0.75 0.01 240 / 0.2) 31px)",
-            lineHeight: "2rem",
-          }}
-          autoFocus
+      {/* Notes grid */}
+      {notes.length === 0 ? (
+        <div className="paper-card flex flex-col items-center justify-center rounded-3xl bg-white/85 py-16 text-center">
+          <Heart className="mb-3 h-10 w-10 text-lilac/60" strokeWidth={1.2} />
+          <p className="font-script text-2xl text-ink/50">No notes yet ♡</p>
+          <p className="mt-1 font-hand text-sm text-ink-soft">Click "+ Add Note" to capture your first thought.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {notes.map((note) => (
+            <NoteCard
+              key={note.id}
+              note={note}
+              onEdit={openEdit}
+              onDelete={(n) => setDeletingNote(n)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Footer quote banner */}
+      <footer className="paper-card relative mt-6 overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
+        <div className="relative z-10 flex items-center gap-2 pr-20 sm:gap-4 sm:pr-44">
+          <span className="font-script text-5xl leading-none text-blush-deep/70 sm:text-6xl">"</span>
+          <p className="font-script text-lg leading-snug sm:text-xl">
+            Dream big, plan well, and take action. Your future self will thank you.
+          </p>
+          <Heart className="h-5 w-5 shrink-0 -rotate-12 text-blush-deep/60" strokeWidth={1.4} />
+        </div>
+        <img
+          src={vase}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="absolute bottom-0 right-4 h-24 w-auto object-contain sm:right-8 sm:h-28"
         />
-        <p className="mt-3 font-hand text-[0.65rem] text-ink/30 text-right">
-          {text.length} characters · auto-saved
-        </p>
-      </div>
+      </footer>
+
+      <NoteDialog
+        open={addOpen}
+        onOpenChange={closeDialog}
+        note={editingNote}
+        onDeleteRequest={(n) => { setDeletingNote(n); }}
+      />
+
+      {deletingNote && (
+        <DeleteNoteDialog
+          open={!!deletingNote}
+          onOpenChange={(o) => { if (!o) setDeletingNote(undefined); }}
+          noteId={deletingNote.id}
+          noteTitle={deletingNote.title}
+        />
+      )}
     </main>
   );
 }

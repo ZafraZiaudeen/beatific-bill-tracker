@@ -1,4 +1,4 @@
-import { useMemo, startTransition } from "react";
+import { useMemo } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -11,9 +11,10 @@ import {
   Star,
   Wallet,
 } from "lucide-react";
-import { addMonths, format, isSameMonth, parseISO, startOfDay, startOfMonth, subMonths } from "date-fns";
+import { addMonths, format, isSameMonth, parseISO, startOfMonth, subMonths } from "date-fns";
 import { useBillStore } from "@/stores/billStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useIncomeStore } from "@/stores/incomeStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useBills } from "@/hooks/useBills";
 import { useCalendar } from "@/hooks/useCalendar";
@@ -29,8 +30,6 @@ import vase from "@/assets/doodle-vase.png";
 import cloudImg from "@/assets/cloud (1).png";
 
 export function Dashboard() {
-  const today = useMemo(() => startOfDay(new Date()), []);
-
   const bills = useBillStore((s) => s.bills);
   const togglePaid = useBillStore((s) => s.togglePaid);
   const deleteBillById = useBillStore((s) => s.deleteBillById);
@@ -49,6 +48,8 @@ export function Dashboard() {
 
   const fmt = (n: number) => fmtCurrency(n, settings.currency, settings.currencyPosition);
 
+  const incomeEntries = useIncomeStore((s) => s.entries);
+
   const stats = useMemo(() => {
     const thisMonth = startOfMonth(new Date());
     const thisMonthBills = bills.filter((b) => isSameMonth(parseISO(getBillDisplayDate(b)), thisMonth));
@@ -63,10 +64,20 @@ export function Dashboard() {
     };
   }, [bills]);
 
-  const income = 3600;
+  const income = useMemo(() => {
+    const key = format(startOfMonth(new Date()), "yyyy-MM");
+    const fromEntries = incomeEntries.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+    return fromEntries > 0 ? fromEntries : (settings.monthlyIncome ?? 0);
+  }, [incomeEntries, settings.monthlyIncome]);
   const expenses = stats.due.amount + stats.paid.amount;
   const remaining = income - expenses;
-  const savingsPercent = Math.max(0, Math.min(100, Math.round((remaining / income) * 100)));
+  const savingsPercent = income > 0 ? Math.max(0, Math.min(100, Math.round((remaining / income) * 100))) : 0;
+  const actionBillList = useMemo(
+    () => sortedBills.filter((b) => getBillStatus(b) !== "paid"),
+    [sortedBills],
+  );
+  const actionBills = actionBillList.slice(0, 5);
+  const hiddenActionBillCount = Math.max(0, actionBillList.length - actionBills.length);
 
   const handleDelete = (bill: Bill) => {
     if (bill.frequency !== "one-time") {
@@ -180,7 +191,7 @@ export function Dashboard() {
         {/* Upcoming Bills */}
         <div className="paper-card relative rounded-3xl bg-white/85 py-6 pl-12 pr-6">
           <div className="absolute left-5 top-8 flex flex-col gap-[1.625rem]">
-            {Array.from({ length: 11 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <span key={i} className="h-2.5 w-2.5 rounded-full bg-ink/10" />
             ))}
           </div>
@@ -196,13 +207,18 @@ export function Dashboard() {
             </button>
           </div>
           <ul className="mt-4">
-            {sortedBills.length === 0 && (
-              <li className="py-6 text-center font-hand text-sm text-ink-soft">No bills yet. Add your first one! ♡</li>
+            {actionBills.length === 0 && (
+              <li className="py-6 text-center font-hand text-sm text-ink-soft">No upcoming or overdue bills. ♡</li>
             )}
-            {sortedBills.map((b) => (
+            {actionBills.map((b) => (
               <BillRow key={b.id} bill={b} onTogglePaid={togglePaid} onDelete={handleDelete} />
             ))}
           </ul>
+          {hiddenActionBillCount > 0 && (
+            <p className="mt-3 text-center font-hand text-xs text-ink-soft">
+              {hiddenActionBillCount} more need attention
+            </p>
+          )}
           <button onClick={() => setActiveSection("Bills")}
             className="mx-auto mt-4 flex items-center gap-2 rounded-full bg-lilac/50 px-5 py-2 font-script text-lg text-lilac-deep transition-colors hover:bg-lilac/70">
             View All Bills <ArrowRight className="h-4 w-4" strokeWidth={1.8} />

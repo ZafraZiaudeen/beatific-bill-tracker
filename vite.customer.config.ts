@@ -5,6 +5,7 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile()],
+  publicDir: false,
   resolve: {
     alias: {
       "@": `${import.meta.dirname}/src`,

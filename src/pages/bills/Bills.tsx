@@ -26,7 +26,7 @@ import {
   sumBills,
   tintToDot,
 } from "@/lib/billUtils";
-import { ICON_MAP } from "@/lib/constants";
+import { ICON_MAP, ICON_TINT_MAP } from "@/lib/constants";
 import type { Bill, BillFilter } from "@/types/bill";
 
 import cloudImg from "@/assets/cloud (1).png";
@@ -212,6 +212,7 @@ export function Bills() {
         )}
         {visibleBills.map((b) => {
           const BillIcon = ICON_MAP[b.iconKey] ?? Wallet;
+          const iconTint = ICON_TINT_MAP[b.iconKey] ?? "bg-lilac/40 text-lilac-deep";
           const status = getBillStatus(b);
           const statusLabel = b.paid ? "Paid" : status === "overdue" ? "Overdue" : "Upcoming";
           const dueBadge = getDueBadge(b, today);
@@ -239,8 +240,8 @@ export function Bills() {
                 </div>
               </div>
               <div className="bill-category flex items-center gap-2">
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${b.tint}`}>
-                  <BillIcon className="h-4 w-4" strokeWidth={1.6} />
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${iconTint}`}>
+                  <BillIcon className="h-5 w-5" strokeWidth={1.6} />
                 </span>
                 <span className="font-hand text-sm text-ink-soft">{b.category || "Other"}</span>
               </div>
@@ -333,17 +334,17 @@ export function Bills() {
       )}
 
       {/* Quote banner */}
-      <footer className="paper-card relative mt-8 min-h-40 overflow-hidden rounded-[1.6rem] border-blush-deep/40 bg-blush/60 px-5 py-6 sm:px-9 sm:py-7 xl:min-h-45">
-        <div className="relative z-10 flex min-h-28 items-center gap-3 pr-24 sm:gap-5 sm:pr-72 xl:pr-96">
-          <span className="font-script text-7xl leading-none text-blush-deep sm:text-8xl">"</span>
-          <p className="font-script text-2xl leading-tight sm:text-3xl xl:text-[2.65rem]">
+      <footer className="paper-card relative mt-6 overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
+        <div className="relative z-10 flex items-center gap-2 pr-20 sm:gap-4 sm:pr-44">
+          <span className="font-script text-5xl leading-none text-blush-deep/70 sm:text-6xl">"</span>
+          <p className="font-script text-lg leading-snug sm:text-xl">
             The secret of getting ahead is getting{" "}
             <span className="underline decoration-ink/40 underline-offset-4">started</span>.
           </p>
-          <Heart className="h-7 w-7 shrink-0 -rotate-12 text-blush-deep/75" strokeWidth={1.4} />
+          <Heart className="h-5 w-5 shrink-0 -rotate-12 text-blush-deep/60" strokeWidth={1.4} />
         </div>
         <img src={vase} alt="" aria-hidden="true" loading="lazy"
-          className="absolute bottom-[-0.35rem] right-1 h-36 w-auto object-contain sm:right-12 sm:h-48 xl:right-40 xl:h-56" />
+          className="absolute bottom-0 right-4 h-24 w-auto object-contain sm:right-8 sm:h-28" />
       </footer>
     </main>
   );
