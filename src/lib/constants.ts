@@ -22,9 +22,20 @@ import {
   Download,
   Settings,
   KeyRound,
+  Banknote,
+  BarChart2,
+  Target,
+  NotebookPen,
+  BookOpen,
+  Film,
+  Gift,
+  Leaf,
+  Scissors,
+  UtensilsCrossed,
 } from "lucide-react";
 import type { AppSettings, BillGroup } from "@/types/settings";
 import type { Bill, Section } from "@/types/bill";
+import type { ExpenseCategory } from "@/types/expense";
 
 export const ICON_MAP: Record<string, LucideIcon> = {
   Wifi,
@@ -258,14 +269,52 @@ export const YEARLY_CAT_BAR_FILL = [
   "#c97b7d",
 ];
 
+export const EXPENSE_CATEGORIES: {
+  label: ExpenseCategory;
+  iconKey: string;
+  tint: string;
+  chartColor: string;
+}[] = [
+  { label: "Food & Drinks",  iconKey: "Coffee",         tint: "bg-blush text-blush-deep",              chartColor: "#c97b7d" },
+  { label: "Groceries",      iconKey: "ShoppingCart",   tint: "bg-lilac text-lilac-deep",              chartColor: "#9b7ecc" },
+  { label: "Transportation", iconKey: "Car",             tint: "bg-mint text-mint-deep",                chartColor: "#5aaa88" },
+  { label: "Shopping",       iconKey: "Scissors",        tint: "bg-butter text-[oklch(0.62_0.1_80)]",  chartColor: "#c5a44a" },
+  { label: "Entertainment",  iconKey: "Film",            tint: "bg-blush/70 text-blush-deep",           chartColor: "#e8a0a2" },
+  { label: "Personal Care",  iconKey: "Leaf",            tint: "bg-mint/60 text-mint-deep",             chartColor: "#8ab0cc" },
+  { label: "Education",      iconKey: "BookOpen",        tint: "bg-butter/70 text-[oklch(0.62_0.1_80)]",chartColor: "#c5b87c" },
+  { label: "Gifts",          iconKey: "Gift",            tint: "bg-lilac/60 text-lilac-deep",           chartColor: "#b0a0cc" },
+  { label: "Others",         iconKey: "Wallet",          tint: "bg-ink/8 text-ink-soft",               chartColor: "#b0c0a8" },
+];
+
+export const EXPENSE_ICON_MAP: Record<string, LucideIcon> = {
+  Coffee,
+  ShoppingCart,
+  Car,
+  Scissors,
+  Film,
+  Leaf,
+  BookOpen,
+  Gift,
+  Wallet,
+  UtensilsCrossed,
+  Dumbbell,
+  Music,
+  Zap,
+  Phone,
+};
+
 export const NAV_ITEMS: { label: Section; icon: LucideIcon }[] = [
-  { label: "Dashboard", icon: Home },
-  { label: "Bills", icon: Receipt },
-  { label: "Calendar", icon: CalendarDays },
-  { label: "Budget", icon: PieChart },
-  { label: "Yearly Overview", icon: TrendingUp },
-  { label: "Backup", icon: Download },
-  { label: "Settings", icon: Settings },
+  { label: "Dashboard",       icon: Home        },
+  { label: "Bills",           icon: Receipt      },
+  { label: "Calendar",        icon: CalendarDays },
+  { label: "Budget",          icon: PieChart     },
+  { label: "Expenses",        icon: Banknote     },
+  { label: "Reports",         icon: BarChart2    },
+  { label: "Goals",           icon: Target       },
+  { label: "Notes",           icon: NotebookPen  },
+  { label: "Yearly Overview", icon: TrendingUp   },
+  { label: "Backup",          icon: Download     },
+  { label: "Settings",        icon: Settings     },
   ...(import.meta.env.VITE_CUSTOMER_BUILD === "true"
     ? []
     : [{ label: "Management" as Section, icon: KeyRound }]),

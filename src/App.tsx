@@ -13,6 +13,10 @@ import { Yearly } from "@/pages/yearly/Yearly";
 import { Backup } from "@/pages/backup/Backup";
 import { Settings } from "@/pages/settings/Settings";
 import { Management } from "@/pages/management/Management";
+import { Expenses } from "@/pages/expenses/Expenses";
+import { Reports } from "@/pages/reports/Reports";
+import { Goals } from "@/pages/goals/Goals";
+import { Notes } from "@/pages/notes/Notes";
 
 export default function App() {
   const activeSection = useUIStore((s) => s.activeSection);
@@ -24,6 +28,10 @@ export default function App() {
       case "Bills":            return <Bills />;
       case "Calendar":         return <CalendarView />;
       case "Budget":           return <Budget />;
+      case "Expenses":         return <Expenses />;
+      case "Reports":          return <Reports />;
+      case "Goals":            return <Goals />;
+      case "Notes":            return <Notes />;
       case "Yearly Overview":  return <Yearly />;
       case "Backup":           return <Backup />;
       case "Settings":         return <Settings />;
