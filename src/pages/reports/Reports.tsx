@@ -8,6 +8,7 @@ import {
   YAxis,
   ResponsiveContainer,
   Tooltip,
+  ReferenceLine,
   Cell,
   LabelList,
 } from "recharts";
@@ -36,6 +37,11 @@ const TOOLTIP_STYLE = {
 
 const toChartNumber = (value: unknown) => Number(value ?? 0);
 
+const SAVINGS_RATE_DOMAIN = [
+  (dataMin: number) => Math.min(0, Math.floor(dataMin / 10) * 10),
+  100,
+] as const;
+
 function loadReflection(key: string): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, string>; }
   catch { return {}; }
@@ -48,7 +54,6 @@ export function Reports() {
 
   const now = useUIStore((s) => s.referenceDate);
   const incomeEntries = useIncomeStore((s) => s.entries);
-  const staticIncome = settings.monthlyIncome ?? 0;
   const cur = settings.currency;
   const curPos = settings.currencyPosition as "before" | "after";
   const fmt = (n: number) => fmtCurrency(n, cur, curPos);
@@ -76,17 +81,17 @@ export function Reports() {
       const expAmt = expenses.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
       const totalExp = billAmt + expAmt;
       const entryIncome = incomeEntries.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
-      const income = entryIncome > 0 ? entryIncome : staticIncome;
+      const income = entryIncome;
       const net = income - totalExp;
       return {
         month: format(m, "MMM"),
         key,
         income,
         expenses: totalExp,
-        savings: income > 0 ? Math.max(0, Math.min(100, Math.round((net / income) * 100))) : 0,
+        savings: income > 0 ? Math.min(100, Math.round((net / income) * 100)) : 0,
       };
     });
-  }, [bills, expenses, incomeEntries, staticIncome, now]);
+  }, [bills, expenses, incomeEntries, now]);
 
   const thisMonthData = monthlyData[5]!;
   const lastMonthData = monthlyData[4]!;
@@ -95,6 +100,7 @@ export function Reports() {
   const lastMonthExp = lastMonthData.expenses;
   const netCashFlow = thisMonthIncome - thisMonthExp;
   const lastSavingsRate = thisMonthData.savings;
+  const isSavingsRateNegative = lastSavingsRate < 0;
   const pctChange = lastMonthExp > 0 ? ((thisMonthExp - lastMonthExp) / lastMonthExp) * 100 : 0;
 
   // Top spending categories — current month only
@@ -207,7 +213,7 @@ export function Reports() {
         <div className="paper-card rounded-3xl bg-white/85 p-6">
           <div className="mb-2 flex items-start justify-between gap-2">
             <p className="font-script text-xl leading-tight">Savings Rate Over Time ♡</p>
-            <span className="shrink-0 rounded-full bg-lilac/50 px-3 py-0.5 font-hand text-sm font-bold text-lilac-deep">
+            <span className={`shrink-0 rounded-full px-3 py-0.5 font-hand text-sm font-bold ${isSavingsRateNegative ? "bg-blush/25 text-blush-deep" : "bg-lilac/50 text-lilac-deep"}`}>
               {lastSavingsRate}%
             </span>
           </div>
@@ -217,9 +223,10 @@ export function Reports() {
               <LineChart data={monthlyData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <XAxis dataKey="month" axisLine={false} tickLine={false}
                   tick={{ fontFamily: "inherit", fontSize: 10, fill: "oklch(0.55 0.01 240)" }} />
-                <YAxis axisLine={false} tickLine={false} width={36} domain={[0, 100]}
+                <YAxis axisLine={false} tickLine={false} width={36} domain={SAVINGS_RATE_DOMAIN}
                   tick={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.55 0.01 240)" }}
                   tickFormatter={(v) => `${v}%`} />
+                <ReferenceLine y={0} stroke="oklch(0.55 0.01 240)" strokeOpacity={0.25} strokeDasharray="3 3" />
                 <Tooltip contentStyle={TOOLTIP_STYLE}
                   formatter={(value) => [`${toChartNumber(value)}%`, "Savings Rate"]} />
                 <Line type="monotone" dataKey="savings" stroke="#9b7ecc" strokeWidth={2}

@@ -6,6 +6,7 @@ import {
   YAxis,
   ResponsiveContainer,
   Tooltip,
+  ReferenceLine,
 } from "recharts";
 import { format, subMonths, startOfMonth, parseISO } from "date-fns";
 import {
@@ -27,11 +28,11 @@ import { getBillDisplayDate, fmtCurrency, sumBills } from "@/lib/billUtils";
 import { AddIncomeDialog } from "@/pages/income/components/AddIncomeDialog";
 import type { IncomeEntry } from "@/types/income";
 import { HeaderDatePicker } from "@/components/common/HeaderDatePicker";
+import { Washi } from "@/components/common/Washi";
 
 import sprig from "@/assets/doodle-sprig.png";
 import vase from "@/assets/doodle-vase.png";
 import cloudImg from "@/assets/cloud (1).png";
-import springBinding from "@/assets/springFourX.png";
 
 const TOOLTIP_STYLE = {
   fontFamily: "inherit",
@@ -40,6 +41,11 @@ const TOOLTIP_STYLE = {
   border: "1px solid rgba(0,0,0,0.08)",
   background: "oklch(0.98 0.002 240)",
 };
+
+const SAVINGS_RATE_DOMAIN = [
+  (dataMin: number) => Math.min(0, Math.floor(dataMin / 10) * 10),
+  100,
+] as const;
 
 export function Income() {
   const entries = useIncomeStore((s) => s.entries);
@@ -78,12 +84,14 @@ export function Income() {
       const bill = Math.abs(sumBills(bills.filter((b) => getBillDisplayDate(b).startsWith(key))));
       const exp = expenses.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
       const totalOut = bill + exp;
-      const rate = inc > 0 ? Math.max(0, Math.min(100, Math.round(((inc - totalOut) / inc) * 100))) : 0;
+      const rate = inc > 0 ? Math.min(100, Math.round(((inc - totalOut) / inc) * 100)) : 0;
       return { month: format(m, "MMM"), rate, hasIncome: inc > 0 };
     });
   }, [entries, bills, expenses, now]);
 
   const hasAnyIncome = entries.length > 0;
+  const currentSavingsRate = savingsChartData[5]?.rate ?? 0;
+  const isCurrentSavingsRateNegative = currentSavingsRate < 0;
   const thisMonthEntries = entries
     .filter((e) => e.date.startsWith(currentKey))
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -196,35 +204,57 @@ export function Income() {
         {/* LEFT */}
         <div className="space-y-5">
           {/* How savings are calculated */}
-          <div className="paper-card relative flex overflow-hidden rounded-3xl bg-white/85">
-            {/* Spring binding */}
-            <div className="shrink-0 flex items-center justify-center py-4 pl-2 pr-1">
-              <img src={springBinding} alt="" aria-hidden loading="lazy"
-                className="h-24 w-20 object-contain" />
-            </div>
-            {/* Content */}
-            <div className="min-w-0 flex-1 px-5 py-6">
-              {/* Washi tape decoration */}
-              <div className="absolute left-16 top-0 h-4 w-24 rounded-b-sm bg-lilac/60 opacity-70" />
-              <p className="mb-4 font-script text-xl">How savings are calculated ♡</p>
-              <div className="rounded-2xl border border-lilac/30 bg-lilac/10 px-5 py-3 mb-4">
-                <p className="font-hand text-sm text-lilac-deep text-center">
-                  Savings rate = (Income − tracked outflow) ÷ Income × 100
-                </p>
+          <section className="relative pt-3" aria-labelledby="savings-calculation-title">
+            <Washi className="savings-calculation-tape -top-1 left-7 z-30 h-11 w-32 -rotate-6 sm:left-10 sm:h-12 sm:w-36" />
+
+            <div className="savings-calculation-card paper-card relative min-h-[17rem] overflow-hidden rounded-3xl sm:min-h-[18rem]">
+              {/* Punched notebook edge */}
+              <div className="absolute inset-y-0 left-0 z-10 flex w-11 flex-col items-center justify-evenly bg-paper/35 py-5 sm:w-14">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="notebook-paper-hole block h-3.5 w-3.5 rounded-full bg-paper/70"
+                  />
+                ))}
               </div>
-              <div className="text-center">
-                <span className="inline-block rounded-full border border-mint/40 bg-mint/15 px-5 py-2 font-hand text-sm italic text-mint-deep">
-                  {hasAnyIncome ? `Your current rate: ${savingsChartData[5]!.rate}%` : "Add income to see your personal rate ♡"}
-                </span>
+
+              {/* Pink notebook margin */}
+              <div className="absolute inset-y-0 left-11 z-10 w-px bg-blush-deep/25 sm:left-14" />
+
+              {/* Centered calculation content */}
+              <div className="relative z-20 flex min-h-[17rem] min-w-0 flex-col justify-center py-10 pr-4 pl-14 sm:min-h-[18rem] sm:px-10 sm:pl-20">
+                <div className="mb-5 flex items-center justify-center gap-2 text-center">
+                  <h3 id="savings-calculation-title" className="font-script text-xl leading-tight sm:text-2xl">
+                    How savings are calculated
+                  </h3>
+                  <Heart className="h-4 w-4 shrink-0 text-ink/70" strokeWidth={1.5} />
+                </div>
+
+                <div className="mx-auto mb-5 w-full max-w-xl rounded-2xl border border-lilac/45 bg-lilac/20 px-4 py-3.5 sm:px-6">
+                  <p className="text-center font-hand text-xs leading-relaxed text-lilac-deep sm:text-sm">
+                    Savings rate = (Income − tracked outflow) ÷ Income × 100
+                  </p>
+                </div>
+
+                <div className="text-center">
+                  <span className={`inline-flex max-w-full items-center justify-center gap-2 rounded-full border px-4 py-2 font-hand text-xs italic sm:px-6 sm:text-sm ${isCurrentSavingsRateNegative ? "border-blush/45 bg-blush/20 text-blush-deep" : "border-mint/45 bg-mint/25 text-mint-deep"}`}>
+                    {hasAnyIncome
+                      ? `Your current rate: ${currentSavingsRate}%`
+                      : "Add income to see your personal rate."}
+                    <Heart className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+                  </span>
+                </div>
               </div>
+
+              <img
+                src={sprig}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                className="pointer-events-none absolute right-2 bottom-2 z-10 h-12 w-12 object-contain opacity-65 sm:right-4 sm:bottom-3 sm:h-16 sm:w-16"
+              />
             </div>
-            {/* Bullet decoration */}
-            <div className="absolute left-[4.5rem] top-1/2 -translate-y-1/2 flex flex-col gap-2.5">
-              {[0, 1, 2].map((i) => (
-                <span key={i} className="block h-2 w-2 rounded-full bg-ink/15" />
-              ))}
-            </div>
-          </div>
+          </section>
 
           {/* Income entries */}
           <div className="paper-card rounded-3xl bg-white/85 p-6">
@@ -319,9 +349,10 @@ export function Income() {
                 <LineChart data={savingsChartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <XAxis dataKey="month" axisLine={false} tickLine={false}
                     tick={{ fontFamily: "inherit", fontSize: 10, fill: "oklch(0.55 0.01 240)" }} />
-                  <YAxis axisLine={false} tickLine={false} width={36} domain={[0, 100]}
+                  <YAxis axisLine={false} tickLine={false} width={36} domain={SAVINGS_RATE_DOMAIN}
                     tick={{ fontFamily: "inherit", fontSize: 9, fill: "oklch(0.55 0.01 240)" }}
                     tickFormatter={(v) => `${v}%`} />
+                  <ReferenceLine y={0} stroke="oklch(0.55 0.01 240)" strokeOpacity={0.25} strokeDasharray="3 3" />
                   <Tooltip contentStyle={TOOLTIP_STYLE}
                     formatter={(v: unknown) => [`${Number(v ?? 0)}%`, "Savings Rate"]} />
                   <Line type="monotone" dataKey="rate" stroke="#9b7ecc" strokeWidth={2}

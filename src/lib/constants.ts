@@ -121,7 +121,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   menuVisible: true,
   quickStartVisible: true,
   contactVisible: true,
-  monthlyIncome: 0,
 };
 
 export const ICON_TINT_MAP: Record<string, string> = {

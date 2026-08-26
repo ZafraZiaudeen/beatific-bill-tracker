@@ -67,9 +67,8 @@ export function Dashboard() {
 
   const income = useMemo(() => {
     const key = format(startOfMonth(referenceDate), "yyyy-MM");
-    const fromEntries = incomeEntries.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
-    return fromEntries > 0 ? fromEntries : (settings.monthlyIncome ?? 0);
-  }, [incomeEntries, referenceDate, settings.monthlyIncome]);
+    return incomeEntries.filter((e) => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+  }, [incomeEntries, referenceDate]);
   const expenses = stats.due.amount + stats.paid.amount;
   const remaining = income - expenses;
   const savingsPercent = income > 0 ? Math.max(0, Math.min(100, Math.round((remaining / income) * 100))) : 0;

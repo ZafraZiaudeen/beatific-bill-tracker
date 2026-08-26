@@ -311,16 +311,16 @@ export function Expenses() {
             {byCategory.length === 0 ? (
               <p className="py-4 text-center font-hand text-sm text-ink-soft">No data yet</p>
             ) : (
-              <div className="flex items-center gap-4">
+              <div className="flex min-w-0 items-center gap-3">
                 {/* Pie chart */}
-                <div className="h-44 w-44 shrink-0">
+                <div className="h-36 w-36 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <RPieChart>
                       <Pie
                         data={pieData}
                         cx="50%"
                         cy="50%"
-                        outerRadius={78}
+                        outerRadius={64}
                         dataKey="value"
                         paddingAngle={pieData.length > 1 ? 1 : 0}
                         strokeWidth={0}
@@ -338,9 +338,9 @@ export function Expenses() {
                 </div>
 
                 {/* Legend */}
-                <div className="flex-1 space-y-1.5">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   {byCategory.map((c) => (
-                    <div key={c.label} className="flex items-center justify-between gap-2">
+                    <div key={c.label} className="flex min-w-0 items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -348,16 +348,16 @@ export function Expenses() {
                         />
                         <span className="truncate font-hand text-xs text-ink-soft">{c.label}</span>
                       </div>
-                      <span className="font-hand text-xs font-bold text-ink shrink-0">
+                      <span className="min-w-0 shrink truncate text-right font-hand text-[0.68rem] font-bold text-ink">
                         {fmt(c.total, cur, curPos)}
                       </span>
                     </div>
                   ))}
                   <div className="mt-2 border-t border-ink/10 pt-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
                       <span className="font-hand text-sm font-bold text-ink">Total</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-hand text-sm font-bold text-lilac-deep">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate text-right font-hand text-xs font-bold text-lilac-deep">
                           {fmt(totalExpenses, cur, curPos)}
                         </span>
                         <Heart className="h-3.5 w-3.5 text-blush-deep/60" strokeWidth={1.5} />

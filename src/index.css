@@ -134,6 +134,20 @@
   opacity: 0.45;
 }
 
+/* Reference-matched ruled paper used by the savings calculation card. */
+.savings-calculation-card {
+  background-color: oklch(0.99 0.012 88 / 96%);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    oklch(0.78 0.045 235 / 28%) 31px,
+    oklch(0.78 0.045 235 / 28%) 32px
+  );
+  background-position: 0 12px;
+  box-shadow: 0 5px 16px oklch(0.5 0.035 80 / 10%);
+}
+
 /* Layered, hand-torn notebook paper used only where explicitly applied. */
 .notebook-paper-card {
   filter: drop-shadow(0 10px 10px oklch(0.42 0.025 75 / 13%));
@@ -223,6 +237,10 @@
 
 .notebook-paper-tape {
   filter: drop-shadow(0 2px 1px oklch(0.5 0.06 20 / 16%));
+}
+
+.savings-calculation-tape {
+  filter: hue-rotate(290deg) saturate(0.75) drop-shadow(0 2px 1px oklch(0.5 0.06 300 / 16%));
 }
 
 @media (max-width: 639px) {

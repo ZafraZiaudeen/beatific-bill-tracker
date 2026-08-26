@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { CalendarDays, ChevronDown, CircleDollarSign, MoveHorizontal } from "lucide-react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUIStore } from "@/stores/uiStore";
 import { FULL_CURRENCIES } from "@/lib/constants";
@@ -35,8 +35,10 @@ export function Settings() {
   const activeSection = useUIStore((s) => s.activeSection);
   const setActiveSection = useUIStore((s) => s.setActiveSection);
 
-  const sSelectClass = "w-full rounded-2xl border border-ink/15 bg-white/70 px-3 py-2.5 font-hand text-sm text-ink outline-none focus:border-lilac-deep/40 appearance-none cursor-pointer";
+  const sSelectClass = "w-full cursor-pointer appearance-none rounded-2xl border border-lilac/35 bg-white/75 px-4 py-3 pr-12 font-hand text-sm text-ink shadow-sm outline-none transition-colors hover:border-lilac-deep/35 hover:bg-white/90 focus:border-lilac-deep/50 focus:bg-white";
   const sLabelClass = "font-hand text-[0.65rem] uppercase tracking-widest text-ink-soft mb-1.5 flex items-center gap-1.5";
+  const sSelectWrapClass = "relative rounded-2xl bg-lilac/10 p-1 shadow-[inset_0_0_0_1px_oklch(0.9_0.04_300_/_45%)]";
+  const sSelectIconClass = "pointer-events-none absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-lilac/45 text-lilac-deep shadow-sm";
 
   return (
     <main className="dot-grid min-w-0 flex-1 px-5 py-8 sm:px-8">
@@ -67,8 +69,11 @@ export function Settings() {
         <p className="mb-4 font-script text-2xl">✧ Customize your budget the way you need</p>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div>
-            <p className={sLabelClass}>⚙ Currency symbol</p>
-            <div className="relative">
+            <p className={sLabelClass}>
+              <CircleDollarSign className="h-3.5 w-3.5 text-lilac-deep" strokeWidth={1.7} />
+              Currency symbol
+            </p>
+            <div className={sSelectWrapClass}>
               <select
                 value={settings.currency}
                 onChange={(e) => setSettings((s) => ({ ...s, currency: e.target.value }))}
@@ -77,12 +82,17 @@ export function Settings() {
                   <option key={c.symbol} value={c.symbol}>{c.label}</option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" strokeWidth={1.8} />
+              <span className={sSelectIconClass}>
+                <ChevronDown className="h-4 w-4" strokeWidth={1.8} />
+              </span>
             </div>
           </div>
           <div>
-            <p className={sLabelClass}>⊞ Currency position</p>
-            <div className="relative">
+            <p className={sLabelClass}>
+              <MoveHorizontal className="h-3.5 w-3.5 text-mint-deep" strokeWidth={1.7} />
+              Currency position
+            </p>
+            <div className={sSelectWrapClass}>
               <select
                 value={settings.currencyPosition}
                 onChange={(e) => setSettings((s) => ({ ...s, currencyPosition: e.target.value as "before" | "after" }))}
@@ -90,12 +100,17 @@ export function Settings() {
                 <option value="before">Before amount</option>
                 <option value="after">After amount</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" strokeWidth={1.8} />
+              <span className={sSelectIconClass}>
+                <ChevronDown className="h-4 w-4" strokeWidth={1.8} />
+              </span>
             </div>
           </div>
           <div>
-            <p className={sLabelClass}>📅 Week start</p>
-            <div className="relative">
+            <p className={sLabelClass}>
+              <CalendarDays className="h-3.5 w-3.5 text-blush-deep" strokeWidth={1.7} />
+              Week start
+            </p>
+            <div className={sSelectWrapClass}>
               <select
                 value={settings.weekStart}
                 onChange={(e) => setSettings((s) => ({ ...s, weekStart: e.target.value as "Sunday" | "Monday" }))}
@@ -103,32 +118,11 @@ export function Settings() {
                 <option value="Sunday">Sunday</option>
                 <option value="Monday">Monday</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" strokeWidth={1.8} />
+              <span className={sSelectIconClass}>
+                <ChevronDown className="h-4 w-4" strokeWidth={1.8} />
+              </span>
             </div>
           </div>
-        </div>
-        <div className="mt-5">
-          <p className={sLabelClass}>💰 Monthly income</p>
-          <div className="relative max-w-xs">
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-hand text-sm text-ink-soft">
-              {settings.currency}
-            </span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={settings.monthlyIncome || ""}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setSettings((s) => ({ ...s, monthlyIncome: isNaN(val) ? 0 : val }));
-              }}
-              placeholder="0.00"
-              className="w-full rounded-2xl border border-ink/15 bg-white/70 py-2.5 pl-8 pr-4 font-hand text-sm text-ink outline-none focus:border-lilac-deep/40"
-            />
-          </div>
-          <p className="mt-1.5 font-hand text-[0.65rem] text-ink/40">
-            Used in the Dashboard "This Month at a Glance" card to calculate remaining budget and savings %.
-          </p>
         </div>
       </div>
 

@@ -87,7 +87,7 @@ export function Bills() {
   };
 
   return (
-    <main className="dot-grid min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8 xl:px-12">
+    <main className="dot-grid flex min-w-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 xl:px-12">
       {/* Header */}
       <header className="mb-7 flex flex-wrap items-center justify-between gap-4 xl:mb-9">
         <h2 className="flex min-w-0 items-center gap-2 font-script text-4xl leading-none sm:gap-3 sm:text-[3.25rem]">
@@ -333,7 +333,7 @@ export function Bills() {
       )}
 
       {/* Quote banner */}
-      <footer className="paper-card relative mt-6 overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
+      <footer className="paper-card relative mt-auto overflow-hidden rounded-[1.6rem] bg-blush/50 px-6 py-4 sm:px-8 sm:py-5">
         <div className="relative z-10 flex items-center gap-2 pr-0 sm:gap-4 sm:pr-44">
           <span className="font-script text-5xl leading-none text-blush-deep/70 sm:text-6xl">"</span>
           <p className="font-script text-lg leading-snug sm:text-xl">

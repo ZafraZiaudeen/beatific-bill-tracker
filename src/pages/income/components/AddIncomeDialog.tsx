@@ -26,6 +26,7 @@ export function AddIncomeDialog({ open, onOpenChange, entry }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const referenceDate = useUIStore((s) => s.referenceDate);
   const cur = settings.currency;
+  const amountCurrencyPadding = `${Math.max(3.25, cur.length * 0.75 + 2.4)}rem`;
 
   const [form, setForm] = useState(EMPTY);
 
@@ -102,7 +103,8 @@ export function AddIncomeDialog({ open, onOpenChange, entry }: Props) {
               <input type="number" required min={0.01} step={0.01} placeholder="0.00"
                 value={form.amount}
                 onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                className={`${inputClass} pl-8`} />
+                className={inputClass}
+                style={{ paddingLeft: amountCurrencyPadding }} />
             </div>
           </div>
           <div>

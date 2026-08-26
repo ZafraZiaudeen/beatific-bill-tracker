@@ -7,7 +7,6 @@ export interface AppSettings {
   menuVisible: boolean;
   quickStartVisible: boolean;
   contactVisible: boolean;
-  monthlyIncome: number;
 }
 
 export interface BillGroup {

@@ -36,6 +36,11 @@ function ExpIcon({ iconKey }: { iconKey: string }) {
 export function AddEditExpenseDialog({ open, onOpenChange, expense, onSave }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const referenceDate = useUIStore((s) => s.referenceDate);
+  const amountCurrencyPadding = `${Math.max(3.25, settings.currency.length * 0.75 + 2.4)}rem`;
+  const amountInputStyle =
+    settings.currencyPosition === "before"
+      ? { paddingLeft: amountCurrencyPadding }
+      : { paddingRight: `calc(${amountCurrencyPadding} + 1.25rem)` };
   const [form, setForm] = useState({ ...EMPTY });
 
   useEffect(() => {
@@ -160,7 +165,8 @@ export function AddEditExpenseDialog({ open, onOpenChange, expense, onSave }: Pr
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                   placeholder="0.00"
-                  className={`${inputClass} ${settings.currencyPosition === "before" ? "pl-8" : "pr-8"}`}
+                  className={inputClass}
+                  style={amountInputStyle}
                   required
                 />
                 {settings.currencyPosition === "after" && (
