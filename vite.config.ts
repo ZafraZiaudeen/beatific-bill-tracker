@@ -11,4 +11,12 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      input: "bill-tracker.html",
+    },
+  },
+  server: {
+    open: "/bill-tracker.html",
+  },
 })

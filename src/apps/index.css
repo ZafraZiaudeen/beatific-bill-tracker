@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #apps-root { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 13px;
+  line-height: 1.5;
+}
+button { cursor: pointer; font: inherit; border: none; background: none; color: inherit; }
+input { font: inherit; }
+svg { display: block; flex-shrink: 0; }
