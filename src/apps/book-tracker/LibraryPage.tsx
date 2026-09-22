@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Search, Filter, SlidersHorizontal, LayoutGrid, List, Heart, PenLine, FileText,
   Archive, ChevronDown, Plus, BookOpen, X, Shield, Database, WifiOff, Lock,
@@ -52,98 +52,7 @@ interface Book {
   notes: string;
 }
 
-const INITIAL_BOOKS: Book[] = [
-  {
-    id: 1, title: "The Left Hand of Darkness", author: "Ursula K. Le Guin",
-    status: "Reading", rating: 4.5, pages: 304, currentPage: 211,
-    coverFrom: "#1c2e4a", coverTo: "#0a1520",
-    format: "Paperback", isbn: "978-0-441-47812-5", published: "Mar 1, 1969",
-    source: "Purchased", dateAdded: "Jan 3, 2025", location: "Home library",
-    tags: ["Sci-fi", "Classic", "Gender"],
-    notes: "A haunting, genre-defying novel. Le Guin's worldbuilding is unmatched — Gethen feels like a real place.",
-  },
-  {
-    id: 2, title: "The Employees", author: "Olga Ravn",
-    status: "Reading", rating: 4.2, pages: 256, currentPage: 156,
-    coverFrom: "#3a3028", coverTo: "#1a150e",
-    format: "Hardcover", isbn: "978-0-593-12345-6", published: "Mar 8, 2022",
-    source: "Purchased", dateAdded: "May 14, 2025", location: "Home library",
-    tags: ["Sci-fi", "Dystopia", "AI"],
-    notes: "Haunting and precise. A quiet exploration of identity, surveillance, and the systems we inherit.\n\nMemorable line: \"We're always already replaceable.\"",
-  },
-  {
-    id: 3, title: "The Dispossessed", author: "Ursula K. Le Guin",
-    status: "Finished", rating: 4.6, pages: 342, currentPage: 342,
-    coverFrom: "#2e3f5c", coverTo: "#162030",
-    format: "Paperback", isbn: "978-0-06-051275-9", published: "May 1, 1974",
-    source: "Library", dateAdded: "Mar 2, 2025", location: "Home library",
-    tags: ["Sci-fi", "Utopia", "Classic"],
-    notes: "Shevek's physics of time mirrors the novel's own recursive structure.",
-  },
-  {
-    id: 4, title: "Piranesi", author: "Susanna Clarke",
-    status: "Finished", rating: 4.5, pages: 272, currentPage: 272,
-    coverFrom: "#5a4020", coverTo: "#2a1808",
-    format: "Hardcover", isbn: "978-1-63557-563-5", published: "Sep 15, 2020",
-    source: "Purchased", dateAdded: "Feb 18, 2025", location: "Home library",
-    tags: ["Fantasy", "Mystery", "Magical realism"],
-    notes: "The House is one of the most original settings in contemporary fiction.",
-  },
-  {
-    id: 5, title: "Solaris", author: "Stanisław Lem",
-    status: "Paused", rating: 4.1, pages: 256, currentPage: 98,
-    coverFrom: "#1a3a3a", coverTo: "#0a1e1e",
-    format: "Paperback", isbn: "978-0-15-683750-5", published: "Jun 1, 1961",
-    source: "Purchased", dateAdded: "Apr 10, 2025", location: "Home library",
-    tags: ["Sci-fi", "Philosophy", "Classic"],
-    notes: "Dense and hypnotic. Paused to sit with the ideas.",
-  },
-  {
-    id: 6, title: "The Fifth Season", author: "N.K. Jemisin",
-    status: "Finished", rating: 4.7, pages: 512, currentPage: 512,
-    coverFrom: "#4a1a10", coverTo: "#1e0a06",
-    format: "Paperback", isbn: "978-0-316-22924-8", published: "Aug 4, 2015",
-    source: "Purchased", dateAdded: "Jan 20, 2025", location: "Home library",
-    tags: ["Fantasy", "Sci-fi", "Hugo Award"],
-    notes: "The second-person POV is disorienting in the best possible way.",
-  },
-  {
-    id: 7, title: "The Vanishing Half", author: "Brit Bennett",
-    status: "Finished", rating: 4.3, pages: 352, currentPage: 352,
-    coverFrom: "#4a2828", coverTo: "#1e1010",
-    format: "Hardcover", isbn: "978-0-525-53629-1", published: "Jun 2, 2020",
-    source: "Gift", dateAdded: "Dec 5, 2024", location: "Home library",
-    tags: ["Literary fiction", "Race", "Identity"],
-    notes: "Generational trauma rendered in gorgeous, unhurried prose.",
-  },
-  {
-    id: 8, title: "The Long Way to a Small, Angry Planet", author: "Becky Chambers",
-    status: "Reading", rating: 4.4, pages: 404, currentPage: 180,
-    coverFrom: "#1a3a2a", coverTo: "#0a1e14",
-    format: "Paperback", isbn: "978-1-500-45309-4", published: "Jul 29, 2014",
-    source: "Purchased", dateAdded: "Jun 1, 2025", location: "Home library",
-    tags: ["Sci-fi", "Found family", "Cozy"],
-    notes: "Exactly what it says on the tin — a cozy journey with a found family in space.",
-  },
-  {
-    id: 9, title: "Klara and the Sun", author: "Kazuo Ishiguro",
-    status: "DNF", rating: 3.2, pages: 288, currentPage: 87,
-    coverFrom: "#4a3810", coverTo: "#1e1808",
-    format: "Hardcover", isbn: "978-0-593-31817-1", published: "Mar 2, 2021",
-    source: "Library", dateAdded: "May 30, 2025", location: "-",
-    tags: ["Literary fiction", "AI", "Dystopia"],
-    notes: "Ishiguro's prose is beautiful as always but the pacing lost me by page 87.",
-  },
-  {
-    id: 10, title: "A Wizard of Earthsea", author: "Ursula K. Le Guin",
-    status: "Finished", rating: 4.8, pages: 183, currentPage: 183,
-    coverFrom: "#1e3a3a", coverTo: "#0a1a1a",
-    format: "Paperback", isbn: "978-0-547-73480-4", published: "Nov 1, 1968",
-    source: "Purchased", dateAdded: "Nov 15, 2024", location: "Home library",
-    tags: ["Fantasy", "Classic", "YA"],
-    notes: "The original and still unsurpassed.",
-  },
-];
+const INITIAL_BOOKS: Book[] = [];
 
 
 const STATUS_FILTERS = ["All books", "Reading", "Finished", "Paused", "DNF", "Favorites", "Archived"];
@@ -214,12 +123,28 @@ function parseDate(s: string): number {
   return isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
+async function toDataUri(url: string): Promise<string> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+}
+
 // ── Book Modal (2 tabs only) ───────────────────────────────────
 function BookModal({ initial, onSave, onClose }: {
   initial?: Book;
   onSave: (data: Omit<Book, "id"> | Book) => void;
   onClose: () => void;
 }) {
+  const isEdit = !!initial;
   const [tab, setTab] = useState<"search" | "manual">(initial ? "manual" : "search");
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -227,6 +152,9 @@ function BookModal({ initial, onSave, onClose }: {
   const [searchError, setSearchError] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestId = useRef(0);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const [coverError, setCoverError] = useState("");
+  const [addingBook, setAddingBook] = useState(false);
   const [form, setForm] = useState({
     title: initial?.title ?? "",
     author: initial?.author ?? "",
@@ -242,6 +170,7 @@ function BookModal({ initial, onSave, onClose }: {
     published: initial?.published ?? "",
     location: initial?.location ?? "Home library",
     notes: initial?.notes ?? "",
+    coverUrl: initial?.coverUrl ?? "",
   });
 
   const TABS = [
@@ -260,6 +189,7 @@ function BookModal({ initial, onSave, onClose }: {
       currentPage: initial?.currentPage ?? 0,
       coverFrom: initial?.coverFrom ?? "#2d4a3e",
       coverTo: initial?.coverTo ?? "#162030",
+      coverUrl: form.coverUrl || undefined,
       format: form.format,
       isbn: form.isbn,
       published: form.published,
@@ -270,6 +200,30 @@ function BookModal({ initial, onSave, onClose }: {
       notes: form.notes,
     };
     onSave(initial ? { ...initial, ...base } : base);
+  }
+
+  function handleCoverUpload(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCoverError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setCoverError("Please choose an image under 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        setCoverError("Could not read that image.");
+        return;
+      }
+      setForm(f => ({ ...f, coverUrl: reader.result as string }));
+      setCoverError("");
+    };
+    reader.onerror = () => setCoverError("Could not read that image.");
+    reader.readAsDataURL(file);
   }
 
   async function doSearch(q: string) {
@@ -317,16 +271,23 @@ function BookModal({ initial, onSave, onClose }: {
     searchTimer.current = setTimeout(() => void doSearch(val), 800);
   }
 
-  function handleAddSearchResult(r: SearchResult) {
-    onSave({
-      title: r.title, author: r.author, status: "Reading", rating: 0,
-      pages: r.pages, currentPage: 0,
-      coverFrom: "#2d4a3e", coverTo: "#162030",
-      coverUrl: r.coverUrl || undefined,
-      format: "Paperback", isbn: r.isbn, published: r.year,
-      source: "Purchased", dateAdded: TODAY, location: "Home library",
-      tags: r.tags, notes: "",
-    });
+  async function handleAddSearchResult(r: SearchResult) {
+    setAddingBook(true);
+    try {
+      let coverUrl: string | undefined = r.coverUrl || undefined;
+      if (coverUrl) coverUrl = await toDataUri(coverUrl);
+      onSave({
+        title: r.title, author: r.author, status: "Reading", rating: 0,
+        pages: r.pages, currentPage: 0,
+        coverFrom: "#2d4a3e", coverTo: "#162030",
+        coverUrl,
+        format: "Paperback", isbn: r.isbn, published: r.year,
+        source: "Purchased", dateAdded: TODAY, location: "Home library",
+        tags: r.tags, notes: "",
+      });
+    } finally {
+      setAddingBook(false);
+    }
   }
 
   const inputStyle: React.CSSProperties = {
@@ -350,19 +311,21 @@ function BookModal({ initial, onSave, onClose }: {
               <X size={15} />
             </button>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setTab(id)} style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer",
-                border: tab === id ? `1.5px solid ${C.green}` : `1px solid ${C.border}`,
-                color: tab === id ? C.green : C.muted,
-                background: tab === id ? C.greenFaint : C.white,
-              }}>
-                <Icon size={13} /> {label}
-              </button>
-            ))}
-          </div>
+          {!isEdit && (
+            <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+              {TABS.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => setTab(id)} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer",
+                  border: tab === id ? `1.5px solid ${C.green}` : `1px solid ${C.border}`,
+                  color: tab === id ? C.green : C.muted,
+                  background: tab === id ? C.greenFaint : C.white,
+                }}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Body */}
@@ -423,8 +386,12 @@ function BookModal({ initial, onSave, onClose }: {
                             <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
                             <div style={{ fontSize: 12, color: C.muted }}>{r.author} {r.year ? `· ${r.year}` : ""} {r.pages ? `· ${r.pages} pp` : ""}</div>
                           </div>
-                          <button onClick={() => handleAddSearchResult(r)} style={{ padding: "6px 18px", border: "none", borderRadius: 8, background: C.green, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
-                            Add
+                          <button
+                            onClick={() => { void handleAddSearchResult(r); }}
+                            disabled={addingBook}
+                            style={{ padding: "6px 18px", border: "none", borderRadius: 8, background: addingBook ? "#8aab99" : C.green, color: "#fff", fontSize: 13, fontWeight: 600, cursor: addingBook ? "not-allowed" : "pointer", flexShrink: 0 }}
+                          >
+                            {addingBook ? "Adding…" : "Add"}
                           </button>
                         </div>
                       ))}
@@ -503,11 +470,51 @@ function BookModal({ initial, onSave, onClose }: {
                 </div>
                 <div>
                   <label style={labelStyle}>Cover (optional)</label>
-                  <div style={{ border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: "20px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "#fafaf8", cursor: "pointer" }}>
-                    <CloudUpload size={22} color={C.muted} strokeWidth={1.5} />
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#555" }}>Upload cover image</div>
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={e => {
+                      handleCoverUpload(e.target.files?.[0]);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => coverInputRef.current?.click()}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        coverInputRef.current?.click();
+                      }
+                    }}
+                    style={{ border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: form.coverUrl ? 10 : "20px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "#fafaf8", cursor: "pointer" }}
+                  >
+                    {form.coverUrl ? (
+                      <img src={form.coverUrl} alt="Cover preview" style={{ width: 92, height: 132, borderRadius: 6, objectFit: "cover", boxShadow: "1px 2px 8px rgba(0,0,0,.18)" }} />
+                    ) : (
+                      <CloudUpload size={22} color={C.muted} strokeWidth={1.5} />
+                    )}
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "#555" }}>
+                      {form.coverUrl ? "Replace cover image" : "Upload cover image"}
+                    </div>
                     <div style={{ fontSize: 11.5, color: C.muted }}>JPG, PNG up to 5MB</div>
                   </div>
+                  {coverError && <div style={{ marginTop: 6, fontSize: 12, color: "#c0392b" }}>{coverError}</div>}
+                  {form.coverUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm(f => ({ ...f, coverUrl: "" }));
+                        setCoverError("");
+                      }}
+                      style={{ marginTop: 7, border: "none", background: "transparent", color: C.muted, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      Remove cover
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -534,7 +541,7 @@ function BookModal({ initial, onSave, onClose }: {
             </div>
             {tab === "manual" && (
               <button onClick={handleSave} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "11px 0", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
-                <Cloud size={14} /> Save locally
+                <Cloud size={14} /> {isEdit ? "Save changes" : "Save locally"}
               </button>
             )}
           </div>
@@ -544,13 +551,332 @@ function BookModal({ initial, onSave, onClose }: {
   );
 }
 
+// ── Reading session types + localStorage helpers ───────────────
+interface LoggedSession {
+  id: number;
+  bookId: number;
+  bookTitle: string;
+  date: string;
+  pages: number;
+  duration: string;
+  rangeStart: number;
+  rangeEnd: number;
+  mood: string;
+  moodColor: string;
+  note?: string;
+}
+
+const LS_KEY = "bt_sessions";
+function loadSessions(): LoggedSession[] {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]"); } catch { return []; }
+}
+function persistSessions(sessions: LoggedSession[]) {
+  localStorage.setItem(LS_KEY, JSON.stringify(sessions));
+}
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const MOOD_OPTIONS = [
+  { label: "thoughtful", color: "#7b9e87" },
+  { label: "curious",    color: "#7b8fbe" },
+  { label: "focused",    color: "#4a7c5f" },
+  { label: "slow burn",  color: "#b07a4a" },
+  { label: "strange",    color: "#8a6aaa" },
+  { label: "inspired",   color: "#c8a020" },
+];
+
+// ── Log Session Modal ──────────────────────────────────────────
+function LogSessionModal({ book, onSave, onClose }: {
+  book: Book;
+  onSave: (newCurrentPage: number, session: LoggedSession) => void;
+  onClose: () => void;
+}) {
+  const [currentPage, setCurrentPage] = useState(String(book.currentPage));
+  const [pagesReadInput, setPagesReadInput] = useState("0");
+  const [minutes, setMinutes] = useState<string | number>(30);
+  const [date, setDate] = useState(todayISO());
+  const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
+  const [moodColors, setMoodColors] = useState<Record<string, string>>({});
+  const [note, setNote] = useState("");
+  const [addingMood, setAddingMood] = useState(false);
+  const [customMood, setCustomMood] = useState("");
+
+  const parsedCurrentPage = currentPage.trim() === "" ? NaN : Number(currentPage);
+  const currentPageNum = Number.isFinite(parsedCurrentPage) ? parsedCurrentPage : null;
+  const minutesNum = typeof minutes === "number" ? minutes : 30;
+  const pageValidation =
+    currentPage.trim() === ""
+      ? "Enter a page number."
+      : currentPageNum === null
+        ? "Enter a valid page number."
+        : currentPageNum < book.currentPage
+          ? `Page cannot be lower than current page ${book.currentPage}.`
+          : currentPageNum > book.pages
+            ? `Page cannot be higher than total pages ${book.pages}.`
+            : "";
+  const pagesRead = currentPageNum === null ? 0 : Math.max(0, currentPageNum - book.currentPage);
+  const pct = currentPageNum === null || book.pages <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((currentPageNum / book.pages) * 100)));
+  const canSaveSession = !pageValidation && pagesRead > 0;
+
+  function toggleMood(label: string, color: string) {
+    setSelectedMoods(ms =>
+      ms.includes(label) ? ms.filter(m => m !== label) : [...ms, label]
+    );
+    setMoodColors(mc => ({ ...mc, [label]: color }));
+  }
+
+  function addCustomMood() {
+    const m = customMood.trim();
+    if (!m) return;
+    toggleMood(m, "#8a8a8a");
+    setCustomMood("");
+    setAddingMood(false);
+  }
+
+  function handleSave() {
+    if (!canSaveSession || currentPageNum === null) return;
+    const primaryMood = selectedMoods[0] ?? "";
+    const primaryColor = moodColors[primaryMood] ?? "#8a8a8a";
+    const session: LoggedSession = {
+      id: Date.now(),
+      bookId: book.id,
+      bookTitle: book.title,
+      date,
+      pages: pagesRead,
+      duration: `${String(minutesNum).padStart(2, "0")}:00`,
+      rangeStart: book.currentPage,
+      rangeEnd: currentPageNum,
+      mood: selectedMoods.join(", "),
+      moodColor: primaryColor,
+      note: note.trim() || undefined,
+    };
+    onSave(currentPageNum, session);
+  }
+
+  const inp: React.CSSProperties = {
+    border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px",
+    fontSize: 15, background: C.white, outline: "none", width: "100%", boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.42)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24 }}>
+      <style>{`
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
+        }
+      `}</style>
+      <div style={{ background: C.white, borderRadius: 16, width: "min(860px,92vw)", maxHeight: "90vh", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,.22)", display: "flex", flexDirection: "column" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "26px 34px 20px", borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ ...SERIF, fontSize: 25, fontWeight: 400, color: C.text }}>Log reading session</div>
+          <button onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: C.muted, lineHeight: 1, padding: 2 }}>
+            <X size={22} strokeWidth={1.6} />
+          </button>
+        </div>
+
+        {/* Book info row */}
+        <div style={{ overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 26, padding: "20px 34px" }}>
+          <div style={{ width: 96, height: 136, flexShrink: 0, borderRadius: 6, overflow: "hidden", boxShadow: "1px 2px 8px rgba(0,0,0,.18)" }}>
+            <BookCover from={book.coverFrom} to={book.coverTo} title={book.title} height={136} coverUrl={book.coverUrl} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ ...SERIF, fontSize: 24, fontWeight: 500, color: C.text, marginBottom: 8, lineHeight: 1.2 }}>{book.title}</div>
+            <div style={{ fontSize: 17, color: C.muted, marginBottom: 18 }}>{book.author}</div>
+            <div style={{ fontSize: 16, color: C.muted }}>{book.currentPage} / {book.pages} pages</div>
+          </div>
+        </div>
+
+        {/* Form */}
+        <div style={{ padding: "0 34px 22px", display: "flex", flexDirection: "column", gap: 22 }}>
+
+          {/* Current page */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8 }}>Current page</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ position: "relative", width: "100%" }}>
+                <input
+                  type="number" value={currentPage} min={book.currentPage} max={book.pages}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setCurrentPage("");
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num)) {
+                        setCurrentPage(val);
+                        setPagesReadInput(String(num - book.currentPage));
+                      }
+                    }
+                  }}
+                  style={{ ...inp, paddingRight: 32, borderColor: pageValidation ? "#c0392b" : C.border }}
+                />
+                <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 1 }}>
+                  <button onClick={() => setCurrentPage(p => {
+                    const current = Number(p);
+                    const next = Math.min(book.pages, (Number.isFinite(current) ? current : book.currentPage) + 1);
+                    setPagesReadInput(String(next - book.currentPage));
+                    return String(next);
+                  })} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, lineHeight: 1, padding: 0, fontSize: 10 }}>▲</button>
+                  <button onClick={() => setCurrentPage(p => {
+                    const current = Number(p);
+                    const next = Math.max(book.currentPage, (Number.isFinite(current) ? current : book.currentPage) - 1);
+                    setPagesReadInput(String(next - book.currentPage));
+                    return String(next);
+                  })} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, lineHeight: 1, padding: 0, fontSize: 10 }}>▼</button>
+                </div>
+              </div>
+              {pageValidation && (
+                <div style={{ fontSize: 13, color: "#c0392b" }}>{pageValidation}</div>
+              )}
+            </div>
+            <div style={{ height: 6, background: "#e4e9e5", borderRadius: 99, overflow: "hidden", marginTop: 10 }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: C.green, borderRadius: 99, transition: "width .2s" }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 13, color: C.muted, marginTop: 8 }}>{pct}% complete</div>
+          </div>
+
+          {/* Session detail fields */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px 28px" }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8 }}>Pages read this session</label>
+              <input
+                type="number"
+                value={pagesReadInput}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPagesReadInput(val);
+                  const num = Number(val);
+                  if (val === "") {
+                    setCurrentPage(String(book.currentPage));
+                  } else if (Number.isFinite(num)) {
+                    setCurrentPage(String(book.currentPage + num));
+                  }
+                }}
+                style={inp}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8 }}>Reading time</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="number" value={minutes} min={1} max={999}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setMinutes("");
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num)) setMinutes(Math.max(1, Math.min(999, num)));
+                    }
+                  }}
+                  style={inp} />
+                <span style={{ fontSize: 13, color: C.muted }}>min</span>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8 }}>Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inp} />
+            </div>
+            <div />
+          </div>
+
+          {/* Mood */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8 }}>Mood</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {MOOD_OPTIONS.map(m => {
+                const active = selectedMoods.includes(m.label);
+                return (
+                  <button key={m.label} onClick={() => toggleMood(m.label, m.color)} style={{
+                    padding: "5px 12px", borderRadius: 20, fontSize: 12.5, fontWeight: 500, cursor: "pointer",
+                    border: `1px solid ${active ? m.color : C.border}`,
+                    background: active ? m.color + "22" : C.white,
+                    color: active ? m.color : C.muted,
+                    transition: "all .12s",
+                  }}>
+                    {m.label}
+                  </button>
+                );
+              })}
+              {selectedMoods.filter(m => !MOOD_OPTIONS.some(o => o.label === m)).map(m => (
+                <button key={m} onClick={() => toggleMood(m, "#8a8a8a")} style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 12.5, fontWeight: 500, cursor: "pointer",
+                  border: `1px solid #8a8a8a`, background: "#8a8a8a22", color: "#8a8a8a",
+                }}>
+                  {m} ×
+                </button>
+              ))}
+              {addingMood ? (
+                <input autoFocus value={customMood} onChange={e => setCustomMood(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") addCustomMood(); if (e.key === "Escape") setAddingMood(false); }}
+                  onBlur={addCustomMood}
+                  placeholder="Add mood…"
+                  style={{ ...inp, width: 120, padding: "5px 10px", borderRadius: 20, fontSize: 12.5 }} />
+              ) : (
+                <button onClick={() => setAddingMood(true)} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12.5, cursor: "pointer", border: `1px dashed ${C.border}`, background: "transparent", color: C.muted }}>
+                  + Add mood
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Note */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8 }}>Session note <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+            <textarea value={note} onChange={e => setNote(e.target.value)}
+              placeholder="How did the reading go?"
+              rows={3}
+              style={{ ...inp, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "0 28px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: C.muted }}>
+            <Cloud size={13} />
+            This session will be stored locally on this device.
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 13.5, fontWeight: 500, color: C.text, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={!canSaveSession}
+              style={{ flex: 2, padding: "10px 0", borderRadius: 8, border: "none", background: !canSaveSession ? "#c4d4cc" : C.green, color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: !canSaveSession ? "not-allowed" : "pointer", transition: "background .13s" }}>
+              Save session
+            </button>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────
 export default function LibraryPage() {
-  const [books, setBooks] = useState<Book[]>(INITIAL_BOOKS);
+  const [books, setBooks] = useState<Book[]>(() => {
+    try {
+      const raw = localStorage.getItem("bt_books");
+      if (raw) { const parsed = JSON.parse(raw); if (Array.isArray(parsed) && parsed.length) return parsed; }
+    } catch {}
+    return INITIAL_BOOKS;
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("bt_books", JSON.stringify(books)); } catch {}
+  }, [books]);
   const [archivedBooks, setArchivedBooks] = useState<Book[]>([]);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [activeFilter, setActiveFilter] = useState("All books");
-  const [selectedId, setSelectedId] = useState<number>(2);
+  const [selectedId, setSelectedId] = useState<number>(-1);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -563,12 +889,13 @@ export default function LibraryPage() {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [genreFilter, setGenreFilter] = useState("");
+  const [loggingBook, setLoggingBook] = useState<Book | null>(null);
 
-  // selected always refers to the clicked book (across active/archived lists)
+  // selected is only set when the user explicitly clicks a book
   const allVisible = activeFilter === "Archived" ? archivedBooks : books;
-  const selected = allVisible.find(b => b.id === selectedId)
-    ?? books.find(b => b.id === selectedId)
-    ?? books[0];
+  const selected = selectedId === -1
+    ? undefined
+    : (allVisible.find(b => b.id === selectedId) ?? books.find(b => b.id === selectedId));
   const ss = STATUS[selected?.status ?? "Reading"];
 
   // all unique tags for genre filter
@@ -613,8 +940,7 @@ export default function LibraryPage() {
     if (!book) return;
     setBooks(bs => bs.filter(b => b.id !== id));
     setArchivedBooks(ab => [...ab, book]);
-    const remaining = books.filter(b => b.id !== id);
-    if (selectedId === id) setSelectedId(remaining[0]?.id ?? -1);
+    if (selectedId === id) setSelectedId(-1);
     setMoveToOpen(false);
   }
 
@@ -629,12 +955,7 @@ export default function LibraryPage() {
 
   function switchFilter(f: string) {
     setActiveFilter(f);
-    let base: Book[];
-    if (f === "Archived") base = archivedBooks;
-    else if (f === "Favorites") base = books.filter(b => favorites.has(b.id));
-    else if (f === "All books") base = books;
-    else base = books.filter(b => b.status === f);
-    setSelectedId(base[0]?.id ?? -1);
+    setSelectedId(-1);
   }
 
   function addTag(bookId: number, tag: string) {
@@ -646,6 +967,16 @@ export default function LibraryPage() {
 
   function removeTag(bookId: number, tag: string) {
     setBooks(bs => bs.map(b => b.id === bookId ? { ...b, tags: b.tags.filter(t => t !== tag) } : b));
+  }
+
+  function handleLogSave(newCurrentPage: number, session: LoggedSession) {
+    setBooks(bs => bs.map(b => {
+      if (b.id !== session.bookId) return b;
+      const finished = newCurrentPage >= b.pages;
+      return { ...b, currentPage: newCurrentPage, status: finished ? "Finished" : b.status };
+    }));
+    persistSessions([session, ...loadSessions()]);
+    setLoggingBook(null);
   }
 
   function openEditModal(book: Book) {
@@ -684,8 +1015,9 @@ export default function LibraryPage() {
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
       {/* ══ LEFT: selected book panel ══ */}
+      {selected && (
       <div style={{ width: 220, flexShrink: 0, background: C.white, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {selected ? (
+        {(
           <>
             <BookCover from={selected.coverFrom} to={selected.coverTo} title={selected.title} height={270} coverUrl={selected.coverUrl} />
             <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 9, flex: 1, overflowY: "auto" }}>
@@ -736,19 +1068,16 @@ export default function LibraryPage() {
                   </button>
 
                   {/* Log pages */}
-                  <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, fontWeight: 500, color: C.text, cursor: "pointer" }}>
+                  <button onClick={() => selected && setLoggingBook(selected)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, fontWeight: 500, color: C.text, cursor: "pointer" }}>
                     <FileText size={14} style={{ color: C.muted }} /> Log pages
                   </button>
                 </>
               )}
             </div>
           </>
-        ) : (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 13 }}>
-            Select a book
-          </div>
         )}
       </div>
+      )}
 
       {/* ══ CENTER ══ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f7f5f0" }}>
@@ -892,9 +1221,13 @@ export default function LibraryPage() {
                 const inProgress = book.status !== "Finished" && book.status !== "DNF" && book.currentPage < book.pages;
                 return (
                   <div key={book.id} onClick={() => setSelectedId(book.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderBottom: i < sorted.length - 1 ? `1px solid ${C.border}` : "none", background: isActive ? C.greenFaint : C.white, cursor: "pointer", transition: "background .1s" }}>
-                    <div style={{ width: 36, height: 52, borderRadius: 4, flexShrink: 0, background: `linear-gradient(155deg, ${book.coverFrom} 0%, ${book.coverTo} 100%)`, position: "relative", overflow: "hidden", boxShadow: "1px 1px 4px rgba(0,0,0,.18)" }}>
-                      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: "linear-gradient(to right, rgba(0,0,0,.25), transparent)" }} />
-                    </div>
+                    {book.coverUrl ? (
+                      <img src={book.coverUrl} alt={book.title} style={{ width: 36, height: 52, borderRadius: 4, flexShrink: 0, objectFit: "cover", boxShadow: "1px 1px 4px rgba(0,0,0,.18)" }} />
+                    ) : (
+                      <div style={{ width: 36, height: 52, borderRadius: 4, flexShrink: 0, background: `linear-gradient(155deg, ${book.coverFrom} 0%, ${book.coverTo} 100%)`, position: "relative", overflow: "hidden", boxShadow: "1px 1px 4px rgba(0,0,0,.18)" }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: "linear-gradient(to right, rgba(0,0,0,.25), transparent)" }} />
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.3 }}>{book.title}</div>
                       <div style={{ fontSize: 11.5, color: C.muted }}>{book.author}</div>
@@ -1056,6 +1389,13 @@ export default function LibraryPage() {
           initial={editingBook ?? undefined}
           onSave={editingBook ? b => updateBook(b as Book) : b => addBook(b as Omit<Book, "id">)}
           onClose={() => { setShowAddModal(false); setEditingBook(null); }}
+        />
+      )}
+      {loggingBook && (
+        <LogSessionModal
+          book={loggingBook}
+          onSave={handleLogSave}
+          onClose={() => setLoggingBook(null)}
         />
       )}
     </div>
