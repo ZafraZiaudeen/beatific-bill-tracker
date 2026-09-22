@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Bookmark, Search, ChevronDown, Star, Plus, MoreVertical,
-  Shuffle, Play, X, Cloud, Info, ChevronUp,
+  Shuffle, Play, X, Cloud, Info,
 } from "lucide-react";
 
 const C = {
@@ -564,10 +564,6 @@ export default function WishlistPage() {
   }
 
   const sel = sidebarBook;
-  const selGroup = sel ? groupFor(sel.priority) : [];
-  const canMoveUp = sel ? selGroup.findIndex(b => b.id === sel.id) > 0 : false;
-  const canMoveDown = sel ? selGroup.findIndex(b => b.id === sel.id) < selGroup.length - 1 : false;
-
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
 
@@ -704,7 +700,7 @@ export default function WishlistPage() {
                 </div>
 
                 {/* Book rows */}
-                {group.map((book, idx) => {
+                {group.map((book) => {
                   const isMenuOpen = menuOpen === book.id;
                   const groupBooks = books.filter(b => b.priority === priority).sort((a, b2) => a.order - b2.order);
                   const bookIdx = groupBooks.findIndex(b => b.id === book.id);
@@ -712,7 +708,7 @@ export default function WishlistPage() {
                     <div key={book.id}
                       onClick={() => setSidebarBook(book)}
                       style={{ display: "flex", alignItems: "center", gap: 16,
-                        padding: "16px 0", borderBottom: `1px solid ${C.border}`,
+                        borderBottom: `1px solid ${C.border}`,
                         cursor: "pointer", background: sidebarBook?.id === book.id ? C.greenFaint : "transparent",
                         margin: "0 -4px", padding: "16px 4px",
                         transition: "background .1s" }}>

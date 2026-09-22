@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  Search, Plus, Star, MoreHorizontal, Edit3, Copy, Trash2,
+  Search, Star, MoreHorizontal, Edit3, Copy, Trash2,
   ChevronDown, X, Shuffle, ArrowLeft, FileText, Quote,
   Cloud, CheckCircle2, BookOpen,
 } from "lucide-react";
@@ -182,14 +182,14 @@ function NoteDialog({
   onCancel: () => void;
   onSave: (data: NoteFormData) => void;
   noteCreatedAt?: string;
-  libraryBooks: Array<{ id: number; title: string; author: string; coverFrom: string; coverTo: string }>;
+  libraryBooks: Array<{ id: number; title: string; author: string; coverFrom: string; coverTo: string; coverUrl?: string }>;
 }) {
   const [form, setForm] = useState<NoteFormData>(initial);
   const [addingMood, setAddingMood] = useState(false);
   const [newMood, setNewMood] = useState("");
   const [showBookDrop, setShowBookDrop] = useState(false);
 
-  const PLACEHOLDER_BOOK = { id: 0, title: "Select a book", author: "", coverFrom: "#2d4a3e", coverTo: "#1a2e24" };
+  const PLACEHOLDER_BOOK = { id: 0, title: "Select a book", author: "", coverFrom: "#2d4a3e", coverTo: "#1a2e24", coverUrl: undefined as string | undefined };
   const books = libraryBooks.length > 0 ? libraryBooks : [PLACEHOLDER_BOOK];
   const selectedBook = books.find(b => b.id === form.bookId) ?? books[0];
   const existingMoods = Object.keys(MOOD_COLOR);

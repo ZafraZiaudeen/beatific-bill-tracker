@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
 import {
   BookOpen, Cloud, ChevronLeft, ChevronRight, ChevronDown,
-  Calendar, Clock, TrendingUp, BarChart2, Zap, Target,
-  Printer, Download, FileText, Copy, Info, Edit3,
+  Calendar, Clock, TrendingUp, BarChart2, Target,
+  Printer, Download, FileText, Copy, Edit3,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, XAxis, YAxis, Tooltip,
-  CartesianGrid, ReferenceLine, Legend, LabelList,
+  CartesianGrid, ReferenceLine, LabelList,
 } from "recharts";
 
 // ── Tokens ─────────────────────────────────────────────────────
@@ -331,10 +331,10 @@ function YearTab({ sessions, books }: { sessions: Session[]; books: BookRef[] })
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: C.muted }} axisLine={false} tickLine={false} width={18} />
                 <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="completed" name="Completed" fill={C.green} radius={[3, 3, 0, 0]} stackId="a">
-                  <LabelList dataKey="completed" position="top" style={{ fontSize: 10, fill: C.text, fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+                  <LabelList dataKey="completed" position="top" style={{ fontSize: 10, fill: C.text, fontWeight: 700 }} formatter={(v: unknown) => (typeof v === 'number' && v > 0) ? v : ""} />
                 </Bar>
                 <Bar dataKey="projected" name="Projected" fill="#c8ddd5" radius={[3, 3, 0, 0]} stackId="b">
-                  <LabelList dataKey="projected" position="top" style={{ fontSize: 10, fill: C.muted, fontWeight: 700 }} formatter={(v: number) => v > 0 ? v : ""} />
+                  <LabelList dataKey="projected" position="top" style={{ fontSize: 10, fill: C.muted, fontWeight: 700 }} formatter={(v: unknown) => (typeof v === 'number' && v > 0) ? v : ""} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -472,105 +472,6 @@ function YearTab({ sessions, books }: { sessions: Session[]; books: BookRef[] })
       {/* Footer */}
       <div style={{ textAlign: "center" as const, fontSize: 11.5, color: C.muted, paddingTop: 2 }}>
         All data stored only on this device.
-      </div>
-    </div>
-  );
-}
-
-// ── Comparison sub-view ────────────────────────────────────────
-function ComparisonView({ sessions, books }: { sessions: Session[]; books: BookRef[] }) {
-  const totalBooks = books.filter(b => b.status === "Finished").length;
-  const totalSecs = sessions.reduce((a, s) => a + durationToSec(s.duration), 0);
-  const totalPages = sessions.reduce((a, s) => a + s.pages, 0);
-  // Mock last-year data (65% of current)
-  const lyBooks = Math.round(totalBooks * 0.74);
-  const lySecs  = Math.round(totalSecs * 0.74);
-  const lyPages = Math.round(totalPages * 0.80);
-
-  const byMonth = MONTH_SHORT.map((m, i) => {
-    const thisYr = sessions.filter(s => new Date(s.date).getMonth() === i)
-      .reduce((a) => a + 1, 0);
-    return { month: m, "2026": thisYr, "2025": Math.round(thisYr * 0.74) };
-  });
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Main comparison */}
-      <div style={{ ...card, display: "flex", alignItems: "center", gap: 24 }}>
-        <div style={{ flex: 1 }}>
-          <SectionLabel>Total Books Finished</SectionLabel>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: -1, color: C.green, lineHeight: 1 }}>{totalBooks}</div>
-              <div style={{ fontSize: 12, color: C.muted }}>books · this year</div>
-            </div>
-            <div style={{ opacity: 0.4 }}>
-              <div style={{ fontSize: 32, fontWeight: 700, color: C.text, lineHeight: 1 }}>{lyBooks}</div>
-              <div style={{ fontSize: 12, color: C.muted }}>books · last year</div>
-            </div>
-            <div style={{ background: "#e8f7ef", border: "1px solid #b2e0c5", borderRadius: 20, padding: "4px 11px", fontSize: 12, fontWeight: 600, color: "#2d7a4f", flexShrink: 0 }}>
-              ↑ +{totalBooks - lyBooks} vs. last year
-            </div>
-          </div>
-          <div style={{ fontSize: 13, color: "#555", fontStyle: "italic" }}>More books. More moments. Same you.</div>
-        </div>
-        <div style={{ color: C.greenFaint }}>
-          <BookOpen size={72} strokeWidth={0.8} />
-        </div>
-      </div>
-
-      {/* 4 stat tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-        {[
-          { icon: Clock,    label: "Reading Time", val: formatTime(totalSecs), last: formatTime(lySecs),  delta: "+35%" },
-          { icon: BarChart2, label: "Pages Read",  val: totalPages.toLocaleString(), last: lyPages.toLocaleString(), delta: "+20%" },
-          { icon: TrendingUp, label: "Avg Rating", val: "4.3",  last: "4.1", delta: "+5%"  },
-          { icon: Zap,       label: "Longest Streak", val: "27 days", last: "18 days", delta: "+33%" },
-        ].map(({ icon: Icon, label, val, last, delta }) => (
-          <div key={label} style={card}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <Icon size={13} style={{ color: C.muted }} />
-              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: C.muted }}>{label}</span>
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.green, marginBottom: 3 }}>{val}</div>
-            <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>{last} last year</div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: "#3d9e5f" }}>↑ {delta}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Grouped bar chart */}
-      <div style={card}>
-        <SectionLabel>Books by Month — 2026 vs 2025</SectionLabel>
-        <div style={{ height: 180 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byMonth} margin={{ top: 10, right: 10, bottom: 0, left: 0 }} barGap={3}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: C.muted }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: C.muted }} axisLine={false} tickLine={false} width={20} />
-              <Tooltip content={<ChartTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
-              <Bar dataKey="2026" fill={C.green} radius={[3, 3, 0, 0]} barSize={10} />
-              <Bar dataKey="2025" fill="#cad8d3" radius={[3, 3, 0, 0]} barSize={10} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* What Changed */}
-      <div style={{ ...card, background: C.greenFaint, border: `1px solid #c8ddd5` }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <Info size={18} style={{ color: C.green, flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <SectionLabel>What Changed?</SectionLabel>
-            <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#3a5c4a", lineHeight: 1.7 }}>
-              <li>You read <strong>{totalBooks - lyBooks} more books</strong> this year than last — a new personal best.</li>
-              <li>Your reading time grew by <strong>35%</strong>, driven by longer weekend sessions.</li>
-              <li>You explored more genres, adding <strong>Literary Fiction</strong> alongside your Sci-fi core.</li>
-              <li>Average session length increased by <strong>12 minutes</strong>, showing deeper focus.</li>
-            </ul>
-          </div>
-        </div>
       </div>
     </div>
   );

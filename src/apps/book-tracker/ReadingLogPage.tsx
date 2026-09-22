@@ -99,7 +99,6 @@ const FALLBACK_BOOK: BookRef = {
   status: "Reading",
 };
 
-const FALLBACK_BOOKS: BookRef[] = [];
 
 const LS_KEY      = "bt_sessions";
 const BOOKS_LS    = "bt_books";
