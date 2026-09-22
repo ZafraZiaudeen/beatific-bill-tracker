@@ -3,8 +3,9 @@ import { ArrowLeft, Download, Layers } from "lucide-react";
 import BookTrackerDashboard from "./book-tracker/BookTrackerDashboard";
 import { bookTrackerHtml } from "./book-tracker/bookTrackerTemplate";
 import BillTrackerTab from "./bill-tracker-tab/BillTrackerTab";
+import BudgetPlannerTab from "./budget-planner-tab/BudgetPlannerTab";
 
-type AppId = "bill-tracker" | "book-tracker";
+type AppId = "bill-tracker" | "book-tracker" | "budget-planner";
 
 interface AppDef {
   id: AppId;
@@ -151,6 +152,83 @@ function BookTrackerPreview() {
   );
 }
 
+function BudgetPlannerPreview() {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", overflow: "hidden", pointerEvents: "none", userSelect: "none" }}>
+      {/* Dark navy sidebar */}
+      <div style={{
+        width: 44, flexShrink: 0,
+        background: "#0f1623",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        padding: "10px 6px", gap: 6,
+      }}>
+        <div style={{ width: 22, height: 22, borderRadius: 5, background: "#22c55e", marginBottom: 4 }} />
+        {[1,2,3,4,5,6,7,8].map(i => (
+          <div key={i} style={{ width: 28, height: 6, borderRadius: 99, background: i === 1 ? "#22c55e" : "rgba(255,255,255,0.12)" }} />
+        ))}
+      </div>
+      {/* Main area */}
+      <div style={{ flex: 1, background: "#f5f4f0", padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Title */}
+        <div style={{ fontSize: 8, fontWeight: 700, color: "#1a1f2e" }}>Your money, in focus.</div>
+        {/* KPI row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+          {[
+            { label: "Income", val: "$5,200", color: "#dbeafe" },
+            { label: "Assigned", val: "$3,960", color: "#dcfce7" },
+            { label: "Spent", val: "$3,020", color: "#fef9c3" },
+            { label: "Left", val: "$1,240", color: "#f0fdf4" },
+          ].map(({ label, val, color }) => (
+            <div key={label} style={{ background: color, borderRadius: 5, padding: "4px 5px" }}>
+              <div style={{ fontSize: 4.5, color: "#6b7280", marginBottom: 1 }}>{label}</div>
+              <div style={{ fontSize: 7, fontWeight: 700, color: "#1a1f2e" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {/* Budget stacked bar */}
+        <div style={{ background: "#fff", borderRadius: 5, padding: "5px 6px" }}>
+          <div style={{ fontSize: 5.5, fontWeight: 600, color: "#1a1f2e", marginBottom: 3 }}>Every dollar has a job</div>
+          <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", gap: 1 }}>
+            {[
+              { w: "33%", c: "#3b82f6" },
+              { w: "23%", c: "#f97316" },
+              { w: "12%", c: "#22c55e" },
+              { w: "9%",  c: "#1e293b" },
+              { w: "5%",  c: "#60a5fa" },
+              { w: "18%", c: "#e2e8f0" },
+            ].map(({ w, c }, i) => (
+              <div key={i} style={{ width: w, background: c, borderRadius: 2 }} />
+            ))}
+          </div>
+        </div>
+        {/* Bottom row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, flex: 1 }}>
+          {/* Upcoming bills */}
+          <div style={{ background: "#fff", borderRadius: 5, padding: "4px 5px", overflow: "hidden" }}>
+            <div style={{ fontSize: 5, fontWeight: 700, color: "#1a1f2e", marginBottom: 3 }}>Upcoming Bills</div>
+            {["🏠 Rent", "⚡ Electric", "📶 Internet"].map(b => (
+              <div key={b} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                <div style={{ fontSize: 5, color: "#374151" }}>{b}</div>
+                <div style={{ fontSize: 4.5, color: "#22c55e", background: "#f0fdf4", borderRadius: 2, padding: "0 2px" }}>✓</div>
+              </div>
+            ))}
+          </div>
+          {/* Net worth */}
+          <div style={{ background: "#fff", borderRadius: 5, padding: "4px 5px" }}>
+            <div style={{ fontSize: 5, fontWeight: 700, color: "#1a1f2e", marginBottom: 2 }}>Net Worth</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#22c55e" }}>$82,450</div>
+            <div style={{ fontSize: 4.5, color: "#6b7280", marginBottom: 3 }}>↑ 5.7% vs last month</div>
+            {/* Mini line chart */}
+            <svg width="100%" height={20} viewBox="0 0 80 20">
+              <polyline points="0,18 16,15 32,12 48,9 64,5 80,3" fill="none" stroke="#22c55e" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const APPS: AppDef[] = [
   {
     id: "bill-tracker",
@@ -166,6 +244,13 @@ const APPS: AppDef[] = [
     html: bookTrackerHtml,
     Preview: BookTrackerPreview,
     Component: BookTrackerDashboard,
+  },
+  {
+    id: "budget-planner",
+    name: "Budget Planner",
+    description: "Zero-based budget dashboard — track income, spending, sinking funds and net worth.",
+    Preview: BudgetPlannerPreview,
+    Component: BudgetPlannerTab,
   },
 ];
 
