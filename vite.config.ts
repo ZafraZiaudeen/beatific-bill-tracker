@@ -13,10 +13,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      input: "bill-tracker.html",
+      input: "index.html",
     },
   },
   server: {
-    open: "/bill-tracker.html",
+    open: "/index.html",
   },
 })
