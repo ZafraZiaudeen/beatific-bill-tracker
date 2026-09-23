@@ -150,15 +150,6 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
     onNameChange?.(v);
   };
 
-  const transferCode = (() => {
-    try {
-      const s = loadSettings();
-      if (s.transferCode) return s.transferCode as string;
-      const code = Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
-      saveSettings({ transferCode: code });
-      return code;
-    } catch { return "----"; }
-  })();
 
   const handleExportJSON = () => {
     const ts = exportJSON();
