@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
+import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
+import flower01 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-01.png';
+import flower03 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-03.png';
+import sprig01 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-01.png';
+import sprig02 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-02.png';
+import heart01 from '../../../assets/budget-assets/hearts/heart-01.png';
 
 type HelpArticle = {
   id: string;
@@ -10,14 +16,14 @@ type HelpArticle = {
   body: string[];
 };
 
-type IconName = 'article' | 'arrow' | 'shield' | 'keyboard' | 'print' | 'restore' | 'mail' | 'search' | 'tag' | 'message' | 'sync';
+type IconName = 'article' | 'arrow' | 'shield' | 'keyboard' | 'print' | 'restore' | 'search' | 'tag' | 'message' | 'sync';
 type Modal = { kind: 'article'; article: HelpArticle } | { kind: 'shortcuts' } | null;
 
 const ARTICLES: HelpArticle[] = [
   {
     id: 'local-storage',
     title: 'How local storage works',
-    summary: 'Your data is stored directly on your device, keeping your information private and under your control.',
+    summary: 'Your data is saved directly on this device using your browser\'s local storage.',
     icon: 'article',
     tone: 'blue',
     body: [
@@ -29,7 +35,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: 'export-backup',
     title: 'How to export a backup',
-    summary: 'Learn how to create and save a backup of your data, and what is included in the export.',
+    summary: 'Save a copy of your data as a file to keep it safe or move it to another device.',
     icon: 'shield',
     tone: 'green',
     body: [
@@ -41,7 +47,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: 'sync-codes',
     title: 'How sync codes work',
-    summary: 'Understand how manual sync codes help you move your data between devices without server sync.',
+    summary: 'Sync codes help you move data between devices on your local network.',
     icon: 'sync',
     tone: 'orange',
     body: [
@@ -52,7 +58,19 @@ const ARTICLES: HelpArticle[] = [
   },
 ];
 
-const TOPICS = ['Question', 'Bug report', 'Feature idea', 'Backup help', 'Privacy question'];
+const ARTICLE_TINTS = ['ldg-stat-cream', 'ldg-stat-blush', 'ldg-stat-white'];
+const ARTICLE_DECOS = [flower01, flower03, sprig02];
+const ARTICLE_ICON_COLORS = [
+  { bg: 'rgba(122,158,126,.15)', color: '#4a7060' },
+  { bg: 'rgba(196,138,138,.15)', color: '#a05050' },
+  { bg: 'rgba(196,163,90,.15)', color: '#8a6020' },
+];
+const QL_TINTS = ['ldg-stat-blush', 'ldg-stat-cream', 'ldg-stat-white'];
+const QL_ICON_COLORS = [
+  { bg: 'rgba(122,158,126,.12)', color: '#4a7060' },
+  { bg: 'rgba(196,138,138,.12)', color: '#a05050' },
+  { bg: 'rgba(107,158,196,.12)', color: '#3a6e96' },
+];
 
 function Icon({ name }: { name: IconName }) {
   const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -64,7 +82,6 @@ function Icon({ name }: { name: IconName }) {
       {name === 'keyboard' && <><rect {...common} x="3" y="5" width="18" height="14" rx="2" /><path {...common} d="M7 9h.01M11 9h.01M15 9h.01M7 13h10" /></>}
       {name === 'print' && <><path {...common} d="M6 9V3h12v6" /><path {...common} d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path {...common} d="M6 14h12v7H6z" /></>}
       {name === 'restore' && <><path {...common} d="M3 12a9 9 0 1 0 3-6.7" /><path {...common} d="M3 4v5h5" /><path {...common} d="M12 8v5l3 2" /></>}
-      {name === 'mail' && <><rect {...common} x="3" y="5" width="18" height="14" rx="2" /><path {...common} d="M3 7l9 6 9-6" /></>}
       {name === 'search' && <><circle {...common} cx="11" cy="11" r="7" /><path {...common} d="M20 20l-3.5-3.5" /></>}
       {name === 'tag' && <><path {...common} d="M20 10l-8.5 8.5a2 2 0 0 1-2.8 0L3 12.8V4h8.8L20 12.2a2 2 0 0 1 0 2.8z" /><path {...common} d="M7.5 7.5h.01" /></>}
       {name === 'message' && <><path {...common} d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></>}
@@ -97,9 +114,6 @@ export function HelpPrivacyPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<Modal>(null);
-  const [email, setEmail] = useState('');
-  const [topic, setTopic] = useState(TOPICS[0]);
-  const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
 
   const results = useMemo(() => {
@@ -111,120 +125,115 @@ export function HelpPrivacyPage() {
     });
   }, [query]);
 
-  const openMailDraft = () => {
-    setStatus('');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setStatus('Enter a valid email address before sending.');
-      return;
-    }
-    if (!message.trim()) {
-      setStatus('Add a short message before sending.');
-      return;
-    }
-    const subject = encodeURIComponent(`Ledgerly ${topic}`);
-    const body = encodeURIComponent(`From: ${email.trim()}\nTopic: ${topic}\n\n${message.trim()}`);
-    window.location.href = `mailto:support@example.com?subject=${subject}&body=${body}`;
-    setStatus('Opening your email app.');
-  };
+  const ARTICLE_IDX = results.map(r => ARTICLES.indexOf(r));
 
   return (
-    <div className="help-page">
-      <header className="help-header">
+    <div className="ldg-hlp-page">
+      <PageIntroBanner view="help" />
+      {/* Header */}
+      <div className="ldg-hlp-header">
         <div>
-          <h1>Help & privacy</h1>
-          <p>Find answers, manage your data, and get in touch.</p>
+          <div className="ldg-hlp-title">Help &amp; Privacy <img src={heart01} alt="" /></div>
+          <div className="ldg-hlp-subtitle">Find answers and manage your data privacy.</div>
         </div>
-        <label className="help-search">
-          <Icon name="search" />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search help articles"
-            aria-label="Search help articles"
-          />
-        </label>
-      </header>
-
-      {status && <div className="help-status">{status}</div>}
-
-      <section className="help-article-grid" aria-label="Help articles">
-        {results.map(article => (
-          <button key={article.id} className="help-article-card" onClick={() => setModal({ kind: 'article', article })}>
-            <span className={`help-card-icon ${article.tone}`}><Icon name={article.icon} /></span>
-            <span className="help-card-copy">
-              <strong>{article.title}</strong>
-              <small>{article.summary}</small>
-            </span>
-            <span className="help-arrow"><Icon name="arrow" /></span>
-          </button>
-        ))}
-        {results.length === 0 && (
-          <div className="help-empty">
-            <strong>No articles found</strong>
-            <span>Try searching for backup, storage, privacy, or sync.</span>
-          </div>
-        )}
-      </section>
-
-      <div className="help-main-grid">
-        <section className="help-privacy-panel">
-          <div className="help-privacy-icon"><Icon name="shield" /></div>
-          <div>
-            <h2>Your financial data stays on this device.</h2>
-            <p>Nothing is sent to any server. Backups and restores happen from files you choose.</p>
-          </div>
-        </section>
-
-        <section className="help-quick-links">
-          <h2>Quick links</h2>
-          <button onClick={() => setModal({ kind: 'shortcuts' })}>
-            <span><Icon name="keyboard" />Keyboard shortcuts</span>
-            <Icon name="arrow" />
-          </button>
-          <button onClick={() => setView('reports')}>
-            <span><Icon name="print" />Print a report</span>
-            <Icon name="arrow" />
-          </button>
-          <button onClick={() => fileInputRef.current?.click()}>
-            <span><Icon name="restore" />Restore a backup</span>
-            <Icon name="arrow" />
-          </button>
-        </section>
       </div>
 
-      <section className="help-contact-card">
-        <div className="help-contact-intro">
-          <span className="help-contact-icon"><Icon name="mail" /></span>
-          <div>
-            <h2>Contact / feedback</h2>
-            <p>Have a question, found a bug, or have a suggestion? Send a message from your email app.</p>
-          </div>
-        </div>
-        <div className="help-contact-form">
-          <label>
-            <Icon name="mail" />
-            <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" type="email" />
-          </label>
-          <label>
-            <Icon name="tag" />
-            <select value={topic} onChange={e => setTopic(e.target.value)}>
-              {TOPICS.map(item => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
-          <label className="help-message-field">
-            <Icon name="message" />
-            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Your message" rows={5} />
-          </label>
-          <button className="help-send-btn" onClick={openMailDraft}>Send message</button>
-        </div>
-      </section>
+      {/* Search bar */}
+      <div className="ldg-hlp-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+        </svg>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search help articles..."
+          aria-label="Search help articles"
+        />
+      </div>
 
-      <footer className="help-footer">
+      {/* Status */}
+      {status && <div className="ldg-hlp-status">{status}</div>}
+
+      {/* 3 article cards */}
+      <div className="ldg-hlp-article-grid">
+        {results.map((article, i) => {
+          const origIdx = ARTICLE_IDX[i];
+          const tint = ARTICLE_TINTS[origIdx % 3];
+          const deco = ARTICLE_DECOS[origIdx % 3];
+          const iconStyle = ARTICLE_ICON_COLORS[origIdx % 3];
+          return (
+            <button
+              key={article.id}
+              className={`ldg-stat-card ${tint} ldg-hlp-article-card`}
+              onClick={() => setModal({ kind: 'article', article })}
+            >
+              <div className="ldg-hlp-article-icon" style={{ background: iconStyle.bg, color: iconStyle.color }}>
+                <Icon name={article.icon} />
+              </div>
+              <div className="ldg-hlp-article-title">{article.title}</div>
+              <div className="ldg-hlp-article-summary">{article.summary}</div>
+              <div className="ldg-hlp-article-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14" /><path d="M13 6l6 6-6 6" />
+                </svg>
+                →
+              </div>
+              <img src={deco} alt="" className="ldg-stat-deco" />
+            </button>
+          );
+        })}
+        {results.length === 0 && (
+          <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '32px', color: 'var(--text3)', fontSize: '.85rem' }}>
+            No articles found - try searching for backup, storage, privacy, or sync.
+          </div>
+        )}
+      </div>
+
+      {/* Privacy banner — full width */}
+      <div className="ldg-hlp-privacy-card" style={{ marginBottom: 20 }}>
+        <div className="ldg-hlp-privacy-icon">
+          <Icon name="shield" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div className="ldg-hlp-privacy-title">Your financial data stays on this device.</div>
+          <div className="ldg-hlp-privacy-sub">Nothing is sent to any server.</div>
+        </div>
+        <img src={flower03} alt="" style={{ position: 'absolute', bottom: -4, right: 12, width: 90, height: 90, opacity: .55, pointerEvents: 'none' }} />
+      </div>
+
+      {/* Quick links */}
+      <div className="ldg-hlp-ql-section">
+        <div className="ldg-hlp-ql-title">
+          <img src={sprig01} alt="" />
+          Quick links
+        </div>
+        <div className="ldg-hlp-ql-grid">
+          {[
+            { icon: 'keyboard' as IconName, name: 'Keyboard shortcuts', desc: 'Speed up your workflow.', onClick: () => setModal({ kind: 'shortcuts' }) },
+            { icon: 'restore' as IconName, name: 'Restore a backup', desc: 'Load a previous version of your data.', onClick: () => fileInputRef.current?.click() },
+            { icon: 'print' as IconName, name: 'Print a report', desc: 'Create a clean, printable summary.', onClick: () => setView('reports') },
+          ].map((ql, i) => (
+            <button key={ql.name} className={`ldg-hlp-ql-card ${i === 0 ? 'ldg-stat-blush' : i === 1 ? 'ldg-stat-cream' : ''}`} onClick={ql.onClick}
+              style={{ border: '1px solid var(--border)' }}>
+              <div className="ldg-hlp-ql-icon" style={{ background: QL_ICON_COLORS[i].bg, color: QL_ICON_COLORS[i].color }}>
+                <Icon name={ql.icon} />
+              </div>
+              <div className="ldg-hlp-ql-name">{ql.name}</div>
+              <div className="ldg-hlp-ql-desc">{ql.desc}</div>
+              <div className="ldg-hlp-ql-arrow">→</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="ldg-hlp-footer">
         <span>Ledgerly 1.0</span>
         <span>Offline by default</span>
         <span>{settings.syncCodeEnabled ? 'Sync code helper enabled' : 'Local backup ready'}</span>
       </footer>
 
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -237,12 +246,13 @@ export function HelpPrivacyPage() {
         }}
       />
 
+      {/* Modal */}
       {modal && (
         <div className="security-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="security-modal help-modal">
             <div className="security-modal-header">
               <h2>{modal.kind === 'shortcuts' ? 'Keyboard shortcuts' : modal.article.title}</h2>
-              <button onClick={() => setModal(null)} aria-label="Close">x</button>
+              <button onClick={() => setModal(null)} aria-label="Close">×</button>
             </div>
             {modal.kind === 'shortcuts' ? (
               <div className="security-help-list">

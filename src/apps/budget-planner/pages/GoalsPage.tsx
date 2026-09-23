@@ -1,242 +1,293 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
-import { fmt, addMonthsToYM, fmtYM } from '../utils/formatters';
+import { fmt, addMonthsToYM, fmtYM, fmtYMFull } from '../utils/formatters';
+import { simulateDebtPayoff, payoffDateLabel } from '../utils/debtSimulator';
 import { GoalDialog } from '../dialogs/GoalDialog';
-import type { Goal, Debt } from '../types';
+import { DebtDialog } from '../dialogs/DebtDialog';
+import type { Debt, Goal, GoalKind } from '../types';
+import flower01 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-01.png';
+import flower03 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-03.png';
+import flower05 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-05.png';
+import sprig02 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-02.png';
+import sprig03 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-03.png';
+import heart02 from '../../../assets/budget-assets/hearts/heart-02.png';
 
-const C = {
-  bg: '#f5f4f0', surface: '#fff', border: '#e5e2db', accent: '#22c55e',
-  text: '#1a1f2e', text2: '#6b7280', text3: '#9ca3af',
-  red: '#ef4444', shadow: '0 1px 3px rgba(0,0,0,.08)',
+const GOAL_KIND_LABELS: Record<GoalKind, string> = {
+  emergency: 'Emergency fund',
+  vacation: 'Vacation',
+  purchase: 'Planned purchase',
+  sinking: 'Sinking fund',
+  other: 'Other goal',
 };
 
-function progressRingSvg(pct: number, size: number, sw: number, color: string): string {
-  const r = (size - sw) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.max(0, Math.min(1, pct / 100)));
-  const cx = size / 2, cy = size / 2;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block">
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e2db" stroke-width="${sw}"/>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
-      stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
-      stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
-    <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="18" font-weight="700" fill="${C.text}">${Math.round(pct)}%</text>
-    <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="11" fill="${C.text2}">complete</text>
-  </svg>`;
+const CARD_DECOS = [flower01, flower03, sprig02, flower05, sprig03];
+const TINTS = ['ldg-stat-cream', 'ldg-stat-white', 'ldg-stat-blush', 'ldg-stat-white'];
+
+function goalMonthsLeft(goal: Goal): number | null {
+  const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
+  if (remaining === 0) return 0;
+  if (goal.monthlyContribution <= 0) return null;
+  return Math.ceil(remaining / goal.monthlyContribution);
 }
 
-function goalMonthsLeft(g: Goal): number {
-  const left = Math.max(0, g.targetAmount - g.savedAmount);
-  return g.monthlyContribution > 0 ? Math.ceil(left / g.monthlyContribution) : 999;
+function goalProjection(goal: Goal, currentMonth: string) {
+  const months = goalMonthsLeft(goal);
+  if (months === null) return 'Add monthly contribution';
+  if (months === 0) return 'Complete';
+  return fmtYM(addMonthsToYM(currentMonth, months));
 }
 
-function GoalCard({ goal }: { goal: Goal }) {
+function GoalCard({ goal, index, currentMonth, onEdit, onDelete }: {
+  goal: Goal;
+  index: number;
+  currentMonth: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const setView = useLedgerlyStore(s => s.setView);
   const setSelectedGoalId = useLedgerlyStore(s => s.setSelectedGoalId);
-  const pct = Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100));
-  const months = goalMonthsLeft(goal);
-  const estDate = addMonthsToYM('2026-09', months);
-  const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pct = goal.targetAmount > 0 ? Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100)) : 0;
+  const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
+  const kind = GOAL_KIND_LABELS[goal.kind ?? 'other'];
 
   return (
-    <div
-      onClick={() => { setSelectedGoalId(goal.id); setView('goal-detail'); }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16,
-        padding: '22px 24px', cursor: 'pointer', transition: 'box-shadow .15s, transform .15s',
-        boxShadow: hovered ? '0 4px 16px rgba(0,0,0,.1)' : C.shadow,
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        display: 'flex', flexDirection: 'column',
-      }}
-    >
-      {/* Goal header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: goal.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{goal.icon}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: C.text }}>{goal.name}</div>
-          <div style={{ fontSize: 12, color: C.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.description}</div>
-        </div>
-      </div>
-
-      {/* Progress ring centered */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}
-        dangerouslySetInnerHTML={{ __html: progressRingSvg(pct, 100, 10, goal.color) }}
-      />
-
-      {/* Progress bar */}
-      <div style={{ height: 5, background: '#e5e2db', borderRadius: 3, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: goal.color, borderRadius: 3, transition: 'width .3s' }} />
-      </div>
-
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
-        {[
-          { label: 'SAVED',      value: fmt(goal.savedAmount) },
-          { label: 'TARGET',     value: fmt(goal.targetAmount) },
-          { label: 'MONTHLY',    value: fmt(goal.monthlyContribution) },
-          { label: 'EST. DATE',  value: months > 99 ? '—' : fmtYM(estDate) },
-        ].map(({ label, value }) => (
-          <div key={label}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.text2, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* View details hint */}
-      <div style={{ marginTop: 14, textAlign: 'right', fontSize: 12, color: hovered ? C.accent : C.text3, fontWeight: 600, transition: 'color .15s' }}>
-        View details →
-      </div>
-    </div>
-  );
-}
-
-function IndividualDebtCard({ debt, totalBalance }: { debt: Debt; totalBalance: number }) {
-  const [hovered, setHovered] = useState(false);
-  const pct = totalBalance > 0 ? (debt.balance / totalBalance) * 100 : 0;
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16,
-        padding: '22px 24px', boxShadow: hovered ? '0 4px 16px rgba(0,0,0,.1)' : C.shadow,
-        transition: 'box-shadow .15s', cursor: 'default',
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: debt.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{debt.icon}</div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{debt.name}</div>
-          <div style={{ fontSize: 11.5, color: C.text2 }}>{debt.institution} · ···{debt.accountNumber}</div>
-        </div>
-      </div>
-
-      {/* Balance */}
-      <div style={{ fontSize: 24, fontWeight: 800, color: C.red, marginBottom: 14 }}>{fmt(debt.balance)}</div>
-
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
-        {[
-          { label: 'APR',         value: `${debt.apr}%` },
-          { label: 'MIN / MO',    value: fmt(debt.minimumPayment) },
-          { label: 'EXTRA / MO',  value: debt.extraPayment > 0 ? fmt(debt.extraPayment) : '—' },
-        ].map(({ label, value }, i) => (
-          <div key={label} style={{ flex: 1, borderLeft: i > 0 ? `1px solid ${C.border}` : 'none', paddingLeft: i > 0 ? 12 : 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.text2, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Proportion bar */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.text2, marginBottom: 4 }}>
-          <span>Share of total debt</span>
-          <span style={{ fontWeight: 600 }}>{Math.round(pct)}%</span>
-        </div>
-        <div style={{ height: 5, background: '#e5e2db', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: debt.color, borderRadius: 3 }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TotalDebtCard({ debts }: { debts: Debt[] }) {
-  const setView = useLedgerlyStore(s => s.setView);
-  const totalBalance = debts.reduce((s, d) => s + d.balance, 0);
-  const totalMin     = debts.reduce((s, d) => s + d.minimumPayment, 0);
-  const totalExtra   = debts.reduce((s, d) => s + d.extraPayment, 0);
-  const avgApr       = debts.reduce((s, d) => s + d.apr, 0) / debts.length;
-  const monthlyTotal = totalMin + totalExtra;
-  const monthsToFree = monthlyTotal > 0 ? Math.ceil(totalBalance / monthlyTotal) : null;
-
-  return (
-    <div
-      onClick={() => setView('debt-planner')}
-      style={{ background: '#0f1623', borderRadius: 16, padding: '22px 24px', cursor: 'pointer', boxShadow: C.shadow }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>Total Debt</div>
-        <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>Open Planner →</span>
-      </div>
-      <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 4 }}>{fmt(totalBalance)}</div>
-      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16 }}>
-        {debts.length} debt{debts.length !== 1 ? 's' : ''} · {fmt(totalMin)}/mo minimum · avg {avgApr.toFixed(1)}% APR
-      </div>
-      {monthsToFree !== null && (
-        <div style={{ background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.2)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#4ade80', fontWeight: 600 }}>
-          🎯 Debt-free in ~{monthsToFree} months at current pace
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function GoalsPage() {
-  const goals  = useLedgerlyStore(s => s.goals);
-  const debts  = useLedgerlyStore(s => s.debts);
-  const setView = useLedgerlyStore(s => s.setView);
-  const [showDialog, setShowDialog] = useState(false);
-  const [editGoal, setEditGoal] = useState<Goal | null>(null);
-
-  const totalBalance = debts.reduce((s, d) => s + d.balance, 0);
-
-  return (
-    <div style={{ padding: '32px 36px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text }}>Goals & Debt</h1>
-      </div>
-
-      {/* Goals section */}
-      <div style={{ marginBottom: 36 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text }}>My Goals</h2>
-          <button
-            onClick={() => { setEditGoal(null); setShowDialog(true); }}
-            style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-          >
-            + Add Goal
-          </button>
-        </div>
-
-        {/* 3-column grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          {goals.map(g => <GoalCard key={g.id} goal={g} />)}
-          {goals.length === 0 && (
-            <div style={{ gridColumn: '1/-1', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 40, textAlign: 'center', color: C.text2 }}>
-              No goals yet. Add your first savings goal to get started.
+    <article className={`ldg-stat-card ${TINTS[index % TINTS.length]} ldg-long-card`} onClick={() => { setSelectedGoalId(goal.id); setView('goal-detail'); }}>
+      <img src={CARD_DECOS[index % CARD_DECOS.length]} alt="" className="ldg-long-card-deco" />
+      <div className="ldg-long-card-top">
+        <div className="ldg-long-icon" style={{ background: goal.bg || 'rgba(122,158,126,.15)', color: goal.color || '#4a7060' }}>{goal.icon}</div>
+        <span className="ldg-long-kind">{kind}</span>
+        <div className="ldg-long-menu-wrap" onClick={event => event.stopPropagation()}>
+          <button className="ldg-goal-ctx-btn" style={{ position: 'static' }} onClick={() => setMenuOpen(open => !open)}>···</button>
+          {menuOpen && (
+            <div className="ldg-goal-ctx-menu" style={{ top: 28, right: 0 }}>
+              <button className="ldg-goal-ctx-item" onClick={() => { onEdit(); setMenuOpen(false); }}>✏️ Edit</button>
+              <button className="ldg-goal-ctx-item ldg-goal-ctx-delete" onClick={() => { onDelete(); setMenuOpen(false); }}>🗑️ Delete</button>
             </div>
           )}
         </div>
       </div>
+      <h3 className="ldg-long-title">{goal.name}</h3>
+      <p className="ldg-long-sub">{goal.description || 'Savings target'}</p>
+      <div className="ldg-long-metric-row">
+        <div><span>Saved</span><strong>{fmt(goal.savedAmount)}</strong></div>
+        <div><span>Target</span><strong>{fmt(goal.targetAmount)}</strong></div>
+        <div><span>Monthly</span><strong>{fmt(goal.monthlyContribution)}</strong></div>
+      </div>
+      <div className="ldg-long-progress">
+        <div className="ldg-long-progress-fill" style={{ width: `${pct}%`, background: goal.color || '#7a9e7e' }} />
+      </div>
+      <div className="ldg-long-foot">
+        <span>{pct}% complete · {fmt(remaining)} left</span>
+        <strong>{goalProjection(goal, currentMonth)}</strong>
+      </div>
+    </article>
+  );
+}
 
-      {/* Debts section */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text }}>My Debts</h2>
-          <button
-            onClick={() => setView('debt-planner')}
-            style={{ background: C.surface, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-          >
-            Open Debt Planner →
-          </button>
-        </div>
+function DebtCard({ debt, index, result, totalBalance, onEdit, onDelete }: {
+  debt: Debt;
+  index: number;
+  result: ReturnType<typeof simulateDebtPayoff>;
+  totalBalance: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const setView = useLedgerlyStore(s => s.setView);
+  const setSelectedDebtId = useLedgerlyStore(s => s.setSelectedDebtId);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const payoff = result.payoffOrder.find(item => item.id === debt.id);
+  const share = totalBalance > 0 ? Math.round((debt.balance / totalBalance) * 100) : 0;
+  const monthly = debt.minimumPayment + debt.extraPayment;
 
-        {/* 3-col debt grid + summary card */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-          {debts.map(d => <IndividualDebtCard key={d.id} debt={d} totalBalance={totalBalance} />)}
+  return (
+    <article className={`ldg-stat-card ${TINTS[(index + 1) % TINTS.length]} ldg-long-card ldg-long-debt`} onClick={() => { setSelectedDebtId(debt.id); setView('debt-planner'); }}>
+      <img src={CARD_DECOS[(index + 2) % CARD_DECOS.length]} alt="" className="ldg-long-card-deco" />
+      <div className="ldg-long-card-top">
+        <div className="ldg-long-icon" style={{ background: debt.bg || 'rgba(196,138,138,.15)', color: debt.color || '#a05050' }}>{debt.icon}</div>
+        <span className="ldg-long-kind">{debt.type}</span>
+        <div className="ldg-long-menu-wrap" onClick={event => event.stopPropagation()}>
+          <button className="ldg-goal-ctx-btn" style={{ position: 'static' }} onClick={() => setMenuOpen(open => !open)}>···</button>
+          {menuOpen && (
+            <div className="ldg-goal-ctx-menu" style={{ top: 28, right: 0 }}>
+              <button className="ldg-goal-ctx-item" onClick={() => { onEdit(); setMenuOpen(false); }}>✏️ Edit</button>
+              <button className="ldg-goal-ctx-item ldg-goal-ctx-delete" onClick={() => { onDelete(); setMenuOpen(false); }}>🗑️ Delete</button>
+            </div>
+          )}
         </div>
-        <TotalDebtCard debts={debts} />
+      </div>
+      <h3 className="ldg-long-title">{debt.name}</h3>
+      <p className="ldg-long-sub">{debt.institution || 'Manual debt'}{debt.accountNumber ? ` · ••••${debt.accountNumber}` : ''}</p>
+      <div className="ldg-long-metric-row">
+        <div><span>Balance</span><strong>{fmt(debt.balance)}</strong></div>
+        <div><span>APR</span><strong>{debt.apr.toFixed(2)}%</strong></div>
+        <div><span>Min / mo</span><strong>{fmt(debt.minimumPayment)}</strong></div>
+      </div>
+      <div className="ldg-long-progress">
+        <div className="ldg-long-progress-fill" style={{ width: `${share}%`, background: debt.color || '#c48a8a' }} />
+      </div>
+      <div className="ldg-long-foot">
+        <span>{fmt(monthly)} monthly · {share}% of debt</span>
+        <strong>{payoff?.payoffDate ? fmtYM(payoff.payoffDate) : result.status === 'stalled' ? 'Needs payment' : 'Planning'}</strong>
+      </div>
+    </article>
+  );
+}
+
+export function GoalsPage() {
+  const goals = useLedgerlyStore(s => s.goals);
+  const debts = useLedgerlyStore(s => s.debts);
+  const income = useLedgerlyStore(s => s.income);
+  const debtPlan = useLedgerlyStore(s => s.debtPlan);
+  const deleteGoal = useLedgerlyStore(s => s.deleteGoal);
+  const deleteDebt = useLedgerlyStore(s => s.deleteDebt);
+  const setView = useLedgerlyStore(s => s.setView);
+  const setSelectedDebtId = useLedgerlyStore(s => s.setSelectedDebtId);
+  const currentMonth = useLedgerlyStore(s => s.currentMonth);
+  const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [showDebtDialog, setShowDebtDialog] = useState(false);
+  const [editGoal, setEditGoal] = useState<Goal | null>(null);
+  const [editDebt, setEditDebt] = useState<Debt | null>(null);
+
+  const startMonth = debtPlan.startMonth || currentMonth;
+  const debtResult = useMemo(
+    () => simulateDebtPayoff(debts, debtPlan.strategy, debtPlan.extraPayment, startMonth),
+    [debtPlan.extraPayment, debtPlan.strategy, debts, startMonth],
+  );
+
+  const totalSaved = goals.reduce((sum, goal) => sum + goal.savedAmount, 0);
+  const totalTarget = goals.reduce((sum, goal) => sum + goal.targetAmount, 0);
+  const monthlyGoalContrib = goals.reduce((sum, goal) => sum + goal.monthlyContribution, 0);
+  const totalDebt = debts.reduce((sum, debt) => sum + debt.balance, 0);
+  const debtMinimums = debts.reduce((sum, debt) => sum + debt.minimumPayment + debt.extraPayment, 0);
+  const monthlyPressure = monthlyGoalContrib + debtMinimums + debtPlan.extraPayment;
+  const pressurePct = income > 0 ? Math.min(100, Math.round((monthlyPressure / income) * 100)) : 0;
+
+  const handleDeleteGoal = (goal: Goal) => {
+    if (confirm(`Delete "${goal.name}"?`)) deleteGoal(goal.id);
+  };
+  const handleDeleteDebt = (debt: Debt) => {
+    if (confirm(`Delete "${debt.name}"?`)) deleteDebt(debt.id);
+  };
+
+  return (
+    <div className="ldg-goals-page">
+      <PageIntroBanner view="goals" />
+      <div className="ldg-goals-header">
+        <div>
+          <div className="ldg-goals-title">Goals & Debt <img src={heart02} alt="" /></div>
+          <div className="ldg-goals-subtitle">Long-term savings and payoff decisions in one shared cash plan.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="ldg-month-chip">📅 {fmtYMFull(currentMonth)}</div>
+          <button className="ldg-goals-add-btn" onClick={() => { setEditGoal(null); setShowGoalDialog(true); }}>+ Add goal</button>
+          <button className="ldg-goals-add-btn ldg-goals-add-debt" onClick={() => { setEditDebt(null); setShowDebtDialog(true); }}>+ Add debt</button>
+        </div>
       </div>
 
-      {showDialog && (
-        <GoalDialog goal={editGoal} onClose={() => setShowDialog(false)} />
+      <section className="ldg-long-hero">
+        <img src={sprig02} alt="" className="ldg-long-hero-deco" />
+        <div>
+          <span className="ldg-budget-eyebrow">Long-term progress</span>
+          <h2>Every future dollar has two jobs: build dreams and reduce drag.</h2>
+          <p>Goals and debts compete for the same monthly cash, so Ledgerly keeps them together.</p>
+        </div>
+        <button
+          type="button"
+          className="ldg-budget-primary-btn"
+          onClick={() => { setSelectedDebtId(null); setView('debt-planner'); }}
+        >
+          Open payoff planner →
+        </button>
+      </section>
+
+      <div className="ldg-stat-row">
+        {[
+          { label: 'Saved toward goals', value: fmt(totalSaved), sub: `${goals.length} goal${goals.length !== 1 ? 's' : ''}`, deco: flower01, tint: 'ldg-stat-cream' },
+          { label: 'Goal targets', value: fmt(totalTarget), sub: totalTarget > 0 ? `${Math.round((totalSaved / totalTarget) * 100)}% funded` : 'No targets yet', deco: flower03, tint: 'ldg-stat-white' },
+          { label: 'Debt balance', value: fmt(totalDebt), sub: `${debts.length} debt${debts.length !== 1 ? 's' : ''}`, deco: flower05, tint: 'ldg-stat-blush' },
+          { label: 'Monthly commitment', value: fmt(monthlyPressure), sub: income > 0 ? `${pressurePct}% of monthly income` : 'Goals + debt payments', deco: sprig03, tint: 'ldg-stat-white' },
+        ].map(card => (
+          <article key={card.label} className={`ldg-stat-card ${card.tint}`}>
+            <img src={card.deco} alt="" className="ldg-stat-deco" />
+            <div className="ldg-stat-inner">
+              <div className="ldg-stat-label">{card.label}</div>
+              <div className="ldg-stat-amount">{card.value}</div>
+              <div className="ldg-stat-sub">{card.sub}</div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="ldg-long-two-col">
+        <section>
+          <div className="ldg-goals-section-hdr">
+            <div>
+              <div className="ldg-goals-section-title">Savings goals</div>
+              <div className="ldg-long-section-sub">Emergency funds, vacations, planned purchases, and sinking funds.</div>
+            </div>
+            <button className="ldg-goals-add-btn" onClick={() => { setEditGoal(null); setShowGoalDialog(true); }}>+ Add goal</button>
+          </div>
+          {goals.length === 0 ? (
+            <div className="ldg-long-empty">No goals yet. Add your first savings target.</div>
+          ) : (
+            <div className="ldg-long-card-grid">
+              {goals.map((goal, index) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  index={index}
+                  currentMonth={currentMonth}
+                  onEdit={() => { setEditGoal(goal); setShowGoalDialog(true); }}
+                  onDelete={() => handleDeleteGoal(goal)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="ldg-goals-section-hdr">
+            <div>
+              <div className="ldg-goals-section-title">Debt payoff</div>
+              <div className="ldg-long-section-sub">Balances, APRs, minimums, and payoff status.</div>
+            </div>
+            <button className="ldg-goals-add-btn ldg-goals-add-debt" onClick={() => { setEditDebt(null); setShowDebtDialog(true); }}>+ Add debt</button>
+          </div>
+          {debts.length === 0 ? (
+            <div className="ldg-long-empty">No debts yet. Add one to compare payoff strategies.</div>
+          ) : (
+            <div className="ldg-long-card-grid">
+              {debts.map((debt, index) => (
+                <DebtCard
+                  key={debt.id}
+                  debt={debt}
+                  index={index}
+                  result={debtResult}
+                  totalBalance={totalDebt}
+                  onEdit={() => { setEditDebt(debt); setShowDebtDialog(true); }}
+                  onDelete={() => handleDeleteDebt(debt)}
+                />
+              ))}
+            </div>
+          )}
+          {debts.length > 0 && (
+            <button className="ldg-long-planner-card" onClick={() => { setSelectedDebtId(null); setView('debt-planner'); }}>
+              <span>
+                {debtPlan.strategy === 'snowball' ? 'Snowball' : 'Avalanche'} plan · debt-free {debtResult.status === 'complete' ? payoffDateLabel(debtResult.months, startMonth) : 'needs review'}
+              </span>
+              <strong>Open planner →</strong>
+            </button>
+          )}
+        </section>
+      </div>
+
+      {showGoalDialog && (
+        <GoalDialog goal={editGoal} onClose={() => { setShowGoalDialog(false); setEditGoal(null); }} />
+      )}
+      {showDebtDialog && (
+        <DebtDialog debt={editDebt} onClose={() => { setShowDebtDialog(false); setEditDebt(null); }} />
       )}
     </div>
   );

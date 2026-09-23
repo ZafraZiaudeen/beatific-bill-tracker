@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blush Bookroom — Overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Dancing+Script:wght@500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --canvas:    #ECE6F4;
+      --paper:     #FDFBFF;
+      --off-white: #F8F5FC;
+      --rose:      #C4788A;
+      --rose-faint:#F2DDE2;
+      --mauve:     #9E82BC;
+      --mauve-faint:#E8E0F5;
+      --sage:      #7A9E8C;
+      --sage-faint:#D4E8DC;
+      --butter:    #C99636;
+      --butter-faint:#F5EAC8;
+      --plum:      #3A2E48;
+      --plum-mid:  #5C4F6E;
+      --ink:       #8A7B96;
+      --border:    #D8D0E8;
+      --rail:      210px;
+    }
+
+    body {
+      font-family: 'Nunito', system-ui, sans-serif;
+      background: var(--canvas);
+      color: var(--plum);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ══════════════════ RAIL ══════════════════ */
+    .rail {
+      width: var(--rail);
+      min-height: 100vh;
+      background: var(--paper);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 20;
+    }
+
+    .rail-brand {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .rail-top-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .rail-emblem {
+      width: 38px; height: 38px;
+      background: var(--canvas);
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .rail-name {
+      font-family: 'Dancing Script', cursive;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--plum);
+      line-height: 1.15;
+    }
+
+    .rail-tagline {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: .55;
+      margin-top: 2px;
+    }
+
+    .rail-search {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-family: 'Caveat', cursive;
+      font-size: 15px;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .rail-search svg { opacity: .45; flex-shrink: 0; }
+
+    .rail-nav { flex: 1; padding: 14px 10px; }
+
+    .nav-group-lbl {
+      font-size: 9.5px; font-weight: 700;
+      letter-spacing: 1.3px; text-transform: uppercase;
+      color: var(--ink); opacity: .5;
+      padding: 0 8px 5px;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 500;
+      color: var(--ink);
+      cursor: pointer;
+      position: relative;
+      transition: background .12s, color .12s;
+      margin-bottom: 1px;
+    }
+
+    .nav-item:hover { background: var(--canvas); color: var(--plum); }
+
+    .nav-item.active {
+      background: #EAE0F8;
+      color: var(--plum);
+      font-weight: 600;
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 7px; bottom: 7px;
+      width: 3px; border-radius: 0 3px 3px 0;
+      background: var(--mauve);
+    }
+
+    .nav-ico { width: 15px; height: 15px; opacity: .5; flex-shrink: 0; }
+    .nav-item.active .nav-ico { opacity: 1; }
+
+    .rail-vase {
+      padding: 0;
+      margin-top: auto;
+    }
+
+    .rail-vase img {
+      width: 100%;
+      display: block;
+      transform: translateX(-6px) translateY(4px);
+      opacity: .82;
+    }
+
+    .rail-footer {
+      padding: 10px 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .offline-pill {
+      display: flex; align-items: flex-start; gap: 6px;
+      background: #F4F0FA;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 7px 11px;
+      font-size: 10px; color: var(--ink);
+      line-height: 1.4;
+    }
+
+    .green-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--sage); flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    /* ══════════════════ CANVAS ══════════════════ */
+    .canvas {
+      margin-left: var(--rail);
+      flex: 1;
+      padding: 30px 32px 56px;
+      position: relative;
+    }
+
+    /* floating doodles */
+    .deco { position: absolute; pointer-events: none; z-index: 1; }
+
+    /* ── PAGE HEAD ── */
+    .page-head {
+      text-align: center;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 28px;
+    }
+
+    .page-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-style: italic;
+      font-size: 48px;
+      font-weight: 600;
+      color: var(--plum);
+      line-height: 1.1;
+      letter-spacing: -.5px;
+    }
+
+    .page-title .heart { font-style: normal; color: var(--rose); }
+
+    .page-sub {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 17px;
+      color: var(--ink);
+      margin-top: 6px;
+      opacity: .8;
+    }
+
+    .head-rule {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; margin-top: 12px; opacity: .3;
+    }
+
+    .head-rule-line {
+      width: 80px; height: 1px;
+      background: var(--mauve);
+    }
+
+    /* ══════════════════ HERO ROW ══════════════════ */
+    .hero-row {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+      position: relative; z-index: 2;
+    }
+
+    /* ── BASE CARD ── */
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(58,46,72,.05), 0 6px 24px rgba(58,46,72,.04);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* hand-annotation style label — replaces uppercase SaaS labels */
+    .anno {
+      font-family: 'Caveat', cursive;
+      font-size: 15px;
+      color: var(--ink);
+      opacity: .7;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .anno::before {
+      content: '';
+      display: inline-block;
+      width: 18px; height: 1.5px;
+      background: var(--mauve); opacity: .5;
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+
+    /* ══════════════════ YEAR ARC ══════════════════ */
+    .arc-outer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .arc-svg-wrap {
+      position: relative;
+      width: 230px; height: 126px;
+      margin: 0 auto;
+    }
+
+    .arc-svg-wrap svg { display: block; }
+
+    .arc-text-center {
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      width: 130px;
+    }
+
+    .arc-num {
+      font-family: 'Dancing Script', cursive;
+      font-size: 56px; font-weight: 700;
+      color: var(--plum); line-height: 1;
+    }
+
+    .arc-denom {
+      font-family: 'Caveat', cursive;
+      font-size: 15px; color: var(--ink);
+      margin-top: -2px;
+    }
+
+    /* journal-style meta below dial — NO chips */
+    .arc-journal {
+      text-align: center;
+      margin-top: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .arc-milestone {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 18px;
+      color: var(--mauve);
+    }
+
+    .arc-note {
+      font-family: 'Caveat', cursive;
+      font-size: 16px;
+      color: var(--plum-mid);
+    }
+
+    .arc-date {
+      font-family: 'Caveat', cursive;
+      font-size: 14px;
+      color: var(--ink);
+      display: flex; align-items: center; gap: 5px;
+      opacity: .75;
+    }
+
+    .arc-btns {
+      display: flex; gap: 8px;
+      margin-top: 4px;
+    }
+
+    /* ══════════════════ CURRENTLY READING ══════════════════ */
+    .read-inner {
+      display: flex; gap: 18px;
+      margin-bottom: 14px;
+    }
+
+    .book-cover {
+      width: 78px; height: 110px;
+      border-radius: 5px;
+      flex-shrink: 0;
+      transform: rotate(-2deg);
+      box-shadow:
+        3px 5px 14px rgba(58,46,72,.25),
+        inset -2px 0 4px rgba(0,0,0,.15);
+      background: linear-gradient(158deg, #5E4A74 0%, #302040 100%);
+      display: flex; align-items: center; justify-content: center;
+      padding: 8px 6px;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9.5px; color: rgba(255,255,255,.6);
+      text-align: center; line-height: 1.5;
+      position: relative;
+    }
+
+    /* book spine illusion */
+    .book-cover::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 6px;
+      background: rgba(0,0,0,.22);
+      border-radius: 5px 0 0 5px;
+    }
+
+    .book-info { flex: 1; min-width: 0; padding-top: 2px; }
+
+    .book-title-main {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px; font-weight: 600;
+      color: var(--plum); line-height: 1.25;
+      margin-bottom: 3px;
+    }
+
+    .book-author-main {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 13.5px; color: var(--ink);
+      margin-bottom: 10px;
+    }
+
+    /* sticker-style reading badge — organic, tilted */
+    .reading-sticker {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: 'Caveat', cursive;
+      font-size: 15px; color: #3E7459;
+      background: #DFF0E8;
+      border: 1.5px solid #B8D9C8;
+      border-radius: 4px 16px 16px 4px;
+      padding: 3px 12px 3px 8px;
+      transform: rotate(-1.5deg);
+      margin-bottom: 12px;
+      width: fit-content;
+    }
+
+    /* organic progress — thin line + leaf marker */
+    .prog-label-row {
+      font-family: 'Caveat', cursive;
+      font-size: 14.5px;
+      color: var(--ink);
+      display: flex; justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .prog-pct-note { color: var(--mauve); font-size: 14px; }
+
+    .prog-track-wrap {
+      position: relative;
+      height: 22px;
+      margin-bottom: 12px;
+    }
+
+    .prog-track {
+      position: absolute;
+      top: 50%; left: 0; right: 0;
+      height: 1.5px;
+      background: var(--border);
+      transform: translateY(-50%);
+    }
+
+    .prog-done {
+      position: absolute;
+      top: 50%; left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--mauve), var(--rose));
+      transform: translateY(-50%);
+      border-radius: 1px;
+    }
+
+    .prog-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.1));
+    }
+
+    /* session diary note */
+    .session-diary {
+      font-family: 'Caveat', cursive;
+      font-size: 14px; color: var(--ink);
+      font-style: italic;
+      padding-top: 11px;
+      border-top: 1px dashed var(--border);
+      display: flex; justify-content: space-between;
+      align-items: center;
+    }
+
+    /* washi tape accent on corner */
+    .washi-corner {
+      position: absolute;
+      top: -10px; right: 20px;
+      width: 72px;
+      transform: rotate(1.5deg);
+      opacity: .65;
+      pointer-events: none;
+    }
+
+    /* ══════════════════ BUTTONS ══════════════════ */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 17px;
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 12.5px; font-weight: 600;
+      border: none; cursor: pointer;
+      transition: filter .12s, transform .1s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { filter: brightness(.92); transform: translateY(-1px); }
+
+    .btn-sage  { background: var(--sage);  color: #fff; }
+    .btn-mauve { background: var(--mauve); color: #fff; }
+    .btn-ghost {
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      color: var(--plum-mid);
+    }
+
+    .btn-small {
+      font-size: 11.5px;
+      padding: 6px 13px;
+    }
+
+    /* ══════════════════ BOTTOM ROW ══════════════════ */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 0.9fr;
+      gap: 20px;
+      position: relative; z-index: 2;
+    }
+
+    /* ── RIBBON LABEL (section banner) ── */
+    .ribbon {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 22px 6px 15px;
+      font-family: 'Dancing Script', cursive;
+      font-size: 21px; font-weight: 700;
+      color: #fff;
+      border-radius: 3px 26px 26px 3px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    /* folded-left ribbon ear */
+    .ribbon::after {
+      content: '';
+      position: absolute;
+      left: -6px; top: 0; bottom: 0;
+      width: 0;
+      border-top: 19px solid rgba(0,0,0,.18);
+      border-left: 6px solid transparent;
+    }
+
+    .ribbon-mauve {
+      background: var(--mauve);
+      box-shadow: 0 3px 10px rgba(158,130,188,.3);
+    }
+
+    /* ── CALENDAR ── */
+    .cal-hds {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 3px; margin-bottom: 5px;
+    }
+
+    .cal-hd {
+      font-size: 8.5px; font-weight: 700; text-align: center;
+      color: var(--ink); opacity: .55;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    /* ← CIRCLES not squares */
+    .cd {
+      aspect-ratio: 1;
+      border-radius: 50%;        /* ← KEY CHANGE */
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Caveat', cursive;
+      font-size: 11px; font-weight: 500;
+    }
+
+    .cd-blank  { background: transparent; }
+    .cd-off    { background: #EAE3F4; color: var(--ink); opacity: .6; }
+    .cd-read   { background: var(--sage); color: #fff; }
+    .cd-today  {
+      background: var(--rose); color: #fff;
+      box-shadow: 0 0 0 2.5px var(--paper), 0 0 0 4px var(--rose);
+    }
+    .cd-future { background: #F2EEF8; color: #C4BAD0; }
+
+    .streak-foot {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+
+    /* sticker-style streak badge */
+    .streak-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: 'Caveat', cursive;
+      font-size: 16px; color: #A05E3A;
+      background: #FFF3EA; border: 1.5px solid #EFCBAA;
+      border-radius: 4px 18px 18px 4px;
+      padding: 4px 14px 4px 10px;
+      transform: rotate(-1deg);
+    }
+
+    .streak-note {
+      font-family: 'Caveat', cursive;
+      font-size: 14px; color: var(--ink);
+      font-style: italic;
+    }
+
+    /* leaves deco inside cal card */
+    .leaves-inner {
+      position: absolute;
+      bottom: 8px; right: 4px;
+      width: 58px; opacity: .28;
+      transform: rotate(-12deg) scaleX(-1);
+      pointer-events: none;
+    }
+
+    /* ── QUEUE CARD ── */
+    .queue-head {
+      display: flex; align-items: baseline; gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .queue-title {
+      font-family: 'Dancing Script', cursive;
+      font-size: 23px; font-weight: 700;
+      color: var(--plum);
+    }
+
+    .queue-sub {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 13px; color: var(--ink);
+      margin-bottom: 14px; opacity: .8;
+    }
+
+    /* bookmark-strip queue item */
+    .queue-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 11px;
+      border-radius: 10px;
+      background: var(--off-white);
+      margin-bottom: 7px;
+      border-left: 3px solid var(--mauve-faint);
+      transition: border-color .15s;
+    }
+
+    .queue-item:nth-child(2) { border-color: var(--rose-faint); }
+    .queue-item:nth-child(3) { border-color: var(--sage-faint); }
+    .queue-item:nth-child(4) { border-color: var(--butter-faint); }
+
+    .queue-item:hover { border-left-color: var(--mauve); }
+
+    .q-cover {
+      width: 30px; height: 42px;
+      border-radius: 3px; flex-shrink: 0;
+      box-shadow: 1px 2px 5px rgba(58,46,72,.15);
+    }
+
+    .qc1 { background: linear-gradient(145deg, #B7A1C7, #836CA0); }
+    .qc2 { background: linear-gradient(145deg, #8DAE9C, #527B68); }
+    .qc3 { background: linear-gradient(145deg, #D9939D, #AC6272); }
+
+    .q-info { flex: 1; min-width: 0; }
+
+    .q-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px; font-weight: 600;
+      color: var(--plum); line-height: 1.3;
+    }
+
+    .q-author {
+      font-family: 'Caveat', cursive;
+      font-size: 13px; color: var(--ink);
+    }
+
+    /* bookmark-tab number */
+    .q-num {
+      font-family: 'Dancing Script', cursive;
+      font-size: 20px; font-weight: 700;
+      color: var(--mauve);
+      flex-shrink: 0;
+    }
+
+    /* ── BACKUP CARD ── */
+    .backup-card {
+      background: #EEF4F0;
+      border: 1px solid #BDD8C8;
+      border-radius: 20px;
+      padding: 22px;
+      display: flex; flex-direction: column; gap: 11px;
+      position: relative; overflow: hidden;
+    }
+
+    .backup-flower {
+      position: absolute;
+      bottom: -14px; right: -14px;
+      width: 88px; opacity: .22;
+      transform: rotate(22deg);
+      pointer-events: none;
+    }
+
+    .backup-hed {
+      display: flex; align-items: center; gap: 9px;
+    }
+
+    .backup-icon { font-size: 22px; }
+
+    .backup-title {
+      font-family: 'Dancing Script', cursive;
+      font-size: 23px; font-weight: 700;
+      color: #356050;
+    }
+
+    .backup-body {
+      font-family: 'Caveat', cursive;
+      font-size: 16px; color: #537D68;
+      line-height: 1.55;
+    }
+
+    .backup-when {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 13px; color: #7AAB8A;
+    }
+
+    .backup-note {
+      font-size: 10.5px; color: #88AE96;
+      text-align: center; font-style: italic;
+    }
+
+    .btn-backup {
+      background: #6C9C7C; color: #fff;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     RAIL / SIDEBAR
+════════════════════════════════ -->
+<nav class="rail">
+  <div class="rail-brand">
+    <div class="rail-top-row">
+      <div class="rail-emblem">
+        <svg width="22" height="19" viewBox="0 0 22 19" fill="none">
+          <rect x="0" y="13.5" width="22" height="4" rx="1.5" fill="#9E82BC" opacity=".7"/>
+          <rect x="2"  y="8"   width="18" height="4" rx="1.5" fill="#C4788A" opacity=".7"/>
+          <rect x="5"  y="2.5" width="12" height="4" rx="1.5" fill="#7A9E8C" opacity=".7"/>
+        </svg>
+      </div>
+      <div>
+        <div class="rail-name">Blush Bookroom</div>
+        <div class="rail-tagline">reading tracker</div>
+      </div>
+    </div>
+    <div class="rail-search">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="5.5" cy="5.5" r="4"/>
+        <path d="M9 9l2.5 2.5" stroke-linecap="round"/>
+      </svg>
+      Search books…
+    </div>
+  </div>
+
+  <nav class="rail-nav">
+    <div class="nav-group-lbl">pages</div>
+
+    <div class="nav-item active">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M2 7L8 2l6 5v7a1 1 0 01-1 1H3a1 1 0 01-1-1V7z"/>
+      </svg>
+      Overview
+    </div>
+    <div class="nav-item">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="2" y="2" width="4.5" height="12" rx="1.2"/>
+        <rect x="7.5" y="2" width="4.5" height="12" rx="1.2"/>
+        <rect x="13" y="4" width="1.5" height="8" rx=".75"/>
+      </svg>
+      Library
+    </div>
+    <div class="nav-item">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="8" cy="8" r="5.5"/>
+        <path d="M8 5v3l2 2" stroke-linecap="round"/>
+      </svg>
+      Reading Log
+    </div>
+    <div class="nav-item">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M4 2h8v12l-4-2.5L4 14V2z"/>
+      </svg>
+      Wishlist
+    </div>
+    <div class="nav-item">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M2 12h2M2 8.5h5M2 5h8M9.5 12h4.5M11.5 8.5h2.5M13 5h1"/>
+      </svg>
+      Insights
+    </div>
+    <div class="nav-item">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M3 3.5a1 1 0 011-1h8a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1v-9z"/>
+        <path d="M5.5 7h5M5.5 9.5h3" stroke-linecap="round"/>
+      </svg>
+      Notes
+    </div>
+    <div class="nav-item">
+      <svg class="nav-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="8" cy="8" r="2"/>
+        <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05" stroke-linecap="round"/>
+      </svg>
+      Settings
+    </div>
+  </nav>
+
+  <!-- hand-drawn vase at the bottom of sidebar -->
+  <div class="rail-vase">
+    <img src="src/assets/doodle-vase2.png" alt="">
+  </div>
+
+  <div class="rail-footer">
+    <div class="offline-pill">
+      <span class="green-dot"></span>
+      <span>Offline · Nothing sent to any server</span>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ════════════════════════════════
+     MAIN CANVAS
+════════════════════════════════ -->
+<main class="canvas">
+
+  <!-- doodle-sprig: top-left, angled in -->
+  <img class="deco" src="src/assets/doodle-sprig.png" alt=""
+    style="top:-16px;left:6px;width:108px;transform:rotate(14deg);opacity:.92;">
+
+  <!-- leaves: top-right corner -->
+  <img class="deco" src="src/assets/doodle-leaves.png" alt=""
+    style="top:22px;right:14px;width:76px;transform:rotate(-10deg);opacity:.58;">
+
+  <!-- stars sparkle near title -->
+  <img class="deco" src="src/assets/stars.png" alt=""
+    style="top:18px;left:calc(50% + 170px);width:40px;transform:rotate(-8deg);opacity:.7;">
+
+  <!-- small flower deco mid-right -->
+  <img class="deco" src="src/assets/doodle-flower.png" alt=""
+    style="top:360px;right:4px;width:50px;transform:rotate(18deg);opacity:.3;">
+
+
+  <!-- ══ PAGE HEADER ══ -->
+  <header class="page-head">
+    <h1 class="page-title">A room for the books I love <span class="heart">♡</span></h1>
+    <p class="page-sub">— A little reading time for yourself today. —</p>
+    <div class="head-rule">
+      <div class="head-rule-line"></div>
+      <span style="color:var(--mauve);font-size:13px">✦</span>
+      <div class="head-rule-line"></div>
+    </div>
+  </header>
+
+
+  <!-- ══ HERO ROW ══ -->
+  <div class="hero-row">
+
+    <!-- ── READING YEAR ARC ── -->
+    <div class="card">
+      <div class="anno">reading goal · 2026</div>
+
+      <div class="arc-outer">
+
+        <!-- semi-circle arc
+             center (115,115), r=86
+             M 29 115  A 86 86  0 0 1  201 115
+             full arc length = π×86 ≈ 270.18
+             75% = 202.6  -->
+        <div class="arc-svg-wrap">
+          <svg width="230" height="126" viewBox="0 0 230 126" fill="none">
+            <defs>
+              <linearGradient id="ag" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stop-color="#9E82BC"/>
+                <stop offset="100%" stop-color="#C4788A"/>
+              </linearGradient>
+            </defs>
+            <!-- track -->
+            <path d="M 29 115 A 86 86 0 0 1 201 115"
+              stroke="#EDE8F5" stroke-width="12" stroke-linecap="round" fill="none"/>
+            <!-- subtle ticks -->
+            <g opacity=".12" stroke="#3A2E48" stroke-width="1.5" stroke-linecap="round">
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(-80 115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(-60 115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(-40 115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(-20 115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(0   115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(20  115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(40  115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(60  115 115)"/>
+              <line x1="115" y1="29"  x2="115" y2="38" transform="rotate(80  115 115)"/>
+            </g>
+            <!-- progress -->
+            <path d="M 29 115 A 86 86 0 0 1 201 115"
+              stroke="url(#ag)" stroke-width="12" stroke-linecap="round" fill="none"
+              stroke-dasharray="202.6 270.18"/>
+            <!-- progress endpoint dot -->
+            <circle cx="187" cy="44.5" r="5.5" fill="#C4788A"/>
+            <circle cx="187" cy="44.5" r="3"   fill="white" opacity=".6"/>
+          </svg>
+
+          <div class="arc-text-center">
+            <div class="arc-num">18</div>
+            <div class="arc-denom">of 24 books</div>
+          </div>
+        </div>
+
+        <!-- journal-style text: NO chips, no boxes -->
+        <div class="arc-journal">
+          <div class="arc-milestone">✦ two chapters ahead of schedule</div>
+          <div class="arc-note">"You're doing beautifully, keep turning pages."</div>
+          <div class="arc-date">📅 &nbsp;est. finish — December 2026</div>
+          <div class="arc-btns">
+            <button class="btn btn-ghost btn-small">open library →</button>
+            <button class="btn btn-mauve btn-small">+ add a book</button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /arc card -->
+
+
+    <!-- ── CURRENTLY READING ── -->
+    <div class="card">
+      <!-- washi tape decorative strip across top -->
+      <img class="washi-corner" src="src/assets/washi.png" alt="">
+
+      <div class="anno">on the nightstand</div>
+
+      <div class="read-inner">
+        <!-- book cover: slightly tilted, spine shadow -->
+        <div class="book-cover">
+          The Left Hand<br>of Darkness
+        </div>
+
+        <div class="book-info">
+          <div class="book-title-main">The Left Hand of Darkness</div>
+          <div class="book-author-main">Ursula K. Le Guin</div>
+
+          <!-- organic sticker — NOT a pill component -->
+          <div class="reading-sticker">📖 reading now</div>
+
+          <!-- progress: annotation + leaf marker, NOT a standard bar -->
+          <div class="prog-label-row">
+            <span>p. 127 of 286</span>
+            <span class="prog-pct-note">nearly halfway ·</span>
+          </div>
+
+          <div class="prog-track-wrap">
+            <div class="prog-track"></div>
+            <div class="prog-done" style="width:44%"></div>
+            <div class="prog-marker" style="left:44%">🌿</div>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sage btn-small">▶ start reading</button>
+            <button class="btn btn-ghost btn-small">log pages</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- diary-style session note -->
+      <div class="session-diary">
+        <span>picked up yesterday · 28 pages · ~42 min</span>
+        <button class="btn btn-ghost btn-small">+ add book</button>
+      </div>
+    </div><!-- /currently reading card -->
+
+  </div><!-- /hero-row -->
+
+
+  <!-- ══ BOTTOM ROW ══ -->
+  <div class="bottom-row">
+
+    <!-- ── STREAK CALENDAR ── -->
+    <div class="card" style="overflow:hidden">
+      <div class="ribbon ribbon-mauve">September ♡</div>
+
+      <div class="cal-hds">
+        <div class="cal-hd">m</div><div class="cal-hd">t</div><div class="cal-hd">w</div>
+        <div class="cal-hd">t</div><div class="cal-hd">f</div>
+        <div class="cal-hd">s</div><div class="cal-hd">s</div>
+      </div>
+
+      <!-- sep 2026 starts tuesday -->
+      <div class="cal-grid">
+        <div class="cd cd-blank"></div>
+        <div class="cd cd-read">1</div>
+        <div class="cd cd-read">2</div>
+        <div class="cd cd-read">3</div>
+        <div class="cd cd-off">4</div>
+        <div class="cd cd-off">5</div>
+        <div class="cd cd-off">6</div>
+
+        <div class="cd cd-read">7</div>
+        <div class="cd cd-read">8</div>
+        <div class="cd cd-off">9</div>
+        <div class="cd cd-read">10</div>
+        <div class="cd cd-read">11</div>
+        <div class="cd cd-off">12</div>
+        <div class="cd cd-read">13</div>
+
+        <div class="cd cd-read">14</div>
+        <div class="cd cd-read">15</div>
+        <div class="cd cd-read">16</div>
+        <div class="cd cd-read">17</div>
+        <div class="cd cd-read">18</div>
+        <div class="cd cd-off">19</div>
+        <div class="cd cd-off">20</div>
+
+        <div class="cd cd-read">21</div>
+        <div class="cd cd-read">22</div>
+        <div class="cd cd-today">23</div>
+        <div class="cd cd-future">24</div>
+        <div class="cd cd-future">25</div>
+        <div class="cd cd-future">26</div>
+        <div class="cd cd-future">27</div>
+
+        <div class="cd cd-future">28</div>
+        <div class="cd cd-future">29</div>
+        <div class="cd cd-future">30</div>
+        <div class="cd cd-blank"></div>
+        <div class="cd cd-blank"></div>
+        <div class="cd cd-blank"></div>
+        <div class="cd cd-blank"></div>
+      </div>
+
+      <div class="streak-foot">
+        <!-- sticker-style streak badge -->
+        <div class="streak-badge">🔥 3 days in a row</div>
+        <span class="streak-note">17 days this month 🌿</span>
+      </div>
+
+      <!-- leaves deco inside card -->
+      <img class="leaves-inner" src="src/assets/doodle-leaves.png" alt="">
+    </div><!-- /calendar -->
+
+
+    <!-- ── NEXT-UP QUEUE ── -->
+    <div class="card">
+      <div class="queue-head">
+        <div class="queue-title">Next chapter queue</div>
+        <span style="font-size:18px;color:var(--rose)">♡</span>
+      </div>
+      <div class="queue-sub">— coming up on my shelf —</div>
+
+      <div class="queue-item">
+        <div class="q-cover qc1"></div>
+        <div class="q-info">
+          <div class="q-title">Piranesi</div>
+          <div class="q-author">Susanna Clarke</div>
+        </div>
+        <div class="q-num">1</div>
+      </div>
+
+      <div class="queue-item">
+        <div class="q-cover qc2"></div>
+        <div class="q-info">
+          <div class="q-title">The Dispossessed</div>
+          <div class="q-author">Ursula K. Le Guin</div>
+        </div>
+        <div class="q-num">2</div>
+      </div>
+
+      <div class="queue-item">
+        <div class="q-cover qc3"></div>
+        <div class="q-info">
+          <div class="q-title">Normal People</div>
+          <div class="q-author">Sally Rooney</div>
+        </div>
+        <div class="q-num">3</div>
+      </div>
+
+      <button class="btn btn-ghost" style="width:100%;margin-top:10px;font-size:12px;justify-content:center">
+        view wishlist →
+      </button>
+    </div><!-- /queue -->
+
+
+    <!-- ── BACKUP REMINDER ── -->
+    <div class="backup-card">
+      <img class="backup-flower" src="src/assets/doodle-flower.png" alt="">
+
+      <div class="backup-hed">
+        <span class="backup-icon">🌿</span>
+        <div class="backup-title">Keep it safe</div>
+      </div>
+
+      <div class="backup-body">
+        Your library lives only on this device. A quick backup keeps your reading history safe.
+      </div>
+
+      <div class="backup-when">last backed up 3 days ago</div>
+
+      <button class="btn btn-backup btn-small">back it up →</button>
+
+      <div class="backup-note">nothing is sent to any server</div>
+    </div>
+
+  </div><!-- /bottom-row -->
+
+</main>
+
+</body>
+</html>

@@ -3,6 +3,7 @@ import { Copy, Download, KeyRound, RefreshCw, Trash2, Terminal, BookOpen } from 
 import { sha256, HASH_SALT } from "@/lib/crypto";
 
 const BTK_HASH_SALT = "btk-lic-v1";
+const LDG_HASH_SALT = "ldg-lic-v1";
 
 interface LicenseEntry {
   id: string;
@@ -14,6 +15,7 @@ interface LicenseEntry {
 
 const LS_KEY = "pdj-license-registry";
 const BTK_LS_KEY = "btk-license-registry";
+const LDG_LS_KEY = "ldg-license-registry";
 
 function loadRegistry(): LicenseEntry[] {
   try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]"); } catch { return []; }
@@ -27,6 +29,12 @@ function loadBtkRegistry(): LicenseEntry[] {
 function saveBtkRegistry(entries: LicenseEntry[]) {
   localStorage.setItem(BTK_LS_KEY, JSON.stringify(entries));
 }
+function loadLdgRegistry(): LicenseEntry[] {
+  try { return JSON.parse(localStorage.getItem(LDG_LS_KEY) ?? "[]"); } catch { return []; }
+}
+function saveLdgRegistry(entries: LicenseEntry[]) {
+  localStorage.setItem(LDG_LS_KEY, JSON.stringify(entries));
+}
 async function buildBookTrackerHtml(hash: string): Promise<string> {
   const res = await fetch("/customer-book-build/book-tracker-app.html");
   if (!res.ok) {
@@ -36,6 +44,18 @@ async function buildBookTrackerHtml(hash: string): Promise<string> {
   }
   const html = await res.text();
   const hashScript = `<script>window.__BTK_LICENSE_HASH__="${hash}";</script>`;
+  const idx = html.lastIndexOf("</head>");
+  return html.slice(0, idx) + hashScript + "\n" + html.slice(idx);
+}
+async function buildBudgetPlannerHtml(hash: string): Promise<string> {
+  const res = await fetch("/customer-budget-build/budget-planner-app.html");
+  if (!res.ok) {
+    throw new Error(
+      "Budget Planner customer build not found. Run: npm run build:customer-budget"
+    );
+  }
+  const html = await res.text();
+  const hashScript = `<script>window.__LDG_LICENSE_HASH__="${hash}";</script>`;
   const idx = html.lastIndexOf("</head>");
   return html.slice(0, idx) + hashScript + "\n" + html.slice(idx);
 }
@@ -73,7 +93,7 @@ function downloadHtml(html: string, filename: string) {
 }
 
 export function Management() {
-  const [product, setProduct] = useState<"bill" | "book">("bill");
+  const [product, setProduct] = useState<"bill" | "book" | "budget">("bill");
   const [tab, setTab] = useState<"generate" | "history">("generate");
   const [customerName, setCustomerName] = useState("");
   const [code, setCode] = useState("");
@@ -90,6 +110,15 @@ export function Management() {
   const [btkGenerating, setBtkGenerating] = useState(false);
   const [btkError, setBtkError] = useState("");
   const [btkRegistry, setBtkRegistry] = useState<LicenseEntry[]>(loadBtkRegistry);
+
+  // Budget planner state
+  const [ldgTab, setLdgTab] = useState<"generate" | "history">("generate");
+  const [ldgCustomerName, setLdgCustomerName] = useState("");
+  const [ldgCode, setLdgCode] = useState("");
+  const [ldgCopied, setLdgCopied] = useState(false);
+  const [ldgGenerating, setLdgGenerating] = useState(false);
+  const [ldgError, setLdgError] = useState("");
+  const [ldgRegistry, setLdgRegistry] = useState<LicenseEntry[]>(loadLdgRegistry);
 
   const handleAutoGenerate = () => {
     setCode(generateCode());
@@ -116,7 +145,7 @@ export function Management() {
 
       const entry: LicenseEntry = {
         id: crypto.randomUUID(),
-        customerName: customerName.trim() || "—",
+        customerName: customerName.trim() || "-",
         code: code.trim(),
         hash,
         date: new Date().toISOString(),
@@ -134,7 +163,7 @@ export function Management() {
   const handleReDownload = async (entry: LicenseEntry) => {
     try {
       const html = await buildProtectedHtml(entry.hash);
-      const name = entry.customerName === "—" ? "customer" : entry.customerName;
+      const name = entry.customerName === "-" ? "customer" : entry.customerName;
       downloadHtml(html, `bill-tracker-${name.toLowerCase().replace(/\s+/g, "-")}.html`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to re-download HTML");
@@ -163,7 +192,7 @@ export function Management() {
       downloadHtml(html, `book-tracker-${name.toLowerCase().replace(/\s+/g, "-")}.html`);
       const entry: LicenseEntry = {
         id: crypto.randomUUID(),
-        customerName: btkCustomerName.trim() || "—",
+        customerName: btkCustomerName.trim() || "-",
         code: btkCode.trim(),
         hash,
         date: new Date().toISOString(),
@@ -180,7 +209,7 @@ export function Management() {
   const handleBtkReDownload = async (entry: LicenseEntry) => {
     try {
       const html = await buildBookTrackerHtml(entry.hash);
-      const name = entry.customerName === "—" ? "customer" : entry.customerName;
+      const name = entry.customerName === "-" ? "customer" : entry.customerName;
       downloadHtml(html, `book-tracker-${name.toLowerCase().replace(/\s+/g, "-")}.html`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to re-download HTML");
@@ -190,6 +219,51 @@ export function Management() {
     const next = btkRegistry.filter((e) => e.id !== id);
     setBtkRegistry(next);
     saveBtkRegistry(next);
+  };
+
+  // Budget planner handlers
+  const handleLdgAutoGenerate = () => { setLdgCode(generateCode()); setLdgCopied(false); };
+  const handleLdgCopy = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => { setLdgCopied(true); setTimeout(() => setLdgCopied(false), 2000); });
+  };
+  const handleLdgGenerate = async () => {
+    if (!ldgCode.trim()) return;
+    setLdgGenerating(true);
+    setLdgError("");
+    try {
+      const hash = await sha256(LDG_HASH_SALT + ldgCode.trim());
+      const html = await buildBudgetPlannerHtml(hash);
+      const name = ldgCustomerName.trim() || "customer";
+      downloadHtml(html, `budget-planner-${name.toLowerCase().replace(/\s+/g, "-")}.html`);
+      const entry: LicenseEntry = {
+        id: crypto.randomUUID(),
+        customerName: ldgCustomerName.trim() || "-",
+        code: ldgCode.trim(),
+        hash,
+        date: new Date().toISOString(),
+      };
+      const next = [entry, ...ldgRegistry];
+      setLdgRegistry(next);
+      saveLdgRegistry(next);
+    } catch (e) {
+      setLdgError(e instanceof Error ? e.message : "Failed to generate HTML");
+    } finally {
+      setLdgGenerating(false);
+    }
+  };
+  const handleLdgReDownload = async (entry: LicenseEntry) => {
+    try {
+      const html = await buildBudgetPlannerHtml(entry.hash);
+      const name = entry.customerName === "-" ? "customer" : entry.customerName;
+      downloadHtml(html, `budget-planner-${name.toLowerCase().replace(/\s+/g, "-")}.html`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to re-download HTML");
+    }
+  };
+  const handleLdgDelete = (id: string) => {
+    const next = ldgRegistry.filter((e) => e.id !== id);
+    setLdgRegistry(next);
+    saveLdgRegistry(next);
   };
 
   const inputClass =
@@ -217,7 +291,7 @@ export function Management() {
       {/* Info banner */}
       <div className="paper-card mb-3 rounded-3xl bg-lilac/15 px-6 py-4">
         <p className="font-hand text-sm text-ink">
-          <span className="font-bold text-lilac-deep">How it works:</span> Enter a license code → click Generate &amp; Download → the customer receives an HTML file that only unlocks when they enter that exact code. The code is stored as a SHA-256 hash — it cannot be read from the HTML source.
+          <span className="font-bold text-lilac-deep">How it works:</span> Enter a license code → click Generate &amp; Download → the customer receives an HTML file that only unlocks when they enter that exact code. The code is stored as a SHA-256 hash - it cannot be read from the HTML source.
         </p>
       </div>
 
@@ -230,6 +304,10 @@ export function Management() {
         <button onClick={() => setProduct("book")}
           className={`flex items-center gap-2 rounded-full px-5 py-2 font-hand text-sm transition-colors ${product === "book" ? "bg-lilac-deep text-white shadow-sm" : "border border-ink/15 bg-white/60 text-ink-soft hover:bg-white/80"}`}>
           <BookOpen className="h-4 w-4" strokeWidth={1.8} /> Book Tracker
+        </button>
+        <button onClick={() => setProduct("budget")}
+          className={`flex items-center gap-2 rounded-full px-5 py-2 font-hand text-sm transition-colors ${product === "budget" ? "bg-lilac-deep text-white shadow-sm" : "border border-ink/15 bg-white/60 text-ink-soft hover:bg-white/80"}`}>
+          <KeyRound className="h-4 w-4" strokeWidth={1.8} /> Budget Planner
         </button>
       </div>
 
@@ -258,7 +336,7 @@ export function Management() {
         ))}
       </div>}
 
-      {/* Bill Tracker — Generate tab */}
+      {/* Bill Tracker - Generate tab */}
       {product === "bill" && tab === "generate" && (
         <div className="paper-card rounded-3xl bg-white/85 p-6 sm:p-8">
           <p className="mb-6 font-script text-2xl">✧ Create a new license</p>
@@ -331,13 +409,13 @@ export function Management() {
 
           <div className="mt-6 rounded-2xl bg-ink/[0.03] p-4">
             <p className="font-hand text-xs text-ink-soft">
-              <span className="font-bold text-ink/60">Security note:</span> The downloaded HTML embeds only the SHA-256 hash of your code — the original code is never stored in the file. Customers cannot reverse-engineer the code from the HTML source.
+              <span className="font-bold text-ink/60">Security note:</span> The downloaded HTML embeds only the SHA-256 hash of your code - the original code is never stored in the file. Customers cannot reverse-engineer the code from the HTML source.
             </p>
           </div>
         </div>
       )}
 
-      {/* Bill Tracker — History tab */}
+      {/* Bill Tracker - History tab */}
       {product === "bill" && tab === "history" && (
         <div className="paper-card rounded-3xl bg-white/85 p-6">
           <p className="mb-4 font-script text-2xl">✧ Generated licenses</p>
@@ -415,7 +493,7 @@ export function Management() {
         </p>
       </div>}
 
-      {/* Book Tracker — tabs */}
+      {/* Book Tracker - tabs */}
       {product === "book" && <div className="mb-5 flex gap-2">
         {(["generate", "history"] as const).map((t) => (
           <button
@@ -432,7 +510,7 @@ export function Management() {
         ))}
       </div>}
 
-      {/* Book Tracker — Generate tab */}
+      {/* Book Tracker - Generate tab */}
       {product === "book" && btkTab === "generate" && (
         <div className="paper-card rounded-3xl bg-white/85 p-6 sm:p-8">
           <p className="mb-6 font-script text-2xl">✧ Create a new license</p>
@@ -505,13 +583,13 @@ export function Management() {
 
           <div className="mt-6 rounded-2xl bg-ink/[0.03] p-4">
             <p className="font-hand text-xs text-ink-soft">
-              <span className="font-bold text-ink/60">Security note:</span> The downloaded HTML embeds only the SHA-256 hash of your code — the original code is never stored in the file. Customers cannot reverse-engineer the code from the HTML source.
+              <span className="font-bold text-ink/60">Security note:</span> The downloaded HTML embeds only the SHA-256 hash of your code - the original code is never stored in the file. Customers cannot reverse-engineer the code from the HTML source.
             </p>
           </div>
         </div>
       )}
 
-      {/* Book Tracker — History tab */}
+      {/* Book Tracker - History tab */}
       {product === "book" && btkTab === "history" && (
         <div className="paper-card rounded-3xl bg-white/85 p-6">
           <p className="mb-4 font-script text-2xl">✧ Generated licenses</p>
@@ -563,6 +641,172 @@ export function Management() {
                           </button>
                           <button
                             onClick={() => handleBtkDelete(entry.id)}
+                            title="Delete"
+                            className="flex items-center rounded-full border border-blush/30 bg-blush/10 px-3 py-1.5 font-hand text-sm text-blush-deep transition-colors hover:bg-blush/20"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Budget Planner build reminder */}
+      {product === "budget" && <div className="mb-5 flex items-start gap-3 rounded-2xl border border-ink/10 bg-white/60 px-5 py-3">
+        <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.8} />
+        <p className="font-hand text-xs text-ink-soft">
+          <span className="font-bold text-ink/70">Before generating:</span> Run{" "}
+          <code className="rounded bg-ink/8 px-1.5 py-0.5 font-mono text-xs">npm run build:customer-budget</code>{" "}
+          once (or after adding new features) to refresh the customer build.
+        </p>
+      </div>}
+
+      {/* Budget Planner - tabs */}
+      {product === "budget" && <div className="mb-5 flex gap-2">
+        {(["generate", "history"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setLdgTab(t)}
+            className={`rounded-full px-5 py-2 font-hand text-sm capitalize transition-colors ${
+              ldgTab === t
+                ? "bg-lilac-deep text-white shadow-sm"
+                : "border border-ink/15 bg-white/60 text-ink-soft hover:bg-white/80"
+            }`}
+          >
+            {t === "generate" ? "Generate License" : `History (${ldgRegistry.length})`}
+          </button>
+        ))}
+      </div>}
+
+      {/* Budget Planner - Generate tab */}
+      {product === "budget" && ldgTab === "generate" && (
+        <div className="paper-card rounded-3xl bg-white/85 p-6 sm:p-8">
+          <p className="mb-6 font-script text-2xl">✧ Create a new license</p>
+
+          <div className="mb-5 space-y-4">
+            <div>
+              <label className="mb-1.5 block font-hand text-xs uppercase tracking-widest text-ink-soft">
+                Customer name (optional)
+              </label>
+              <input
+                type="text"
+                value={ldgCustomerName}
+                onChange={(e) => setLdgCustomerName(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block font-hand text-xs uppercase tracking-widest text-ink-soft">
+                License code
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={ldgCode}
+                  onChange={(e) => { setLdgCode(e.target.value); setLdgCopied(false); }}
+                  placeholder="Enter or auto-generate a code..."
+                  className={`${inputClass} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={handleLdgAutoGenerate}
+                  title="Auto-generate"
+                  className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-ink/15 bg-white/60 px-3 py-2 font-hand text-sm text-ink-soft hover:bg-ink/5"
+                >
+                  <RefreshCw className="h-4 w-4" strokeWidth={1.8} />
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLdgCopy(ldgCode)}
+                  title="Copy code"
+                  disabled={!ldgCode}
+                  className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-ink/15 bg-white/60 px-3 py-2 font-hand text-sm text-ink-soft hover:bg-ink/5 disabled:opacity-40"
+                >
+                  <Copy className="h-4 w-4" strokeWidth={1.8} />
+                  {ldgCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleLdgGenerate}
+              disabled={!ldgCode.trim() || ldgGenerating}
+              className={btnPrimary}
+            >
+              <Download className="h-4 w-4" strokeWidth={2} />
+              {ldgGenerating ? "Generating…" : "Generate & Download HTML"}
+            </button>
+          </div>
+
+          {ldgError && (
+            <div className="mt-4 rounded-2xl bg-blush/15 px-4 py-3">
+              <p className="font-hand text-sm text-blush-deep">{ldgError}</p>
+            </div>
+          )}
+
+          <div className="mt-6 rounded-2xl bg-ink/[0.03] p-4">
+            <p className="font-hand text-xs text-ink-soft">
+              <span className="font-bold text-ink/60">Security note:</span> The downloaded HTML embeds only the SHA-256 hash of your code - the original code is never stored in the file.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Budget Planner - History tab */}
+      {product === "budget" && ldgTab === "history" && (
+        <div className="paper-card rounded-3xl bg-white/85 p-6">
+          <p className="mb-4 font-script text-2xl">✧ Generated licenses</p>
+          {ldgRegistry.length === 0 ? (
+            <p className="py-6 text-center font-hand text-sm text-ink-soft">
+              No licenses generated yet. Switch to the Generate tab to create one.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left">
+                <thead>
+                  <tr className="border-b border-ink/10">
+                    {["Customer", "Code", "Date", "Actions"].map((h) => (
+                      <th key={h} className="pb-2 pr-4 font-hand text-[0.65rem] uppercase tracking-widest text-ink-soft last:pr-0">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ldgRegistry.map((entry) => (
+                    <tr key={entry.id} className="border-b border-ink/5 last:border-0">
+                      <td className="py-3 pr-4 font-hand text-sm text-ink">{entry.customerName}</td>
+                      <td className="py-3 pr-4">
+                        <code className="rounded-lg bg-ink/5 px-2 py-1 font-mono text-xs text-ink">
+                          {entry.code}
+                        </code>
+                      </td>
+                      <td className="py-3 pr-4 font-hand text-xs text-ink-soft">
+                        {new Date(entry.date).toLocaleDateString()}
+                      </td>
+                      <td className="py-3">
+                        <div className="flex gap-1.5">
+                          <button onClick={() => handleLdgCopy(entry.code)} title="Copy code" className={btnSecondary}>
+                            <Copy className="h-3.5 w-3.5" strokeWidth={1.8} />
+                            Copy
+                          </button>
+                          <button onClick={() => handleLdgReDownload(entry)} title="Re-download HTML" className={btnSecondary}>
+                            <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
+                            HTML
+                          </button>
+                          <button
+                            onClick={() => handleLdgDelete(entry.id)}
                             title="Delete"
                             className="flex items-center rounded-full border border-blush/30 bg-blush/10 px-3 py-1.5 font-hand text-sm text-blush-deep transition-colors hover:bg-blush/20"
                           >

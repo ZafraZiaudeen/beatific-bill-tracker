@@ -5,6 +5,8 @@ export interface Contribution {
   source: string;
 }
 
+export type GoalKind = 'emergency' | 'vacation' | 'purchase' | 'sinking' | 'other';
+
 export interface Goal {
   id: number;
   name: string;
@@ -17,6 +19,7 @@ export interface Goal {
   monthlyContribution: number;
   targetDate: string; // 'YYYY-MM'
   contributions: Contribution[];
+  kind?: GoalKind;
 }
 
 export interface Debt {
@@ -32,11 +35,22 @@ export interface Debt {
   apr: number;
   minimumPayment: number;
   extraPayment: number;
+  openedDate?: string;
+  targetPayoffDate?: string;
+  notes?: string;
 }
 
 export interface DebtPlan {
   strategy: 'snowball' | 'avalanche';
   extraPayment: number;
+  startMonth?: string;
+}
+
+export type BudgetMethod = 'zero' | '503020' | 'paycheck';
+
+export interface BudgetSettings {
+  paycheckCadence: 'weekly' | 'biweekly';
+  firstPayday: string;
 }
 
 export interface Bill {
@@ -49,7 +63,18 @@ export interface Bill {
   status: string;
   autopay: boolean;
   cadence: string;
+  account?: string;
+  startDate?: string;
+  endDate?: string;
+  lastPaidDate?: string;
+  paymentTransactionId?: number;
+  notes?: string;
+  active?: boolean;
 }
+
+export type AccountVisibilityScope = 'dashboard' | 'reports' | 'networth' | 'budget';
+
+export type AccountVisibilityScopes = Partial<Record<AccountVisibilityScope, boolean>>;
 
 export interface Account {
   id: number;
@@ -63,7 +88,11 @@ export interface Account {
   openingDate: string;
   lastUpdated: string;
   visibility: boolean;
+  visibilityScopes?: AccountVisibilityScopes;
   reconciled: boolean;
+  lastReconciledAt?: string;
+  notes?: string;
+  importedAt?: string;
 }
 
 // amount: positive = income, negative = expense
@@ -76,6 +105,7 @@ export interface Transaction {
   account: string;
   amount: number;
   notes?: string;
+  billId?: number;
 }
 
 export interface BudgetCategory {
@@ -85,6 +115,9 @@ export interface BudgetCategory {
   spent: number;
   color: string;
   group?: string;
+  kind?: 'income' | 'need' | 'want' | 'saving' | 'debt' | 'other';
+  icon?: string;
+  archived?: boolean;
 }
 
 export interface CashflowEntry {
@@ -105,6 +138,9 @@ export interface SinkingFund {
 export interface NetWorthHistory {
   month: string;
   value: number;
+  assets?: number;
+  liabilities?: number;
+  capturedAt?: string;
 }
 
 export interface NetWorthData {
@@ -136,4 +172,6 @@ export type LedgerlyView =
   | 'reports'
   | 'categories'
   | 'security'
+  | 'management'
   | 'help';
+

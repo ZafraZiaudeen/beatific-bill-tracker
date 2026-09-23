@@ -1,172 +1,581 @@
-import { useState, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
+import type { BudgetCategory, Transaction } from '../types';
+import heart02 from '../../../assets/budget-assets/hearts/heart-02.png';
 
-const C = {
-  bg: '#f5f4f0', surface: '#fff', border: '#e5e2db',
-  accent: '#22c55e', accentDark: '#16a34a',
-  text: '#1a1f2e', text2: '#6b7280', text3: '#9ca3af',
-  shadow: '0 1px 3px rgba(0,0,0,.08)',
-};
-const R = '1rem';
-const PER_PAGE = 8;
+const PER_PAGE = 10;
+const CATEGORY_COLORS = ['#7a9e7e', '#c48a8a', '#c4a35a', '#9e8abe', '#6b9ec4', '#e89e6e'];
 
-const CAT_COLORS: Record<string, { bg: string; color: string; dot: string }> = {
-  Income:        { bg: '#f0fdf4', color: '#16a34a', dot: '#22c55e' },
-  Housing:       { bg: '#fff7ed', color: '#c2410c', dot: '#f97316' },
-  Groceries:     { bg: '#f0fdf4', color: '#15803d', dot: '#22c55e' },
-  Entertainment: { bg: '#faf5ff', color: '#7c3aed', dot: '#8b5cf6' },
-  Transport:     { bg: '#f1f5f9', color: '#334155', dot: '#1e293b' },
-  Utilities:     { bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
-  Shopping:      { bg: '#fffbeb', color: '#b45309', dot: '#f59e0b' },
-  'Food & Dining':{ bg: '#fef2f2', color: '#b91c1c', dot: '#ef4444' },
-  Health:        { bg: '#fdf4ff', color: '#a21caf', dot: '#c026d3' },
-};
-function catStyle(cat: string) {
-  return CAT_COLORS[cat] ?? { bg: '#f3f4f6', color: '#4b5563', dot: '#9ca3af' };
+type TypeFilter = 'all' | 'income' | 'needs' | 'wants';
+type MappingField = 'ignore' | 'date' | 'merchant' | 'amount' | 'category' | 'account' | 'notes' | 'type';
+
+interface DraftTransaction {
+  merchant: string;
+  date: string;
+  category: string;
+  account: string;
+  amount: string;
+  notes: string;
+  type: 'expense' | 'income';
 }
 
-function fmtDate(d: string) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-function fmtAmt(n: number) {
-  const abs = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return n >= 0 ? `+$${abs}` : `-$${abs}`;
+interface ImportCandidate {
+  row: string[];
+  date: string;
+  merchant: string;
+  category: string;
+  account: string;
+  notes: string;
+  amount: number;
+  duplicate: boolean;
 }
 
-const ACCOUNTS = ['Chase Checking', 'Amex Credit', 'Savings Account'];
-const CATEGORIES = ['Income', 'Housing', 'Groceries', 'Entertainment', 'Transport', 'Utilities', 'Shopping', 'Food & Dining', 'Health', 'Other'];
+function monthBounds(ym: string) {
+  const [year, month] = ym.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${ym}-01`,
+    end: `${ym}-${String(lastDay).padStart(2, '0')}`,
+    label: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+  };
+}
+
+function fmtDate(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function fmtAmt(amount: number): string {
+  const abs = Math.abs(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${amount >= 0 ? '+' : '-'}$${abs}`;
+}
+
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
+  return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length];
+}
+
+function parseDelimited(text: string, delimiter: ',' | '\t') {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+    if (char === '"' && quoted && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === delimiter && !quoted) {
+      row.push(cell.trim());
+      cell = '';
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && next === '\n') i++;
+      row.push(cell.trim());
+      if (row.some(value => value !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell.trim());
+  if (row.some(value => value !== '')) rows.push(row);
+  return rows;
+}
+
+function parseAmount(raw: string) {
+  const negativeParens = raw.includes('(') && raw.includes(')');
+  const cleaned = raw.replace(/[$,\s()]/g, '');
+  const amount = Number(cleaned);
+  if (!Number.isFinite(amount)) return 0;
+  return negativeParens ? -Math.abs(amount) : amount;
+}
+
+function parseDate(raw: string) {
+  const value = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function inferCategoryKind(category: BudgetCategory | undefined, transaction: Transaction | Pick<Transaction, 'amount'>) {
+  if (transaction.amount > 0) return 'income';
+  if (category?.kind) return category.kind;
+  const group = category?.group?.toLowerCase() ?? '';
+  if (group.includes('need')) return 'need';
+  if (group.includes('want')) return 'want';
+  return 'other';
+}
+
+function categoryDefaults(name: string, amount: number, index: number): Omit<BudgetCategory, 'id' | 'spent'> {
+  const lower = name.toLowerCase();
+  const isIncome = amount > 0 || lower.includes('income') || lower.includes('salary') || lower.includes('paycheck');
+  const isDebt = lower.includes('debt') || lower.includes('credit') || lower.includes('loan');
+  const isSaving = lower.includes('saving') || lower.includes('investment');
+  const isWant = lower.includes('dining') || lower.includes('coffee') || lower.includes('shop') || lower.includes('entertain');
+  const group = isIncome ? 'Income' : isDebt ? 'Debt' : isSaving ? 'Savings' : isWant ? 'Wants' : lower === 'other' ? 'Other' : 'Needs';
+  const kind = isIncome ? 'income' : isDebt ? 'debt' : isSaving ? 'saving' : isWant ? 'want' : group === 'Other' ? 'other' : 'need';
+  return {
+    name,
+    budget: 0,
+    color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+    group,
+    kind,
+    icon: isIncome ? '💼' : isDebt ? '💳' : isSaving ? '🌿' : isWant ? '♡' : '📌',
+    archived: false,
+  };
+}
+
+function transactionKey(t: Pick<Transaction, 'date' | 'merchant' | 'category' | 'account' | 'amount'>) {
+  return [
+    t.date,
+    t.merchant.trim().toLowerCase(),
+    t.category.trim().toLowerCase(),
+    t.account.trim().toLowerCase(),
+    t.amount.toFixed(2),
+  ].join('|');
+}
+
+function TransactionModal({
+  title,
+  draft,
+  categories,
+  accounts,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  title: string;
+  draft: DraftTransaction;
+  categories: string[];
+  accounts: string[];
+  onChange: (draft: DraftTransaction) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="ldg-txn-modal-backdrop" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="ldg-txn-modal">
+        <div className="ldg-txn-modal-header">
+          <span>{title}</span>
+          <button onClick={onClose} aria-label="Close">×</button>
+        </div>
+        <div className="ldg-txn-modal-body">
+          <div className="ldg-txn-form-grid">
+            <label>
+              <span>Date</span>
+              <input type="date" value={draft.date} onChange={event => onChange({ ...draft, date: event.target.value })} />
+            </label>
+            <label>
+              <span>Type</span>
+              <select value={draft.type} onChange={event => onChange({ ...draft, type: event.target.value as DraftTransaction['type'] })}>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Merchant / Description</span>
+            <input value={draft.merchant} onChange={event => onChange({ ...draft, merchant: event.target.value })} placeholder="e.g. Whole Foods" />
+          </label>
+          <div className="ldg-txn-form-grid">
+            <label>
+              <span>Category</span>
+              <select value={draft.category} onChange={event => onChange({ ...draft, category: event.target.value })}>
+                {categories.map(category => <option key={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Account</span>
+              <select value={draft.account} onChange={event => onChange({ ...draft, account: event.target.value })}>
+                {accounts.map(account => <option key={account}>{account}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="ldg-txn-form-grid">
+            <label>
+              <span>Amount</span>
+              <input type="number" min="0" step="0.01" value={draft.amount} onChange={event => onChange({ ...draft, amount: event.target.value })} placeholder="0.00" />
+            </label>
+            <label>
+              <span>Notes</span>
+              <input value={draft.notes} onChange={event => onChange({ ...draft, notes: event.target.value })} placeholder="Optional note" />
+            </label>
+          </div>
+        </div>
+        <div className="ldg-txn-modal-footer">
+          <button className="ldg-txn-btn-outline" onClick={onClose}>Cancel</button>
+          <button className="ldg-txn-btn-primary" onClick={onSave}>Save transaction</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function TransactionsPage() {
-  const transactions    = useLedgerlyStore(s => s.transactions);
-  const addTransaction  = useLedgerlyStore(s => s.addTransaction);
+  const transactions = useLedgerlyStore(s => s.transactions);
+  const addTransaction = useLedgerlyStore(s => s.addTransaction);
+  const updateTransaction = useLedgerlyStore(s => s.updateTransaction);
   const deleteTransaction = useLedgerlyStore(s => s.deleteTransaction);
+  const addCategory = useLedgerlyStore(s => s.addCategory);
+  const accounts = useLedgerlyStore(s => s.accounts);
+  const categories = useLedgerlyStore(s => s.categories);
+  const currentMonth = useLedgerlyStore(s => s.currentMonth);
 
-  const [search, setSearch]   = useState('');
-  const [catFilter, setCat]   = useState('All');
-  const [page, setPage]       = useState(1);
-  const [modal, setModal]     = useState(false);
-  const [txnType, setTxnType] = useState<'expense' | 'income'>('expense');
+  const bounds = monthBounds(currentMonth);
+  const accountNames = useMemo(
+    () => (accounts.length ? accounts.map(account => account.name) : ['Default Account']),
+    [accounts],
+  );
+  const categoryNames = useMemo(() => {
+    const activeCategories = categories.filter(category => !category.archived);
+    return activeCategories.length ? activeCategories.map(category => category.name) : ['Other'];
+  }, [categories]);
+  const categoryByName = useMemo(() => {
+    const map = new Map<string, BudgetCategory>();
+    categories.forEach(category => map.set(category.name.toLowerCase(), category));
+    return map;
+  }, [categories]);
 
-  const merchantRef = useRef<HTMLInputElement>(null);
-  const dateRef     = useRef<HTMLInputElement>(null);
-  const amtRef      = useRef<HTMLInputElement>(null);
-  const catRef      = useRef<HTMLSelectElement>(null);
-  const accRef      = useRef<HTMLSelectElement>(null);
-  const notesRef    = useRef<HTMLInputElement>(null);
-
-  const today = new Date().toISOString().split('T')[0];
-
-  const cats = ['All', ...Array.from(new Set(transactions.map(t => t.category))).sort()];
-
-  const filtered = transactions.filter(t => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || t.merchant.toLowerCase().includes(q) || t.category.toLowerCase().includes(q) || t.account.toLowerCase().includes(q);
-    const matchCat = catFilter === 'All' || t.category === catFilter;
-    return matchSearch && matchCat;
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [accountFilter, setAccountFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [startDate, setStartDate] = useState(bounds.start);
+  const [endDate, setEndDate] = useState(bounds.end);
+  const [page, setPage] = useState(1);
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<DraftTransaction>({
+    merchant: '',
+    date: new Date().toISOString().slice(0, 10),
+    category: categoryNames[0] ?? 'Other',
+    account: accountNames[0] ?? 'Default Account',
+    amount: '',
+    notes: '',
+    type: 'expense',
   });
 
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState('');
+  const [importRows, setImportRows] = useState<string[][]>([]);
+  const [mapping, setMapping] = useState<Record<number, MappingField>>({});
+  const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [importError, setImportError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const categoryOptions = useMemo(
+    () => Array.from(new Set([...categoryNames, ...transactions.map(t => t.category), 'Other'])).sort(),
+    [categoryNames, transactions],
+  );
+  const accountOptions = useMemo(
+    () => Array.from(new Set([...accountNames, ...transactions.map(t => t.account)])).sort(),
+    [accountNames, transactions],
+  );
+
+  const filtered = useMemo(() => transactions.filter(transaction => {
+    const query = search.trim().toLowerCase();
+    const category = categoryByName.get(transaction.category.toLowerCase());
+    const kind = inferCategoryKind(category, transaction);
+    const matchesSearch = !query
+      || transaction.merchant.toLowerCase().includes(query)
+      || transaction.category.toLowerCase().includes(query)
+      || (transaction.notes ?? '').toLowerCase().includes(query);
+    const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
+    const matchesAccount = accountFilter === 'all' || transaction.account === accountFilter;
+    const matchesDate = (!startDate || transaction.date >= startDate) && (!endDate || transaction.date <= endDate);
+    const matchesType =
+      typeFilter === 'all'
+        || (typeFilter === 'income' && transaction.amount > 0)
+        || (typeFilter === 'needs' && kind === 'need')
+        || (typeFilter === 'wants' && kind === 'want');
+    return matchesSearch && matchesCategory && matchesAccount && matchesDate && matchesType;
+  }), [accountFilter, categoryByName, categoryFilter, endDate, search, startDate, transactions, typeFilter]);
+
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const safePage   = Math.min(page, Math.max(1, totalPages));
-  const pageRows   = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
+  const safePage = Math.min(page, Math.max(1, totalPages));
+  const pageRows = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
+  const importHeaders = importRows[0] ?? [];
 
-  const handleSearch = (v: string) => { setSearch(v); setPage(1); };
-  const handleCat    = (c: string) => { setCat(c); setPage(1); };
-  const clearFilters = () => { setSearch(''); setCat('All'); setPage(1); };
+  const importCandidates = useMemo<ImportCandidate[]>(() => {
+    if (importRows.length < 2) return [];
+    const existing = new Set(transactions.map(transactionKey));
+    const seen = new Set<string>();
+    return importRows.slice(1).map(row => {
+      const get = (field: MappingField) => {
+        const index = Object.entries(mapping).find(([, mapped]) => mapped === field)?.[0];
+        return index === undefined ? '' : row[Number(index)] ?? '';
+      };
+      const rawAmount = parseAmount(get('amount'));
+      const rawType = get('type').toLowerCase();
+      const signedAmount =
+        rawType.includes('income') || rawType.includes('credit') || rawType.includes('deposit')
+          ? Math.abs(rawAmount)
+          : rawType.includes('expense') || rawType.includes('debit') || rawType.includes('payment')
+            ? -Math.abs(rawAmount)
+            : rawAmount;
+      const candidate = {
+        row,
+        date: parseDate(get('date')),
+        merchant: get('merchant') || 'Imported transaction',
+        category: get('category') || (signedAmount > 0 ? 'Income' : 'Other'),
+        account: get('account') || accountNames[0] || 'Default Account',
+        notes: get('notes'),
+        amount: signedAmount,
+        duplicate: false,
+      };
+      const key = transactionKey(candidate);
+      candidate.duplicate = existing.has(key) || seen.has(key);
+      seen.add(key);
+      return candidate;
+    }).filter(candidate => candidate.merchant && candidate.amount !== 0);
+  }, [accountNames, importRows, mapping, transactions]);
 
-  const openModal = () => {
-    setTxnType('expense');
-    setModal(true);
+  const duplicateCount = importCandidates.filter(candidate => candidate.duplicate).length;
+  const importableCount = importCandidates.filter(candidate => !skipDuplicates || !candidate.duplicate).length;
+
+  const openAdd = () => {
+    setEditingId(null);
+    setDraft({
+      merchant: '',
+      date: new Date().toISOString().slice(0, 10),
+      category: categoryNames[0] ?? 'Other',
+      account: accountNames[0] ?? 'Default Account',
+      amount: '',
+      notes: '',
+      type: 'expense',
+    });
+    setModalMode('add');
   };
 
-  const save = () => {
-    const merchant = merchantRef.current?.value.trim() ?? '';
-    const date     = dateRef.current?.value ?? today;
-    const amt      = parseFloat(amtRef.current?.value ?? '0');
-    const cat      = catRef.current?.value ?? 'Other';
-    const acc      = accRef.current?.value ?? ACCOUNTS[0];
-    const notes    = notesRef.current?.value.trim() ?? '';
-    if (!merchant || !date || isNaN(amt) || amt <= 0) { alert('Please fill in merchant, date and a positive amount.'); return; }
-    addTransaction({ merchant, icon: merchant[0].toUpperCase(), date, category: cat, account: acc, amount: txnType === 'income' ? amt : -amt, notes });
-    setModal(false);
+  const openEdit = (transaction: Transaction) => {
+    setEditingId(transaction.id);
+    setDraft({
+      merchant: transaction.merchant,
+      date: transaction.date,
+      category: transaction.category,
+      account: transaction.account,
+      amount: String(Math.abs(transaction.amount)),
+      notes: transaction.notes ?? '',
+      type: transaction.amount >= 0 ? 'income' : 'expense',
+    });
+    setModalMode('edit');
+  };
+
+  const saveDraft = () => {
+    const merchant = draft.merchant.trim();
+    const amount = Number(draft.amount);
+    if (!merchant || !draft.date || !Number.isFinite(amount) || amount <= 0) {
+      window.alert('Please fill in merchant, date, and a positive amount.');
+      return;
+    }
+    const payload = {
+      merchant,
+      icon: merchant[0].toUpperCase(),
+      date: draft.date,
+      category: draft.category || 'Other',
+      account: draft.account || 'Default Account',
+      amount: draft.type === 'income' ? amount : -amount,
+      notes: draft.notes.trim(),
+    };
+    if (modalMode === 'edit' && editingId) updateTransaction(editingId, payload);
+    else addTransaction(payload);
+    setModalMode(null);
     setPage(1);
   };
 
-  const btn = (label: string, onClick: () => void, primary = false) => (
-    <button onClick={onClick} style={{ padding: '8px 16px', background: primary ? C.accent : C.surface, color: primary ? '#fff' : C.text2, border: `1px solid ${primary ? C.accent : C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>{label}</button>
-  );
+  const handleImportFile = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? '');
+      const delimiter: ',' | '\t' = text.split('\n')[0]?.includes('\t') ? '\t' : ',';
+      const rows = parseDelimited(text, delimiter);
+      if (rows.length < 2) {
+        setImportError('This file needs a header row and at least one transaction row.');
+        return;
+      }
+      const headers = rows[0];
+      const autoMap: Record<number, MappingField> = {};
+      headers.forEach((header, index) => {
+        const lower = header.toLowerCase();
+        if (lower.includes('date')) autoMap[index] = 'date';
+        else if (lower.includes('merchant') || lower.includes('description') || lower.includes('payee')) autoMap[index] = 'merchant';
+        else if (lower.includes('amount') || lower.includes('debit') || lower.includes('credit')) autoMap[index] = 'amount';
+        else if (lower.includes('category')) autoMap[index] = 'category';
+        else if (lower.includes('account')) autoMap[index] = 'account';
+        else if (lower.includes('note') || lower.includes('memo')) autoMap[index] = 'notes';
+        else if (lower.includes('type')) autoMap[index] = 'type';
+        else autoMap[index] = 'ignore';
+      });
+      setImportFile(file.name);
+      setImportRows(rows);
+      setMapping(autoMap);
+      setImportError('');
+      setImportOpen(true);
+    };
+    reader.readAsText(file);
+    event.currentTarget.value = '';
+  }, []);
+
+  const confirmImport = () => {
+    const knownCategories = new Set(categories.map(category => category.name.toLowerCase()));
+    const missingCategories = new Map<string, Omit<BudgetCategory, 'id' | 'spent'>>();
+    importCandidates.forEach((candidate, index) => {
+      if (skipDuplicates && candidate.duplicate) return;
+      const key = candidate.category.toLowerCase();
+      if (!knownCategories.has(key) && !missingCategories.has(key)) {
+        missingCategories.set(key, categoryDefaults(candidate.category, candidate.amount, index));
+      }
+    });
+    missingCategories.forEach(category => addCategory(category));
+    importCandidates.forEach(candidate => {
+      if (skipDuplicates && candidate.duplicate) return;
+      addTransaction({
+        merchant: candidate.merchant,
+        icon: candidate.merchant[0].toUpperCase(),
+        date: candidate.date,
+        category: candidate.category,
+        account: candidate.account,
+        amount: candidate.amount,
+        notes: candidate.notes,
+      });
+    });
+    setImportOpen(false);
+    setImportRows([]);
+    setImportFile('');
+    setMapping({});
+    setPage(1);
+  };
+
+  const exportCsv = () => {
+    const rows = [
+      ['Date', 'Merchant', 'Category', 'Account', 'Amount', 'Type', 'Notes'],
+      ...transactions.map(transaction => [
+        transaction.date,
+        transaction.merchant,
+        transaction.category,
+        transaction.account,
+        transaction.amount.toString(),
+        transaction.amount >= 0 ? 'income' : 'expense',
+        transaction.notes ?? '',
+      ]),
+    ];
+    const csv = rows.map(row => row.map(cell => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ledgerly-transactions.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1100, margin: '0 auto' }}>
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text }}>Transactions</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {btn('+ Add transaction', openModal, true)}
-          {btn('↑ Import', () => alert('Import: upload a CSV with columns Date, Merchant, Category, Account, Amount.'))}
-          {btn('↓ Export CSV', () => {
-            const rows = [['Date','Merchant','Category','Account','Amount'], ...transactions.map(t => [t.date, t.merchant, t.category, t.account, t.amount.toString()])];
-            const csv = rows.map(r => r.join(',')).join('\n');
-            const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = 'transactions.csv'; a.click();
-          })}
+    <div className="ldg-txn-page">
+      <PageIntroBanner view="transactions" />
+      <div className="ldg-txn-header">
+        <div>
+          <div className="ldg-txn-title">Transactions <img src={heart02} alt="" /></div>
+          <div className="ldg-txn-subtitle">Track spending, income, imports, and category flow from one local ledger.</div>
+        </div>
+        <div className="ldg-txn-header-badges">
+          <div className="ldg-month-chip">📅 {bounds.label}</div>
+          <div className="ldg-privacy-badge">🔒 Local only · Nothing sent to any server</div>
         </div>
       </div>
 
-      {/* Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.text3, fontSize: 16 }}>🔍</span>
-          <input
-            value={search} onChange={e => handleSearch(e.target.value)}
-            placeholder="Search transactions…"
-            style={{ width: '100%', padding: '9px 12px 9px 38px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13.5, color: C.text, outline: 'none', background: C.surface, boxSizing: 'border-box' }}
-          />
-        </div>
-        {(search || catFilter !== 'All') && btn('Clear filters', clearFilters)}
+      <div className="ldg-txn-actions">
+        <button className="ldg-txn-btn-primary" onClick={openAdd}>+ Add transaction</button>
+        <button className="ldg-txn-btn-outline" onClick={() => fileRef.current?.click()}>↑ Import CSV/TSV</button>
+        <button className="ldg-txn-btn-outline" onClick={exportCsv}>↓ Export CSV</button>
+        <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" hidden onChange={handleImportFile} />
       </div>
 
-      {/* Chips */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        {cats.map(c => (
-          <button key={c} onClick={() => handleCat(c)} style={{ padding: '6px 14px', borderRadius: 99, border: `1px solid ${c === catFilter ? C.text : C.border}`, background: c === catFilter ? C.text : C.surface, color: c === catFilter ? '#fff' : C.text2, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{c}</button>
+      <div className="ldg-txn-filters">
+        {(['all', 'income', 'needs', 'wants'] as TypeFilter[]).map(filter => (
+          <button
+            key={filter}
+            className={`ldg-txn-type-pill${typeFilter === filter ? ' active' : ''}`}
+            onClick={() => { setTypeFilter(filter); setPage(1); }}
+          >
+            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+          </button>
         ))}
+        <select className="ldg-txn-cat-select" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setPage(1); }}>
+          <option value="all">All categories</option>
+          {categoryOptions.map(category => <option key={category}>{category}</option>)}
+        </select>
+        <select className="ldg-txn-cat-select" value={accountFilter} onChange={event => { setAccountFilter(event.target.value); setPage(1); }}>
+          <option value="all">All accounts</option>
+          {accountOptions.map(account => <option key={account}>{account}</option>)}
+        </select>
+        <input className="ldg-txn-date-input" type="date" value={startDate} onChange={event => { setStartDate(event.target.value); setPage(1); }} aria-label="Start date" />
+        <input className="ldg-txn-date-input" type="date" value={endDate} onChange={event => { setEndDate(event.target.value); setPage(1); }} aria-label="End date" />
+        <div className="ldg-txn-search-wrap">
+          <span>⌕</span>
+          <input className="ldg-txn-search" placeholder="Search merchant, category, note..." value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} />
+        </div>
       </div>
 
-      {/* Table */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: R, overflow: 'hidden', boxShadow: C.shadow }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="ldg-card ldg-txn-table-wrap">
+        <table className="ldg-txn-table">
           <thead>
-            <tr style={{ borderBottom: `1px solid ${C.border}`, background: '#f8f7f4' }}>
-              {['Merchant', 'Date', 'Category', 'Account', 'Amount', ''].map((h, i) => (
-                <th key={i} style={{ padding: '11px 16px', textAlign: i === 4 ? 'right' : 'left', fontSize: 12, fontWeight: 700, color: C.text2, letterSpacing: '.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-              ))}
+            <tr>
+              <th className="ldg-txn-th">Merchant</th>
+              <th className="ldg-txn-th">Date</th>
+              <th className="ldg-txn-th">Category</th>
+              <th className="ldg-txn-th">Account</th>
+              <th className="ldg-txn-th ldg-txn-th-right">Amount</th>
+              <th className="ldg-txn-th">Notes</th>
+              <th className="ldg-txn-th">Action</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: C.text2 }}>No transactions match your filters.</td></tr>
-            ) : pageRows.map(t => {
-              const cs = catStyle(t.category);
-              const isIncome = t.amount > 0;
+              <tr><td colSpan={7} className="ldg-txn-empty">No transactions match your filters.</td></tr>
+            ) : pageRows.map(transaction => {
+              const category = categoryByName.get(transaction.category.toLowerCase());
+              const kind = inferCategoryKind(category, transaction);
               return (
-                <tr key={t.id} style={{ borderBottom: '1px solid #f4f1ec' }}>
-                  <td style={{ padding: '13px 16px', fontSize: 13.5, color: C.text }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f0eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{t.icon}</div>
-                      <span style={{ fontWeight: 500 }}>{t.merchant}</span>
+                <tr key={transaction.id} className="ldg-txn-tr">
+                  <td className="ldg-txn-td">
+                    <div className="ldg-txn-merchant-cell">
+                      <div className="ldg-txn-avatar" style={{ background: avatarColor(transaction.merchant) }}>{transaction.icon || transaction.merchant[0]}</div>
+                      <span className="ldg-txn-merchant-name">{transaction.merchant}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '13px 16px', fontSize: 13, color: C.text2 }}>{fmtDate(t.date)}</td>
-                  <td style={{ padding: '13px 16px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: cs.bg, color: cs.color, padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 500 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cs.dot, flexShrink: 0, display: 'inline-block' }} />
-                      {t.category}
-                    </span>
+                  <td className="ldg-txn-td" data-label="Date">{fmtDate(transaction.date)}</td>
+                  <td className="ldg-txn-td" data-label="Category">
+                    <div className="ldg-txn-cat-cell">
+                      <span className="ldg-txn-cat-icon" style={{ color: category?.color }}>{category?.icon ?? '📌'}</span>
+                      <div>
+                        <div className="ldg-txn-cat-name">{transaction.category}</div>
+                        <div className="ldg-txn-cat-type">{kind}</div>
+                      </div>
+                    </div>
                   </td>
-                  <td style={{ padding: '13px 16px', fontSize: 13, color: C.text2 }}>{t.account}</td>
-                  <td style={{ padding: '13px 16px', textAlign: 'right', fontWeight: 600, fontSize: 13.5, color: isIncome ? '#16a34a' : C.text }}>{fmtAmt(t.amount)}</td>
-                  <td style={{ padding: '13px 16px' }}>
-                    <button onClick={() => deleteTransaction(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.text3, lineHeight: 1 }} title="Delete">×</button>
+                  <td className="ldg-txn-td" data-label="Account">{transaction.account}</td>
+                  <td className={`ldg-txn-td ${transaction.amount >= 0 ? 'ldg-txn-amt-income' : 'ldg-txn-amt-expense'}`} data-label="Amount">{fmtAmt(transaction.amount)}</td>
+                  <td className="ldg-txn-td" data-label="Notes"><span className="ldg-txn-notes">{transaction.notes}</span></td>
+                  <td className="ldg-txn-td ldg-txn-row-actions">
+                    <button className="ldg-txn-row-btn" onClick={() => openEdit(transaction)}>Edit</button>
+                    <button className="ldg-txn-row-btn danger" onClick={() => window.confirm('Delete this transaction?') && deleteTransaction(transaction.id)}>Delete</button>
                   </td>
                 </tr>
               );
@@ -174,94 +583,111 @@ export function TransactionsPage() {
           </tbody>
         </table>
 
-        {/* Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 13, color: C.text2 }}>
+        <div className="ldg-txn-footer">
+          <span className="ldg-txn-count">
             {filtered.length === 0
               ? 'No transactions found'
-              : `Showing ${(safePage - 1) * PER_PAGE + 1}–${Math.min(safePage * PER_PAGE, filtered.length)} of ${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}`}
-          </div>
+              : `Showing ${(safePage - 1) * PER_PAGE + 1}-${Math.min(safePage * PER_PAGE, filtered.length)} of ${filtered.length} transactions`}
+          </span>
           {totalPages > 1 && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button disabled={safePage === 1} onClick={() => setPage(p => p - 1)}
-                style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: safePage === 1 ? 'default' : 'pointer', color: safePage === 1 ? C.text3 : C.text, fontSize: 13 }}>‹</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)}
-                  style={{ padding: '4px 10px', border: `1px solid ${p === safePage ? C.text : C.border}`, borderRadius: 6, background: p === safePage ? C.text : C.surface, color: p === safePage ? '#fff' : C.text2, cursor: 'pointer', fontSize: 13, fontWeight: p === safePage ? 700 : 400 }}>{p}</button>
+            <div className="ldg-txn-pagination">
+              <button className="ldg-txn-page-btn" disabled={safePage === 1} onClick={() => setPage(pageValue => pageValue - 1)}>‹</button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => (
+                <button key={pageNumber} className={`ldg-txn-page-btn${pageNumber === safePage ? ' active' : ''}`} onClick={() => setPage(pageNumber)}>{pageNumber}</button>
               ))}
-              <button disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}
-                style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: safePage === totalPages ? 'default' : 'pointer', color: safePage === totalPages ? C.text3 : C.text, fontSize: 13 }}>›</button>
+              <button className="ldg-txn-page-btn" disabled={safePage === totalPages} onClick={() => setPage(pageValue => pageValue + 1)}>›</button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Add Transaction Modal */}
-      {modal && (
-        <div onClick={e => { if (e.target === e.currentTarget) setModal(false); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(0,0,0,.18)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontWeight: 700, fontSize: 16, color: C.text }}>Add Transaction</span>
-              <button onClick={() => setModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.text2 }}>×</button>
-            </div>
-            <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Date</label>
-                  <input ref={dateRef} type="date" defaultValue={today}
-                    style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Type</label>
-                  <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-                    {(['expense', 'income'] as const).map(tp => (
-                      <button key={tp} onClick={() => setTxnType(tp)}
-                        style={{ flex: 1, padding: '9px 0', background: txnType === tp ? C.text : C.surface, color: txnType === tp ? '#fff' : C.text2, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{tp}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+      {modalMode && (
+        <TransactionModal
+          title={modalMode === 'edit' ? 'Edit Transaction' : 'Add Transaction'}
+          draft={draft}
+          categories={categoryOptions}
+          accounts={accountOptions}
+          onChange={setDraft}
+          onClose={() => setModalMode(null)}
+          onSave={saveDraft}
+        />
+      )}
+
+      {importOpen && (
+        <div className="ldg-txn-drawer-backdrop" onClick={event => { if (event.target === event.currentTarget) setImportOpen(false); }}>
+          <aside className="ldg-txn-import-drawer">
+            <div className="ldg-txn-drawer-header">
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Merchant / Description</label>
-                <input ref={merchantRef} type="text" placeholder="e.g. Whole Foods"
-                  style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                <span className="ldg-budget-section-kicker">Local import</span>
+                <h2>Map spreadsheet columns</h2>
+                <p>{importFile || 'CSV/TSV file'} stays on this device.</p>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Category</label>
-                  <select ref={catRef} style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', background: C.surface }}>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Account</label>
-                  <select ref={accRef} style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', background: C.surface }}>
-                    {ACCOUNTS.map(a => <option key={a}>{a}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Amount</label>
-                  <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
-                    <span style={{ padding: '0 10px', color: C.text2, fontSize: 13 }}>$</span>
-                    <input ref={amtRef} type="number" min="0" step="0.01" placeholder="0.00"
-                      style={{ flex: 1, border: 'none', padding: '9px 8px', fontSize: 14, outline: 'none' }} />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 5 }}>Notes (optional)</label>
-                  <input ref={notesRef} type="text" placeholder="Optional note"
-                    style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-              </div>
+              <button onClick={() => setImportOpen(false)} aria-label="Close import drawer">×</button>
             </div>
-            <div style={{ display: 'flex', gap: 10, padding: '14px 22px', borderTop: `1px solid ${C.border}`, justifyContent: 'flex-end' }}>
-              <button onClick={() => setModal(false)} style={{ padding: '9px 20px', border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: C.surface }}>Cancel</button>
-              <button onClick={save} style={{ padding: '9px 20px', background: C.accent, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Add Transaction</button>
+
+            {importError && <div className="ldg-txn-import-error">{importError}</div>}
+
+            <div className="ldg-txn-map-list">
+              {importHeaders.map((header, index) => (
+                <label key={`${header}-${index}`}>
+                  <span>{header || `Column ${index + 1}`}</span>
+                  <select value={mapping[index] ?? 'ignore'} onChange={event => setMapping(current => ({ ...current, [index]: event.target.value as MappingField }))}>
+                    <option value="ignore">Ignore</option>
+                    <option value="date">Date</option>
+                    <option value="merchant">Merchant</option>
+                    <option value="amount">Amount</option>
+                    <option value="category">Category</option>
+                    <option value="account">Account</option>
+                    <option value="notes">Notes</option>
+                    <option value="type">Type</option>
+                  </select>
+                </label>
+              ))}
             </div>
-          </div>
+
+            <div className="ldg-txn-import-summary">
+              <strong>{importableCount}</strong>
+              <span>ready to import</span>
+              <strong>{duplicateCount}</strong>
+              <span>possible duplicates</span>
+            </div>
+
+            <label className="ldg-txn-skip-row">
+              <input type="checkbox" checked={skipDuplicates} onChange={event => setSkipDuplicates(event.target.checked)} />
+              Skip possible duplicates
+            </label>
+
+            <div className="ldg-txn-preview-scroll">
+              <table className="ldg-txn-preview-table">
+                <thead>
+                  <tr><th>Date</th><th>Merchant</th><th>Category</th><th>Account</th><th>Amount</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {importCandidates.slice(0, 8).map((candidate, index) => (
+                    <tr key={`${candidate.date}-${candidate.merchant}-${index}`} className={candidate.duplicate ? 'is-duplicate' : ''}>
+                      <td>{candidate.date}</td>
+                      <td>{candidate.merchant}</td>
+                      <td>{candidate.category}</td>
+                      <td>{candidate.account}</td>
+                      <td>{fmtAmt(candidate.amount)}</td>
+                      <td>{candidate.duplicate ? 'Duplicate' : 'New'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="ldg-txn-drawer-footer">
+              <button className="ldg-txn-btn-outline" onClick={() => fileRef.current?.click()}>Choose another</button>
+              <button
+                className="ldg-txn-btn-primary"
+                disabled={importableCount === 0 || !Object.values(mapping).includes('date') || !Object.values(mapping).includes('merchant') || !Object.values(mapping).includes('amount')}
+                onClick={confirmImport}
+              >
+                Import transactions
+              </button>
+            </div>
+          </aside>
         </div>
       )}
     </div>

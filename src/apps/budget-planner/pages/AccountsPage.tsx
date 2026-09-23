@@ -1,144 +1,297 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
-import { fmt, fmtTimeAgo } from '../utils/formatters';
+import { fmt, fmtTimeAgo, fmtYMFull } from '../utils/formatters';
 import { AccountDialog } from '../dialogs/AccountDialog';
-import type { Account } from '../types';
-
-const C = {
-  bg: '#f5f4f0', surface: '#fff', border: '#e5e2db', accent: '#22c55e',
-  text: '#1a1a1a', text2: '#6b7280', shadow: '0 1px 3px rgba(0,0,0,.08)',
-};
+import type { Account, AccountVisibilityScope } from '../types';
+import { ACCOUNT_GROUP_ORDER, accountGroupForType, accountVisibleIn, normalizeAccountType } from '../utils/accounts';
+import flower02 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-02.png';
+import flower04 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-04.png';
+import sprig03 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-03.png';
+import heart01 from '../../../assets/budget-assets/hearts/heart-01.png';
 
 const GROUP_CFG: Record<string, { icon: string; color: string; bg: string }> = {
-  Cash:         { icon: '💵', color: '#22c55e', bg: '#f0fdf4' },
-  'Credit cards': { icon: '💳', color: '#3b82f6', bg: '#eff6ff' },
-  Loans:        { icon: '📋', color: '#f97316', bg: '#fff7ed' },
-  'Other assets': { icon: '🏠', color: '#8b5cf6', bg: '#faf5ff' },
+  Cash: { icon: '💵', color: '#4a7060', bg: 'rgba(122,158,126,.15)' },
+  'Credit cards': { icon: '💳', color: '#a05050', bg: 'rgba(196,138,138,.15)' },
+  Loans: { icon: '🎓', color: '#8a6020', bg: 'rgba(196,163,90,.15)' },
+  'Other assets': { icon: '🏠', color: '#3a6e96', bg: 'rgba(107,158,196,.15)' },
 };
-const GROUP_ORDER = ['Cash', 'Credit cards', 'Loans', 'Other assets'];
+
+const IMPORT_FIELDS = [
+  { key: 'name', label: 'Account name' },
+  { key: 'balance', label: 'Current balance' },
+  { key: 'type', label: 'Type' },
+  { key: 'institution', label: 'Institution' },
+  { key: 'accountNumber', label: 'Last 4' },
+  { key: 'openingBalance', label: 'Opening balance' },
+  { key: 'lastUpdated', label: 'Last updated' },
+] as const;
+
+type ImportField = typeof IMPORT_FIELDS[number]['key'];
+type ColumnMap = Partial<Record<ImportField, string>>;
+
+function parseDelimited(text: string) {
+  const delimiter = text.includes('\t') ? '\t' : ',';
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (ch === '"' && quoted && next === '"') {
+      cell += '"';
+      i += 1;
+    } else if (ch === '"') {
+      quoted = !quoted;
+    } else if (ch === delimiter && !quoted) {
+      row.push(cell.trim());
+      cell = '';
+    } else if ((ch === '\n' || ch === '\r') && !quoted) {
+      if (ch === '\r' && next === '\n') i += 1;
+      row.push(cell.trim());
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += ch;
+    }
+  }
+  row.push(cell.trim());
+  if (row.some(Boolean)) rows.push(row);
+  return rows;
+}
+
+function inferMapping(headers: string[]): ColumnMap {
+  const find = (...needles: string[]) => headers.find(header => needles.some(needle => header.toLowerCase().includes(needle)));
+  return {
+    name: find('account', 'name'),
+    balance: find('balance', 'current'),
+    type: find('type'),
+    institution: find('institution', 'bank'),
+    accountNumber: find('last 4', 'last4', 'number'),
+    openingBalance: find('opening'),
+    lastUpdated: find('updated', 'date'),
+  };
+}
+
+function parseMoney(value: string) {
+  const cleaned = value.replace(/[$,\s]/g, '').replace(/^\((.*)\)$/, '-$1');
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function fmtDate(isoStr: string) {
+  try {
+    return new Date(isoStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return isoStr;
+  }
+}
 
 export function AccountsPage() {
-  const accounts       = useLedgerlyStore(s => s.accounts);
+  const accounts = useLedgerlyStore(s => s.accounts);
   const toggleVisibility = useLedgerlyStore(s => s.toggleVisibility);
+  const setAccountVisibilityScope = useLedgerlyStore(s => s.setAccountVisibilityScope);
   const markReconciled = useLedgerlyStore(s => s.markReconciled);
+  const deleteAccount = useLedgerlyStore(s => s.deleteAccount);
+  const importAccountBalances = useLedgerlyStore(s => s.importAccountBalances);
+  const currentMonth = useLedgerlyStore(s => s.currentMonth);
 
-  const [collapsed, setCollapsed]   = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [editAcc, setEditAcc]       = useState<Account | null>(null);
+  const [editAcc, setEditAcc] = useState<Account | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState<string[][]>([]);
+  const [mapping, setMapping] = useState<ColumnMap>({});
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const totalCash   = accounts.filter(a => a.group === 'Cash').reduce((s, a) => s + a.balance, 0);
-  const totalAssets = accounts.filter(a => a.balance > 0).reduce((s, a) => s + a.balance, 0);
-  const totalLiab   = accounts.filter(a => a.balance < 0).reduce((s, a) => s + Math.abs(a.balance), 0);
-  const netWorth    = totalAssets - totalLiab;
-
+  const visibleNetWorthAccounts = accounts.filter(account => accountVisibleIn(account, 'networth'));
+  const totalCash = accounts.filter(a => a.group === 'Cash' && accountVisibleIn(a, 'dashboard')).reduce((s, a) => s + a.balance, 0);
+  const totalAssets = visibleNetWorthAccounts.filter(a => a.balance > 0).reduce((s, a) => s + a.balance, 0);
+  const totalLiab = visibleNetWorthAccounts.filter(a => a.balance < 0).reduce((s, a) => s + Math.abs(a.balance), 0);
+  const netWorth = totalAssets - totalLiab;
   const selected = accounts.find(a => a.id === selectedId) ?? null;
-
   const toggleGroup = (g: string) => setCollapsed(prev => ({ ...prev, [g]: !prev[g] }));
 
-  return (
-    <div style={{ padding: '32px 36px' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, marginBottom: 24 }}>Accounts</h1>
+  const grouped = useMemo(() => {
+    const groups = new Map<string, Account[]>();
+    for (const account of accounts) {
+      const group = account.group || 'Other assets';
+      groups.set(group, [...(groups.get(group) ?? []), account]);
+    }
+    return [...ACCOUNT_GROUP_ORDER, ...[...groups.keys()].filter(group => !ACCOUNT_GROUP_ORDER.includes(group))]
+      .map(groupName => ({ groupName, accounts: groups.get(groupName) ?? [] }))
+      .filter(group => group.accounts.length > 0);
+  }, [accounts]);
 
-      {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-        {[
-          { icon: '💵', bg: '#f0fdf4', ic: '#16a34a', label: 'Total cash', value: fmt(totalCash), sub: `${accounts.filter(a => a.group === 'Cash').length} accounts` },
-          { icon: '🏦', bg: '#eff6ff', ic: '#3b82f6', label: 'Total assets', value: fmt(totalAssets), sub: `${accounts.filter(a => a.balance > 0).length} accounts` },
-          { icon: '💳', bg: '#fef2f2', ic: '#ef4444', label: 'Total liabilities', value: fmt(totalLiab), sub: `${accounts.filter(a => a.balance < 0).length} accounts` },
-          { icon: '📈', bg: '#1a1f2e', ic: C.accent, label: 'Net worth', value: fmt(netWorth), sub: '↑ 4.8% vs. last month', light: true },
-        ].map(({ icon, bg, ic, label, value, sub, light }) => (
-          <div key={label} style={{ background: light ? '#1a1f2e' : C.surface, border: `1px solid ${light ? '#2d3748' : C.border}`, borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: C.shadow }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0, color: ic }}>{icon}</div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: light ? '#94a3b8' : C.text2, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: light ? '#fff' : C.text, lineHeight: 1.2 }}>{value}</div>
-              <div style={{ fontSize: 11, color: light ? '#64748b' : C.text2, marginTop: 2 }}>{sub}</div>
-            </div>
-          </div>
-        ))}
+  const headers = importRows[0] ?? [];
+  const previewRows = importRows.slice(1, 6);
+  const mappedImport = importRows.slice(1).map(row => {
+    const valueFor = (field: ImportField) => {
+      const header = mapping[field];
+      const index = header ? headers.indexOf(header) : -1;
+      return index >= 0 ? row[index] ?? '' : '';
+    };
+    const name = valueFor('name').trim();
+    const balance = parseMoney(valueFor('balance'));
+    const type = normalizeAccountType(valueFor('type'));
+    return {
+      name,
+      balance,
+      type,
+      institution: valueFor('institution').trim() || 'Imported',
+      accountNumber: valueFor('accountNumber').trim(),
+      openingBalance: valueFor('openingBalance') ? parseMoney(valueFor('openingBalance')) : balance,
+      lastUpdated: valueFor('lastUpdated') || new Date().toISOString(),
+      group: accountGroupForType(type),
+    };
+  }).filter(row => row.name);
+  const importMatches = mappedImport.filter(row => accounts.some(account => account.name.toLowerCase() === row.name.toLowerCase())).length;
+
+  function handleFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rows = parseDelimited(String(reader.result ?? ''));
+      setImportRows(rows);
+      setMapping(inferMapping(rows[0] ?? []));
+    };
+    reader.readAsText(file);
+  }
+
+  function confirmImport() {
+    if (!mapping.name || !mapping.balance) {
+      alert('Please map at least Account name and Current balance.');
+      return;
+    }
+    importAccountBalances(mappedImport);
+    setShowImport(false);
+    setImportRows([]);
+    setMapping({});
+  }
+
+  const scopeLabels: Record<AccountVisibilityScope, string> = {
+    dashboard: 'Dashboard',
+    reports: 'Reports',
+    networth: 'Net worth',
+    budget: 'Budget',
+  };
+
+  return (
+    <div className="ldg-acct-page">
+      <PageIntroBanner view="accounts" />
+      <div className="ldg-acct-header">
+        <div>
+          <div className="ldg-acct-title">Accounts <img src={heart01} alt="" /></div>
+          <div className="ldg-acct-subtitle">Manual balances, reconciliation, and visibility for reliable net worth.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="ldg-month-chip">📅 {fmtYMFull(currentMonth)}</div>
+          <div className="ldg-privacy-badge">🔒 Local only · Nothing sent to any server</div>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
-        <button
-          onClick={() => { setEditAcc(null); setShowDialog(true); }}
-          style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-        >
+      <div className="ldg-stat-row">
+        <div className="ldg-stat-card ldg-stat-cream">
+          <img src={flower02} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-leaf">💵</div>
+            <div className="ldg-stat-label">Visible cash</div>
+            <div className="ldg-stat-amount">{fmt(totalCash)}</div>
+            <div className="ldg-stat-sub">{accounts.filter(a => a.group === 'Cash').length} cash accounts</div>
+          </div>
+        </div>
+        <div className="ldg-stat-card ldg-stat-white">
+          <img src={flower04} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-leaf">↗</div>
+            <div className="ldg-stat-label">Visible assets</div>
+            <div className="ldg-stat-amount">{fmt(totalAssets)}</div>
+            <div className="ldg-stat-sub">{visibleNetWorthAccounts.filter(a => a.balance > 0).length} accounts</div>
+          </div>
+        </div>
+        <div className="ldg-stat-card ldg-stat-blush">
+          <img src={sprig03} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-cal">↘</div>
+            <div className="ldg-stat-label">Visible liabilities</div>
+            <div className="ldg-stat-amount">{fmt(totalLiab)}</div>
+            <div className="ldg-stat-sub">{visibleNetWorthAccounts.filter(a => a.balance < 0).length} accounts</div>
+          </div>
+        </div>
+        <div className="ldg-stat-card ldg-stat-white">
+          <img src={heart01} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-leaf">♡</div>
+            <div className="ldg-stat-label">Net worth</div>
+            <div className="ldg-stat-amount" style={{ color: netWorth < 0 ? '#c46060' : 'var(--text)' }}>{fmt(Math.abs(netWorth))}</div>
+            <div className="ldg-stat-sub">visibility-aware</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, margin: '16px 0', flexWrap: 'wrap' }}>
+        <button className="ldg-goals-add-btn" onClick={() => { setEditAcc(null); setShowDialog(true); }}>
           ⊕ Add account manually
         </button>
         <button
-          onClick={() => alert('Import: Upload a CSV with Account, Balance, Institution.')}
-          style={{ background: C.surface, color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-        >
+          onClick={() => setShowImport(true)}
+          style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 99, padding: '8px 18px', fontWeight: 600, fontSize: '.82rem', cursor: 'pointer' }}>
           ↑ Import balances
         </button>
       </div>
 
-      {/* Split */}
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 310px' : '1fr', gap: 16, alignItems: 'start' }}>
-        {/* Groups */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {GROUP_ORDER.map(groupName => {
-            const cfg  = GROUP_CFG[groupName] ?? { icon: '💰', color: '#6b7280', bg: '#f3f4f6' };
-            const grpAccounts = accounts.filter(a => a.group === groupName);
-            if (!grpAccounts.length) return null;
+      <div style={{ display: 'grid', gridTemplateColumns: selected ? 'minmax(0, 1fr) 340px' : '1fr', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {grouped.map(({ groupName, accounts: grpAccounts }) => {
+            const cfg = GROUP_CFG[groupName] ?? { icon: '💰', color: '#6b7280', bg: '#f3f4f6' };
             const grpTotal = grpAccounts.reduce((s, a) => s + a.balance, 0);
-            const isOpen   = !collapsed[groupName];
+            const isOpen = !collapsed[groupName];
             return (
-              <div key={groupName} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', boxShadow: C.shadow }}>
-                <div
-                  onClick={() => toggleGroup(groupName)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer', borderBottom: isOpen ? `1px solid ${C.border}` : 'none' }}
-                >
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0, color: cfg.color }}>{cfg.icon}</div>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: C.text, flex: 1 }}>{groupName}</span>
-                  <span style={{ fontSize: 11, color: C.text2, marginRight: 8 }}>{grpAccounts.length} account{grpAccounts.length !== 1 ? 's' : ''}</span>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: C.text, marginRight: 8 }}>{grpTotal >= 0 ? fmt(grpTotal) : `-${fmt(Math.abs(grpTotal))}`}</span>
-                  <span style={{ fontSize: 12, color: C.text2, transition: 'transform .2s', display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+              <div key={groupName} className="ldg-acct-grp-card">
+                <div className={`ldg-acct-grp-hdr${isOpen ? '' : ' ldg-acct-grp-hdr-collapsed'}`} onClick={() => toggleGroup(groupName)}>
+                  <div className="ldg-acct-grp-icon" style={{ background: cfg.bg, color: cfg.color }}>{cfg.icon}</div>
+                  <span className="ldg-acct-grp-name">{groupName}</span>
+                  <span className="ldg-acct-grp-meta">{grpAccounts.length} account{grpAccounts.length !== 1 ? 's' : ''}</span>
+                  <span className="ldg-acct-grp-total" style={{ color: grpTotal < 0 ? '#c46060' : 'var(--text)' }}>
+                    {grpTotal < 0 ? '-' : ''}{fmt(Math.abs(grpTotal))}
+                  </span>
+                  <span className="ldg-acct-grp-chevron" style={{ transform: isOpen ? 'none' : 'rotate(-90deg)' }}>▾</span>
                 </div>
                 {isOpen && (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <table className="ldg-acct-table">
                     <thead>
-                      <tr style={{ background: '#f8f7f4' }}>
-                        {['Account', 'Balance', 'Type', 'Last updated', 'Visibility'].map(h => (
-                          <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: C.text2, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                      <tr style={{ background: 'rgba(240,244,240,.5)' }}>
+                        {['Account', 'Balance', 'Type', 'Last updated', 'Reconciled', 'Visibility'].map(h => (
+                          <th key={h} className="ldg-acct-th">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {grpAccounts.map(a => {
                         const balNeg = a.balance < 0;
-                        const balStr = balNeg ? `-${fmt(Math.abs(a.balance))}` : fmt(a.balance);
                         return (
-                          <tr
-                            key={a.id}
-                            onClick={() => setSelectedId(selectedId === a.id ? null : a.id)}
-                            style={{ borderTop: `1px solid ${C.border}`, cursor: 'pointer', background: selectedId === a.id ? '#f0fdf4' : 'transparent', transition: 'background .1s' }}
-                          >
-                            <td style={{ padding: '12px 14px' }}>
+                          <tr key={a.id} className={`ldg-acct-tr${selectedId === a.id ? ' selected' : ''}`} onClick={() => setSelectedId(selectedId === a.id ? null : a.id)}>
+                            <td className="ldg-acct-td">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: '#f3f0eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{cfg.icon}</div>
+                                <div className="ldg-acct-icon" style={{ background: cfg.bg, color: cfg.color }}>{cfg.icon}</div>
                                 <div>
-                                  <div style={{ fontWeight: 600, fontSize: 13 }}>{a.name}</div>
-                                  <div style={{ fontSize: 11, color: C.text2 }}>{a.institution}{a.accountNumber ? ` · ${a.accountNumber}` : ''}</div>
+                                  <div className="ldg-acct-acc-name">{a.name}</div>
+                                  <div className="ldg-acct-acc-inst">{a.institution}{a.accountNumber ? ` · ${a.accountNumber}` : ''}</div>
                                 </div>
                               </div>
                             </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 600, fontSize: 13, color: balNeg ? '#ef4444' : C.text }}>{balStr}</td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <span style={{ background: '#f3f4f6', borderRadius: 99, padding: '3px 9px', fontSize: 11, fontWeight: 500, color: C.text2 }}>{a.type}</span>
+                            <td className="ldg-acct-td" style={{ fontWeight: 600, color: balNeg ? '#c46060' : 'var(--text)' }}>{balNeg ? '-' : ''}{fmt(Math.abs(a.balance))}</td>
+                            <td className="ldg-acct-td"><span style={{ background: 'rgba(200,210,200,.3)', borderRadius: 99, padding: '3px 9px', fontSize: '.72rem', fontWeight: 500, color: 'var(--text2)' }}>{a.type}</span></td>
+                            <td className="ldg-acct-td">
+                              <div style={{ fontSize: '.78rem', color: 'var(--text2)' }}>{fmtDate(a.lastUpdated)}</div>
+                              <div style={{ fontSize: '.70rem', color: 'var(--text3)' }}>{fmtTimeAgo(a.lastUpdated)}</div>
                             </td>
-                            <td style={{ padding: '12px 14px', fontSize: 12, color: C.text2 }}>
-                              {new Date(a.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              <br />
-                              <span style={{ fontSize: 11 }}>{fmtTimeAgo(a.lastUpdated)}</span>
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <button
-                                onClick={e => { e.stopPropagation(); toggleVisibility(a.id); }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, opacity: a.visibility ? 1 : 0.4 }}
-                              >
+                            <td className="ldg-acct-td">{a.reconciled ? '✓ Reconciled' : 'Needs review'}</td>
+                            <td className="ldg-acct-td" style={{ textAlign: 'center' }}>
+                              <button className="ldg-acct-vis-btn" onClick={e => { e.stopPropagation(); toggleVisibility(a.id); }} title={a.visibility ? 'Visible - click to hide everywhere' : 'Hidden - click to show everywhere'} style={{ opacity: a.visibility ? 1 : 0.45 }}>
                                 {a.visibility ? '👁️' : '🚫'}
                               </button>
                             </td>
@@ -151,75 +304,127 @@ export function AccountsPage() {
               </div>
             );
           })}
+          {accounts.length === 0 && (
+            <div className="ldg-card" style={{ padding: 32, textAlign: 'center', color: 'var(--text3)', fontSize: '.85rem' }}>
+              No accounts yet, add your first account to get started.
+            </div>
+          )}
         </div>
 
-        {/* Detail panel */}
         {selected && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', boxShadow: C.shadow }}>
-            <div style={{ padding: '16px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div>
-                <button
-                  onClick={() => setSelectedId(null)}
-                  style={{ fontSize: 12, color: C.accent, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 8, display: 'block' }}
-                >
-                  ← Back to accounts
-                </button>
-                <div style={{ width: 42, height: 42, borderRadius: 10, background: GROUP_CFG[selected.group]?.bg ?? '#f3f0eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21 }}>
-                  {GROUP_CFG[selected.group]?.icon ?? '💰'}
-                </div>
+          <div className="ldg-card ldg-acct-detail">
+            <button className="ldg-acct-back" onClick={() => setSelectedId(null)}>← Back to accounts</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: GROUP_CFG[selected.group]?.bg ?? 'rgba(122,158,126,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+                {GROUP_CFG[selected.group]?.icon ?? '💰'}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{selected.name}</div>
-                <div style={{ fontSize: 12, color: C.text2 }}>{selected.institution}{selected.accountNumber ? ` · ${selected.accountNumber}` : ''}</div>
+              <div>
+                <div className="ldg-acct-detail-name">{selected.name}</div>
+                <div className="ldg-acct-detail-inst">{selected.institution}{selected.accountNumber ? ` · ${selected.accountNumber}` : ''}</div>
               </div>
             </div>
-            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            <div>
               {[
-                { label: 'Opening balance', value: selected.openingBalance >= 0 ? fmt(selected.openingBalance) : `-${fmt(Math.abs(selected.openingBalance))}`, sub: selected.openingDate },
-                { label: 'Current balance', value: selected.balance >= 0 ? fmt(selected.balance) : `-${fmt(Math.abs(selected.balance))}`, sub: new Date(selected.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                { label: 'Opening balance', value: (selected.openingBalance < 0 ? '-' : '') + fmt(Math.abs(selected.openingBalance)), sub: selected.openingDate },
+                { label: 'Current balance', value: (selected.balance < 0 ? '-' : '') + fmt(Math.abs(selected.balance)), sub: fmtDate(selected.lastUpdated) },
               ].map(({ label, value, sub }) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: C.text2 }}>{label}</span>
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(200,210,195,.3)' }}>
+                  <span style={{ fontSize: '.80rem', color: 'var(--text2)' }}>{label}</span>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{value}</div>
-                    <div style={{ fontSize: 11, color: C.text2 }}>{sub}</div>
+                    <div style={{ fontSize: '.84rem', fontWeight: 600, color: 'var(--text)' }}>{value}</div>
+                    <div style={{ fontSize: '.70rem', color: 'var(--text3)' }}>{sub}</div>
                   </div>
                 </div>
               ))}
-              <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: 0 }} />
-              {[
-                { label: 'Account type', value: selected.type },
-                { label: 'Institution', value: selected.institution },
-                ...(selected.accountNumber ? [{ label: 'Account number', value: `···· ${selected.accountNumber}` }] : []),
-                { label: 'Last updated', value: `${new Date(selected.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${fmtTimeAgo(selected.lastUpdated)}` },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: C.text2 }}>{label}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text, textAlign: 'right' }}>{value}</span>
-                </div>
-              ))}
             </div>
-            <div style={{ padding: '14px 18px', borderTop: `1px solid ${C.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', background: selected.reconciled ? C.accent : '#d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11 }}>
-                  {selected.reconciled ? '✓' : ''}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: selected.reconciled ? C.accent : C.text2 }}>{selected.reconciled ? 'Reconciled' : 'Not reconciled'}</div>
-                  <div style={{ fontSize: 11, color: C.text2 }}>Reconciliation status</div>
-                </div>
+
+            {(['dashboard', 'reports', 'networth', 'budget'] as AccountVisibilityScope[]).map(scope => (
+              <label key={scope} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: '.80rem', color: 'var(--text2)' }}>
+                <span>Show in {scopeLabels[scope]}</span>
+                <input
+                  type="checkbox"
+                  checked={accountVisibleIn(selected, scope)}
+                  onChange={e => setAccountVisibilityScope(selected.id, scope, e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#6f8f72' }}
+                />
+              </label>
+            ))}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', background: selected.reconciled ? '#7a9e7e' : '#d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '.70rem', fontWeight: 700, flexShrink: 0 }}>
+                {selected.reconciled ? '✓' : ''}
               </div>
-              <button
-                onClick={() => markReconciled(selected.id)}
-                disabled={selected.reconciled}
-                style={{ width: '100%', background: selected.reconciled ? '#d1d5db' : C.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '11px 0', fontSize: 14, fontWeight: 600, cursor: selected.reconciled ? 'default' : 'pointer' }}
-              >
-                {selected.reconciled ? 'Already reconciled' : 'Mark as reconciled'}
+              <div>
+                <div style={{ fontSize: '.82rem', fontWeight: 600, color: selected.reconciled ? '#4a7060' : 'var(--text2)' }}>
+                  {selected.reconciled ? 'Reconciled' : 'Not reconciled'}
+                </div>
+                <div style={{ fontSize: '.70rem', color: 'var(--text3)' }}>{selected.lastReconciledAt ? `Last reconciled ${fmtDate(selected.lastReconciledAt)}` : 'Balance needs review'}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button className="ldg-acct-edit-btn" onClick={() => { setEditAcc(selected); setShowDialog(true); }}>✏ Edit account</button>
+              <button onClick={() => !selected.reconciled && markReconciled(selected.id)} disabled={selected.reconciled} className="ldg-acct-reconcile-btn">
+                {selected.reconciled ? 'Reconciled' : 'Mark reconciled'}
               </button>
             </div>
+            <button
+              onClick={() => { if (confirm(`Delete ${selected.name}? Transactions will keep their historical account label.`)) { deleteAccount(selected.id); setSelectedId(null); } }}
+              style={{ border: '1px solid rgba(196,96,96,.35)', background: 'rgba(196,96,96,.08)', color: '#a05050', borderRadius: 999, padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              Delete account
+            </button>
           </div>
         )}
       </div>
+
+      {showImport && (
+        <div onClick={e => { if (e.target === e.currentTarget) setShowImport(false); }} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,.45)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <div className="ldg-card" style={{ width: '100%', maxWidth: 760, maxHeight: '86vh', overflowY: 'auto', padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div>
+                <div className="ldg-card-title">Import account balances</div>
+                <div style={{ fontSize: '.78rem', color: 'var(--text3)' }}>CSV/TSV only. Files stay in your browser.</div>
+              </div>
+              <button onClick={() => setShowImport(false)} style={{ border: 0, background: 'transparent', fontSize: 22, cursor: 'pointer' }}>×</button>
+            </div>
+            <input ref={fileRef} type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" onChange={e => handleFile(e.target.files?.[0])} />
+            {headers.length > 0 && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 16 }}>
+                  {IMPORT_FIELDS.map(field => (
+                    <label key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '.76rem', fontWeight: 700, color: 'var(--text2)' }}>
+                      {field.label}
+                      <select value={mapping[field.key] ?? ''} onChange={e => setMapping(prev => ({ ...prev, [field.key]: e.target.value || undefined }))} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface)', color: 'var(--text)' }}>
+                        <option value="">Do not import</option>
+                        {headers.map(header => <option key={header} value={header}>{header}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ marginTop: 14, fontSize: '.78rem', color: 'var(--text2)' }}>
+                  Previewing {mappedImport.length} account row{mappedImport.length !== 1 ? 's' : ''}; {importMatches} likely update existing accounts.
+                </div>
+                <div style={{ overflowX: 'auto', marginTop: 10 }}>
+                  <table className="ldg-acct-table">
+                    <thead><tr>{headers.map(header => <th key={header} className="ldg-acct-th">{header}</th>)}</tr></thead>
+                    <tbody>
+                      {previewRows.map((row, idx) => (
+                        <tr key={idx}>{headers.map((header, colIdx) => <td key={header} className="ldg-acct-td">{row[colIdx]}</td>)}</tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
+                  <button onClick={() => { setImportRows([]); setMapping({}); if (fileRef.current) fileRef.current.value = ''; }} style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 999, padding: '8px 14px', cursor: 'pointer' }}>Clear</button>
+                  <button className="ldg-goals-add-btn" onClick={confirmImport}>Import balances</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {showDialog && <AccountDialog account={editAcc} onClose={() => { setShowDialog(false); setEditAcc(null); }} />}
     </div>

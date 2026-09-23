@@ -1,206 +1,392 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
-import { fmt, getBillNextDate } from '../utils/formatters';
+import { fmt, fmtYMFull } from '../utils/formatters';
+import { getAllBillOccurrencesForMonth, monthlyBillEquivalent } from '../utils/bills';
 import { BillDialog } from '../dialogs/BillDialog';
 import type { Bill } from '../types';
+import sprig02 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-02.png';
+import sprig03 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-03.png';
+import flower01 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-01.png';
+import flower03 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-03.png';
+import flower05 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-05.png';
+import heart01 from '../../../assets/budget-assets/hearts/heart-01.png';
 
-const C = {
-  bg: '#f5f4f0', surface: '#fff', border: '#e5e2db', accent: '#22c55e',
-  text: '#1a1a1a', text2: '#6b7280', shadow: '0 1px 3px rgba(0,0,0,.08)',
-};
+const REFLECTIONS = [
+  'Paying your bills on time builds the life you want.',
+  'Every payment is a promise kept to your future self.',
+  'Financial peace starts with knowing what is due and when.',
+  'Staying on top of bills is how you protect your peace.',
+  'Small consistent actions create lasting financial freedom.',
+];
 
-const CAT_COLORS: Record<string, string> = {
-  Housing: '#f97316', Utilities: '#eab308', Insurance: '#3b82f6',
-  Entertainment: '#a855f7', Debt: '#94a3b8', 'Food & Dining': '#ef4444',
-  Transport: '#475569', Health: '#f43f5e', Other: '#9ca3af',
-};
+function fmtDate(iso: string, year = true) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(year ? { year: 'numeric' } : {}),
+  });
+}
 
-const CURRENT_YM = '2026-09';
-
-function AutopayToggle({ bill }: { bill: Bill }) {
-  const toggleAutopay = useLedgerlyStore(s => s.toggleAutopay);
-  return (
-    <label
-      onClick={e => { e.stopPropagation(); toggleAutopay(bill.id); }}
-      style={{ position: 'relative', display: 'inline-block', width: 40, height: 22, cursor: 'pointer' }}
-    >
-      <input type="checkbox" checked={!!bill.autopay} onChange={() => {}} style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} />
-      <span style={{
-        position: 'absolute', inset: 0, borderRadius: 11, transition: 'background .2s',
-        background: bill.autopay ? C.accent : '#d1d5db',
-      }} />
-      <span style={{
-        position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#fff',
-        top: 3, left: bill.autopay ? 21 : 3, transition: 'left .2s',
-        boxShadow: '0 1px 3px rgba(0,0,0,.2)',
-      }} />
-    </label>
-  );
+function dueLabel(daysUntil: number) {
+  if (daysUntil === 0) return 'due today';
+  if (daysUntil > 0) return `in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
+  return `${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago`;
 }
 
 export function BillsPage() {
-  const bills        = useLedgerlyStore(s => s.bills);
-  const deleteBill   = useLedgerlyStore(s => s.deleteBill);
+  const bills = useLedgerlyStore(s => s.bills);
+  const categories = useLedgerlyStore(s => s.categories);
+  const accounts = useLedgerlyStore(s => s.accounts);
+  const deleteBill = useLedgerlyStore(s => s.deleteBill);
+  const toggleAutopay = useLedgerlyStore(s => s.toggleAutopay);
+  const recordBillPayment = useLedgerlyStore(s => s.recordBillPayment);
+  const markBillPaid = useLedgerlyStore(s => s.markBillPaid);
+  const currentMonth = useLedgerlyStore(s => s.currentMonth);
   const [showDialog, setShowDialog] = useState(false);
-  const [editBill, setEditBill]     = useState<Bill | null>(null);
-  const [menuId, setMenuId]         = useState<number | null>(null);
+  const [editBill, setEditBill] = useState<Bill | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [accountFilter, setAccountFilter] = useState('all');
+  const [autopayFilter, setAutopayFilter] = useState('all');
 
-  const sorted   = [...bills].sort((a, b) => a.dueDay - b.dueDay);
-  const total    = bills.reduce((s, b) => s + b.amount, 0);
-  const autopay  = bills.filter(b => b.autopay).length;
-  const nextBill = sorted[0];
+  const categoryColor = useMemo(() => {
+    const map = new Map(categories.map(category => [category.name, category.color]));
+    return (name: string) => map.get(name) ?? '#9ca3af';
+  }, [categories]);
+
+  const occurrences = useMemo(() => getAllBillOccurrencesForMonth(bills, currentMonth), [bills, currentMonth]);
+  const filteredOccurrences = occurrences.filter(occ => {
+    const term = search.trim().toLowerCase();
+    const b = occ.bill;
+    const matchesTerm = !term
+      || b.name.toLowerCase().includes(term)
+      || b.category.toLowerCase().includes(term)
+      || (b.account || '').toLowerCase().includes(term)
+      || (b.notes || '').toLowerCase().includes(term);
+    const matchesStatus = statusFilter === 'all' || occ.status === statusFilter;
+    const matchesCategory = categoryFilter === 'all' || b.category === categoryFilter;
+    const matchesAccount = accountFilter === 'all' || (accountFilter === 'unlinked' ? !b.account : b.account === accountFilter);
+    const matchesAutopay = autopayFilter === 'all' || (autopayFilter === 'on' ? b.autopay : !b.autopay);
+    return matchesTerm && matchesStatus && matchesCategory && matchesAccount && matchesAutopay;
+  });
+
+  const totalDue = occurrences.reduce((sum, occ) => sum + occ.bill.amount, 0);
+  const autopayTotal = occurrences.filter(occ => occ.bill.autopay).reduce((sum, occ) => sum + occ.bill.amount, 0);
+  const averageMonthly = bills.filter(b => b.active !== false).reduce((sum, bill) => sum + monthlyBillEquivalent(bill), 0);
+  const nextDue = occurrences.filter(occ => occ.daysUntil >= 0 && occ.status !== 'paid').sort((a, b) => a.daysUntil - b.daysUntil)[0] ?? null;
+  const overdueCount = occurrences.filter(occ => occ.status === 'overdue').length;
+
+  const [y, m] = currentMonth.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const firstDay = new Date(y, m - 1, 1).getDay();
+  const now = new Date();
+  const isCurrentYM = now.getFullYear() === y && now.getMonth() === m - 1;
+  const todayD = isCurrentYM ? now.getDate() : -1;
+
+  const calBills: Record<number, typeof occurrences> = {};
+  occurrences.forEach(occ => {
+    (calBills[occ.dueDay] ??= []).push(occ);
+  });
+
+  const catMap: Record<string, { amount: number; icon: string }> = {};
+  occurrences.forEach(occ => {
+    const b = occ.bill;
+    if (!catMap[b.category]) catMap[b.category] = { amount: 0, icon: b.icon };
+    catMap[b.category].amount += b.amount;
+  });
+  const legendCats = Object.keys(catMap).slice(0, 5);
 
   const handleEdit = (b: Bill) => { setEditBill(b); setShowDialog(true); setMenuId(null); };
-  const handleDelete = (id: number) => { if (confirm('Delete this bill?')) { deleteBill(id); setMenuId(null); } };
+  const handleDelete = (id: number) => { if (confirm('Delete this recurring bill?')) { deleteBill(id); setMenuId(null); } };
+  const handleRecordPayment = (bill: Bill, date: string) => {
+    const confirmed = confirm(`Record ${bill.name} as paid on ${fmtDate(date)}? This will create one transaction${bill.account ? ` and update ${bill.account}` : ''}.`);
+    if (!confirmed) return;
+    if (!recordBillPayment(bill.id, date)) alert('Unable to record this payment.');
+    setMenuId(null);
+  };
+  const handleMarkPaidOnly = (bill: Bill, date: string) => {
+    markBillPaid(bill.id, date);
+    setMenuId(null);
+  };
 
-  // Timeline
-  const timelineItems = sorted.slice(0, 8);
-
-  // Cash impact weekly bars
-  const weeks = [
-    { label: '1–6', days: [1, 6] }, { label: '7–13', days: [7, 13] },
-    { label: '14–20', days: [14, 20] }, { label: '21–27', days: [21, 27] },
-    { label: '28+', days: [28, 31] },
-  ];
-  const weekTotals = weeks.map(w => bills.filter(b => b.dueDay >= w.days[0] && b.dueDay <= w.days[1]).reduce((s, b) => s + b.amount, 0));
-  const maxWeek = Math.max(...weekTotals, 1);
+  const reflection = REFLECTIONS[now.getDate() % REFLECTIONS.length];
+  const filterPillStyle = { border: '1px solid var(--border)', borderRadius: 999, padding: '8px 12px', background: 'var(--surface)', color: 'var(--text2)', fontWeight: 600, fontSize: '.78rem' } as const;
 
   return (
-    <div style={{ padding: '32px 36px' }} onClick={() => setMenuId(null)}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, marginBottom: 24 }}>Recurring bills</h1>
-
-      {/* KPI grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
-        {[
-          { icon: '📅', bg: '#eff6ff', ic: '#3b82f6', label: 'Due this month', value: fmt(total), sub: `${bills.length} bill${bills.length !== 1 ? 's' : ''}` },
-          { icon: '🔄', bg: '#f0fdf4', ic: C.accent,  label: 'Autopay',          value: `${autopay} of ${bills.length}`, sub: 'Bills set to autopay' },
-          { icon: '📊', bg: '#eff6ff', ic: '#3b82f6', label: 'Average monthly',  value: fmt(total), sub: 'Last 3 months' },
-          { icon: '📆', bg: '#fff7ed', ic: '#f97316', label: 'Next due',
-            value: nextBill ? getBillNextDate(nextBill.dueDay, CURRENT_YM) : '—',
-            sub: nextBill ? `${nextBill.name} · ${fmt(nextBill.amount)}` : '—', small: true },
-        ].map(({ icon, bg, ic, label, value, sub, small }) => (
-          <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: C.shadow }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0, color: ic }}>{icon}</div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: small ? 15 : 20, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{value}</div>
-              <div style={{ fontSize: 11, color: C.text2, marginTop: 2 }}>{sub}</div>
-            </div>
+    <div className="ldg-bills-page" onClick={() => setMenuId(null)}>
+      <PageIntroBanner view="bills" />
+      <div className="ldg-bills-header">
+        <div>
+          <div className="ldg-bills-title">
+            Bills <img src={heart01} alt="" />
           </div>
-        ))}
-      </div>
-
-      {/* Timeline */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 18px', marginBottom: 18, boxShadow: C.shadow, overflowX: 'auto' }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 10 }}>September 2026</div>
-        <div style={{ display: 'flex', position: 'relative', minWidth: 500, alignItems: 'flex-start', gap: 0 }}>
-          <div style={{ position: 'absolute', top: 18, left: 0, right: 0, height: 1, background: C.border }} />
-          {timelineItems.map(b => (
-            <div key={b.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative', zIndex: 1 }}>
-              <div style={{ fontSize: 10, color: C.text2, marginBottom: 6, fontWeight: 500 }}>{b.dueDay}</div>
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: CAT_COLORS[b.category] ?? '#9ca3af', marginBottom: 6 }} />
-              <div style={{ fontSize: 10, fontWeight: 600, color: C.text, textAlign: 'center', lineHeight: 1.3 }}>{b.name}</div>
-              <div style={{ fontSize: 9, color: C.text2, textAlign: 'center' }}>{fmt(b.amount)}</div>
-            </div>
-          ))}
+          <div className="ldg-bills-subtitle">Recurring obligations, autopay, and due dates in one calm place.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="ldg-month-chip">📅 {fmtYMFull(currentMonth)}</div>
+          <div className="ldg-privacy-badge">🔒 Local only · Nothing sent to any server</div>
         </div>
       </div>
 
-      {/* Body: table + cash impact */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 270px', gap: 18, alignItems: 'start' }}>
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', boxShadow: C.shadow }}>
-          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}` }}>
-            <button
-              onClick={() => { setEditBill(null); setShowDialog(true); }}
-              style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-            >
-              + Add recurring bill
+      <div className="ldg-bills-stat-row">
+        <div className="ldg-stat-card ldg-stat-cream">
+          <img src={flower01} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-leaf">♡</div>
+            <div className="ldg-stat-label">Due this month</div>
+            <div className="ldg-stat-amount">{fmt(totalDue)}</div>
+            <div className="ldg-stat-sub">{occurrences.length} occurrence{occurrences.length !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        <div className="ldg-stat-card ldg-stat-blush">
+          <img src={flower03} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-cal">↻</div>
+            <div className="ldg-stat-label">On autopay</div>
+            <div className="ldg-stat-amount">{fmt(autopayTotal)}</div>
+            <div className="ldg-stat-sub">{occurrences.filter(occ => occ.bill.autopay).length} scheduled automatically</div>
+          </div>
+        </div>
+        <div className="ldg-stat-card ldg-stat-white">
+          <img src={sprig03} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-shield">≈</div>
+            <div className="ldg-stat-label">Average monthly</div>
+            <div className="ldg-stat-amount">{fmt(averageMonthly)}</div>
+            <div className="ldg-stat-sub">normalized across cadences</div>
+          </div>
+        </div>
+        <div className="ldg-stat-card ldg-bills-stat-salmon">
+          <img src={flower05} alt="" className="ldg-stat-deco" />
+          <div className="ldg-stat-inner">
+            <div className="ldg-stat-icon ldg-stat-icon-cal" style={{ background: 'rgba(196,96,96,.12)', color: '#c04040' }}>!</div>
+            <div className="ldg-stat-label">{nextDue ? 'Next due' : 'Overdue'}</div>
+            <div className="ldg-stat-amount">{nextDue ? fmt(nextDue.bill.amount) : fmt(occurrences.filter(occ => occ.status === 'overdue').reduce((s, occ) => s + occ.bill.amount, 0))}</div>
+            <div className="ldg-stat-sub">{nextDue ? `${nextDue.bill.name} · ${dueLabel(nextDue.daysUntil)}` : `${overdueCount} overdue`}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="ldg-bills-body">
+        <div className="ldg-card ldg-bills-table-wrap">
+          <div className="ldg-bills-table-header">
+            <div>
+              <div className="ldg-card-title">🌿 Recurring Bills</div>
+              <div style={{ fontSize: '.76rem', color: 'var(--text3)', marginTop: 2 }}>Edit schedules freely. Transactions are created only when you record a payment.</div>
+            </div>
+            <button className="ldg-bills-add-btn" onClick={() => { setEditBill(null); setShowDialog(true); }}>
+              + Add bill
             </button>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f8f7f4' }}>
-                {['Bill', 'Amount', 'Cadence', 'Next due', 'Category', 'Autopay', ''].map(h => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: C.text2, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map(b => (
-                <tr key={b.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={{ padding: '12px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#f3f0eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{b.icon}</div>
-                      <span style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{b.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 14px', fontWeight: 600, fontSize: 13 }}>{fmt(b.amount)}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, color: C.text2 }}>{b.cadence}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, color: C.text2 }}>{getBillNextDate(b.dueDay, CURRENT_YM)}</td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS[b.category] ?? '#9ca3af', flexShrink: 0, display: 'inline-block' }} />
-                      {b.category}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                    <AutopayToggle bill={b} />
-                  </td>
-                  <td style={{ padding: '12px 14px', position: 'relative' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); setMenuId(menuId === b.id ? null : b.id); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, letterSpacing: 2, color: C.text2, padding: '2px 4px' }}
-                    >···</button>
-                    {menuId === b.id && (
-                      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: 10, top: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.12)', zIndex: 50, minWidth: 130, padding: 4 }}>
-                        <button onClick={() => handleEdit(b)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 13, color: C.text, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}>✏️ Edit</button>
-                        <button onClick={() => handleDelete(b.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 13, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}>🗑️ Delete</button>
-                      </div>
-                    )}
-                  </td>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 16px 14px' }} onClick={e => e.stopPropagation()}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search bill, category, account, notes"
+              style={{ ...filterPillStyle, minWidth: 220, flex: '1 1 220px' }}
+            />
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={filterPillStyle}>
+              <option value="all">All statuses</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+            </select>
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={filterPillStyle}>
+              <option value="all">All categories</option>
+              {categories.filter(c => !c.archived).map(category => <option key={category.id} value={category.name}>{category.name}</option>)}
+            </select>
+            <select value={accountFilter} onChange={e => setAccountFilter(e.target.value)} style={filterPillStyle}>
+              <option value="all">All accounts</option>
+              <option value="unlinked">Unlinked</option>
+              {accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}
+            </select>
+            <select value={autopayFilter} onChange={e => setAutopayFilter(e.target.value)} style={filterPillStyle}>
+              <option value="all">Autopay: all</option>
+              <option value="on">Autopay on</option>
+              <option value="off">Autopay off</option>
+            </select>
+          </div>
+
+          {occurrences.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text2)', fontSize: '.85rem' }}>
+              No bills due in this month yet, add a recurring bill to get started.
+            </div>
+          ) : filteredOccurrences.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text2)', fontSize: '.85rem' }}>
+              No bills match those filters.
+            </div>
+          ) : (
+            <table className="ldg-bills-table">
+              <thead>
+                <tr>
+                  <th className="ldg-bills-th">Bill</th>
+                  <th className="ldg-bills-th">Amount</th>
+                  <th className="ldg-bills-th">Cadence</th>
+                  <th className="ldg-bills-th">Next due</th>
+                  <th className="ldg-bills-th">Category</th>
+                  <th className="ldg-bills-th">Account</th>
+                  <th className="ldg-bills-th">Autopay</th>
+                  <th className="ldg-bills-th">Status</th>
+                  <th className="ldg-bills-th" style={{ width: 40 }} />
                 </tr>
-              ))}
-              {bills.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: C.text2, padding: '32px 0', fontSize: 13 }}>No bills yet. Add your first recurring bill.</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredOccurrences.map(occ => {
+                  const b = occ.bill;
+                  const rowKey = `${b.id}-${occ.dueDate}`;
+                  return (
+                    <tr key={rowKey} className="ldg-bills-tr">
+                      <td className="ldg-bills-td">
+                        <div className="ldg-bills-icon-cell">
+                          <div className="ldg-bills-avatar">{b.icon}</div>
+                          <div>
+                            <div className="ldg-bills-name">{b.name}</div>
+                            <div className="ldg-bills-sub">{b.active === false ? 'Paused' : 'Active'} · {b.notes || 'No notes'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="ldg-bills-td" style={{ fontWeight: 600 }}>{fmt(b.amount)}</td>
+                      <td className="ldg-bills-td">{b.cadence}</td>
+                      <td className="ldg-bills-td">
+                        <div className="ldg-bills-due-main">{fmtDate(occ.dueDate)}</div>
+                        <div className="ldg-bills-due-sub">{dueLabel(occ.daysUntil)}</div>
+                      </td>
+                      <td className="ldg-bills-td">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '.80rem' }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: categoryColor(b.category), display: 'inline-block', flexShrink: 0 }} />
+                          {b.category}
+                        </span>
+                      </td>
+                      <td className="ldg-bills-td">{b.account || <span style={{ color: 'var(--text3)' }}>Unlinked</span>}</td>
+                      <td className="ldg-bills-td">
+                        <span className={`ldg-scheduled-badge${b.autopay ? ' autopay' : ''}`}>{b.autopay ? 'Autopay' : 'Manual'}</span>
+                      </td>
+                      <td className="ldg-bills-td">
+                        <span className={`ldg-bills-badge${occ.status !== 'scheduled' ? ' ' + occ.status : ''}`}>
+                          {occ.status === 'paid' ? 'Paid' : occ.status === 'overdue' ? 'Overdue' : 'Scheduled'}
+                        </span>
+                      </td>
+                      <td className="ldg-bills-td" style={{ position: 'relative' }}>
+                        <button
+                          className="ldg-bills-ctx-btn"
+                          onClick={e => { e.stopPropagation(); setMenuId(menuId === rowKey ? null : rowKey); }}
+                        >···</button>
+                        {menuId === rowKey && (
+                          <div className="ldg-bills-ctx-menu" onClick={e => e.stopPropagation()}>
+                            <button className="ldg-bills-ctx-item" onClick={() => handleEdit(b)}>✏️ Edit bill</button>
+                            <button className="ldg-bills-ctx-item" onClick={() => handleRecordPayment(b, occ.dueDate)}>✓ Record payment</button>
+                            <button className="ldg-bills-ctx-item" onClick={() => handleMarkPaidOnly(b, occ.dueDate)}>Mark paid only</button>
+                            <button className="ldg-bills-ctx-item" onClick={() => { toggleAutopay(b.id); setMenuId(null); }}>{b.autopay ? 'Turn off autopay' : 'Turn on autopay'}</button>
+                            <button className="ldg-bills-ctx-item ldg-bills-ctx-delete" onClick={() => handleDelete(b.id)}>🗑️ Delete</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          <img src={sprig02} alt="" className="ldg-bills-table-deco" />
         </div>
 
-        {/* Cash impact */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px', boxShadow: C.shadow }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: C.text }}>Upcoming cash impact</span>
-            <span style={{ fontSize: 11, color: C.text2 }}>Next 30 days</span>
+        <div className="ldg-bills-right-col">
+          <div className="ldg-card">
+            <div className="ldg-bills-cal-header">
+              <div className="ldg-card-title">📅 Monthly Bill Calendar</div>
+            </div>
+            <div style={{ padding: '0 12px 4px', fontSize: '.80rem', fontWeight: 600, color: 'var(--text2)' }}>
+              {fmtYMFull(currentMonth)}
+            </div>
+            <div className="ldg-bills-cal-grid">
+              {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d => (
+                <div key={d} className="ldg-bills-cal-day-hdr">{d}</div>
+              ))}
+              {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dayBills = calBills[day] ?? [];
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    className="ldg-bills-cal-day"
+                    onClick={e => { e.stopPropagation(); if (dayBills.length) setSearch(dayBills[0].bill.name); }}
+                    title={dayBills.map(occ => occ.bill.name).join(', ')}
+                    style={{ border: 0, background: 'transparent', cursor: dayBills.length ? 'pointer' : 'default' }}
+                  >
+                    <div className={`ldg-bills-cal-num${day === todayD ? ' today' : ''}${dayBills.length > 0 && day !== todayD ? ' has-bill' : ''}`}>
+                      {day}
+                    </div>
+                    {dayBills.length > 0 && (
+                      <div className="ldg-bills-dots">
+                        {dayBills.slice(0, 3).map((occ, idx) => (
+                          <div key={idx} className="ldg-bills-dot" style={{ background: categoryColor(occ.bill.category) }} />
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {legendCats.length > 0 && (
+              <div className="ldg-bills-cal-legend">
+                {legendCats.map(cat => (
+                  <div key={cat} className="ldg-bills-legend-item">
+                    <div className="ldg-bills-dot" style={{ background: categoryColor(cat), width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block' }} />
+                    {cat}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: C.text, marginBottom: 2 }}>{fmt(total)}</div>
-          <div style={{ fontSize: 11, color: C.text2, marginBottom: 14 }}>↑ 4.8% vs. last 30 days</div>
-          {/* Bar chart */}
-          <svg viewBox="0 0 260 110" style={{ display: 'block', width: '100%', marginBottom: 14 }}>
-            {weekTotals.map((v, i) => {
-              const bw = 32, gap = (260 - bw * 5) / 6;
-              const x = gap + i * (bw + gap);
-              const bh = Math.round((80 * v) / maxWeek);
-              const y = 88 - bh;
-              return (
-                <g key={i}>
-                  <rect x={x} y={y} width={bw} height={bh} fill="#3b82f6" rx="3" />
-                  <text x={x + bw / 2} y={104} textAnchor="middle" fontSize="9" fill={C.text2}>{weeks[i].label}</text>
-                </g>
-              );
-            })}
-          </svg>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8f7f4', borderRadius: 8, padding: '10px 12px' }}>
-            <span style={{ fontSize: 16 }}>ℹ️</span>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Reminders stay on this device.</div>
-              <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.4 }}>We'll show you upcoming bills here.</div>
+
+          <div className="ldg-card">
+            <div style={{ padding: '14px 16px 8px' }}>
+              <div className="ldg-card-title">📊 Bill Categories</div>
+            </div>
+            <div className="ldg-bills-cats-list">
+              {Object.entries(catMap).map(([cat, { amount, icon }]) => {
+                const pct = totalDue > 0 ? Math.round((amount / totalDue) * 100) : 0;
+                return (
+                  <div key={cat} className="ldg-bills-cat-row">
+                    <div className="ldg-bills-cat-icon">{icon}</div>
+                    <div className="ldg-bills-cat-info">
+                      <div className="ldg-bills-cat-name-row">
+                        <span className="ldg-bills-cat-name">{cat}</span>
+                        <span className="ldg-bills-cat-pct">{fmt(amount)}&nbsp;&nbsp;{pct}%</span>
+                      </div>
+                      <div className="ldg-bills-bar-track">
+                        <div className="ldg-bills-bar-fill" style={{ width: `${pct}%`, background: categoryColor(cat) }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {Object.keys(catMap).length === 0 && (
+                <div style={{ color: 'var(--text3)', fontSize: '.80rem', padding: '4px 0' }}>No bills yet</div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {showDialog && <BillDialog bill={editBill} onClose={() => { setShowDialog(false); setEditBill(null); }} />}
+      <div className="ldg-reflection" style={{ marginTop: 20 }}>
+        <img src={sprig02} alt="" className="ldg-reflection-deco-l" />
+        <div className="ldg-reflection-inner">
+          <div className="ldg-reflection-label">♡ Small steps, big progress.</div>
+          <div className="ldg-reflection-quote">{reflection}</div>
+        </div>
+        <img src={heart01} alt="" className="ldg-reflection-heart" />
+      </div>
+
+      {showDialog && (
+        <BillDialog bill={editBill} onClose={() => { setShowDialog(false); setEditBill(null); }} />
+      )}
     </div>
   );
 }

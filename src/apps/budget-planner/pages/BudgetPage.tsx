@@ -1,84 +1,251 @@
-import { useState, useEffect, useRef } from 'react';
-import { useLedgerlyStore } from '../store/useLedgerlyStore';
-import { fmt } from '../utils/formatters';
+import { useEffect, useRef, useState } from "react"
+import { PageIntroBanner } from '../components/PageIntroBanner'
+import type { BudgetCategory, BudgetMethod } from "../types"
+import { useLedgerlyStore } from "../store/useLedgerlyStore"
+import { fmt } from "../utils/formatters"
+import { getAllBillOccurrencesForMonth } from "../utils/bills"
+import flower01 from "../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-01.png"
+import sprig02 from "../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-02.png"
+import heart01 from "../../../assets/budget-assets/hearts/heart-01.png"
+import sparkle04 from "../../../assets/budget-assets/sun-sparkles/sun-sparkles-04.png"
+import stationery05 from "../../../assets/budget-assets/stationery-accents/stationery-accents-05.png"
 
-const METHODS: { id: 'zero' | '503020' | 'payself'; name: string; desc: string; tag: string }[] = [
-  { id: 'zero',    name: 'Zero-Based',        desc: 'Assign every dollar a job until income minus expenses equals zero.',    tag: 'Most popular'       },
-  { id: '503020',  name: '50/30/20',           desc: 'Split income into needs (50%), wants (30%), and savings (20%).',        tag: 'Simple & effective' },
-  { id: 'payself', name: 'Pay Yourself First', desc: 'Save a set amount first, then spend the rest freely.',                 tag: 'Savings-focused'    },
-];
+const METHODS: { id: BudgetMethod; name: string; desc: string; tag: string }[] =
+  [
+    {
+      id: "zero",
+      name: "Zero-Based",
+      desc: "Assign every dollar a purpose until income minus planned spending equals zero.",
+      tag: "Most popular",
+    },
+    {
+      id: "503020",
+      name: "50/30/20",
+      desc: "Split income into needs, wants, and savings with an easy-to-follow ratio.",
+      tag: "Simple & effective",
+    },
+    {
+      id: "paycheck",
+      name: "Paycheck Plan",
+      desc: "Plan each payday around the bills, goals, and spending it needs to fund.",
+      tag: "Payday-focused",
+    },
+  ]
 
 const GROUP_COLORS: Record<string, string> = {
-  Housing:   '#f97316',
-  Food:      '#22c55e',
-  Transport: '#1e293b',
-  Essentials:'#3b82f6',
-  Lifestyle: '#60a5fa',
-  Savings:   '#22c55e',
-  Debt:      '#94a3b8',
-  Other:     '#8b5cf6',
-};
-
-function progressRing(pct: number, size: number, sw: number, color: string) {
-  const r = (size - sw) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.max(0, Math.min(1, pct / 100)));
-  const cx = size / 2, cy = size / 2;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e2db" stroke-width="${sw}"/>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
-      stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
-      stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
-    <text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="#1a1f2e">${Math.round(pct)}%</text>
-  </svg>`;
+  Housing: "#c4a35a",
+  Food: "#c48a8a",
+  Transport: "#9e8abe",
+  Essentials: "#7a9e7e",
+  Lifestyle: "#6b9ec4",
+  Savings: "#5f8d68",
+  Debt: "#e89e6e",
+  Other: "#8a9e8b",
 }
 
-// Inline form for adding a new category name (replaces prompt())
+const STEPS = ["Profile", "Income plan", "Categories", "Ready"]
+
+function monthRange(ym: string) {
+  const [year, month] = ym.split("-").map(Number)
+  const start = new Date(year, month - 1, 1)
+  const end = new Date(year, month, 0)
+  return { start, end }
+}
+
+function toDateKey(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function buildPaydays(
+  firstPayday: string,
+  currentMonth: string,
+  cadence: "weekly" | "biweekly"
+) {
+  const { start, end } = monthRange(currentMonth)
+  const step = cadence === "weekly" ? 7 : 14
+  const seed = firstPayday ? new Date(`${firstPayday}T00:00:00`) : start
+  const cursor = new Date(seed)
+
+  while (cursor > start) cursor.setDate(cursor.getDate() - step)
+  while (cursor < start) cursor.setDate(cursor.getDate() + step)
+
+  const paydays: Date[] = []
+  while (cursor <= end) {
+    paydays.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + step)
+  }
+
+  if (paydays.length === 0) paydays.push(start)
+  return paydays
+}
+
+function formatShortDate(date: Date) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="m4 10.5 3.6 3.5L16 6" />
+    </svg>
+  )
+}
+
+function ArrowIcon({ direction = "right" }: { direction?: "left" | "right" }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className={direction === "left" ? "ldg-budget-arrow-left" : undefined}
+    >
+      <path d="M4 10h12M11 5l5 5-5 5" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M4 6h12M8 3h4l1 3H7l1-3Zm-2 3 1 11h6l1-11M9 9v5m2-5v5" />
+    </svg>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="3" y="5" width="14" height="12" rx="2" />
+      <path d="M6 3v4m8-4v4M3 9h14" />
+    </svg>
+  )
+}
+
+function ProgressRing({ pct }: { pct: number }) {
+  const safePct = Math.max(0, Math.min(100, pct))
+  const radius = 39
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference * (1 - safePct / 100)
+
+  return (
+    <svg
+      className="ldg-budget-ring"
+      viewBox="0 0 96 96"
+      aria-label={`${Math.round(pct)}% allocated`}
+    >
+      <circle className="ldg-budget-ring-track" cx="48" cy="48" r={radius} />
+      <circle
+        className="ldg-budget-ring-fill"
+        cx="48"
+        cy="48"
+        r={radius}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+      />
+      <text x="48" y="52" textAnchor="middle">
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  )
+}
+
 function InlineCatInput({
   placeholder,
   onConfirm,
   onCancel,
 }: {
-  placeholder: string;
-  onConfirm: (name: string) => void;
-  onCancel: () => void;
+  placeholder: string
+  onConfirm: (name: string) => void
+  onCancel: () => void
 }) {
-  const [val, setVal] = useState('');
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.focus(); }, []);
+  const [value, setValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   const submit = () => {
-    const trimmed = val.trim();
-    if (trimmed) onConfirm(trimmed);
-  };
+    const trimmed = value.trim()
+    if (trimmed) onConfirm(trimmed)
+  }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+    <div className="ldg-budget-inline-form">
       <input
-        ref={ref}
+        ref={inputRef}
         type="text"
-        value={val}
-        onChange={e => setVal(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onCancel(); }}
-        placeholder={placeholder}
-        style={{
-          flex: 1, padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6,
-          fontSize: 13, outline: 'none', background: '#fff',
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") submit()
+          if (event.key === "Escape") onCancel()
         }}
+        placeholder={placeholder}
+        aria-label={placeholder}
       />
       <button
+        type="button"
+        className="ldg-budget-icon-btn ldg-budget-icon-confirm"
         onClick={submit}
-        style={{ padding: '5px 10px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-      >✓</button>
+        disabled={!value.trim()}
+        aria-label="Add category"
+      >
+        <CheckIcon />
+      </button>
       <button
+        type="button"
+        className="ldg-budget-icon-btn"
         onClick={onCancel}
-        style={{ padding: '5px 8px', background: 'transparent', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
-      >×</button>
+        aria-label="Cancel adding category"
+      >
+        ×
+      </button>
     </div>
-  );
+  )
 }
 
-// Shared category group editor used both in wizard and manage view
+function MethodCards({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: BudgetMethod
+  onChange: (method: BudgetMethod) => void
+  compact?: boolean
+}) {
+  return (
+    <div
+      className={
+        compact ? "ldg-budget-method-grid is-compact" : "ldg-budget-method-grid"
+      }
+    >
+      {METHODS.map((method) => {
+        const selected = value === method.id
+        return (
+          <button
+            type="button"
+            key={method.id}
+            className={
+              selected
+                ? "ldg-budget-method-card is-selected"
+                : "ldg-budget-method-card"
+            }
+            onClick={() => onChange(method.id)}
+            aria-pressed={selected}
+          >
+            <span className="ldg-budget-method-topline">
+              <span className="ldg-budget-method-radio" aria-hidden="true" />
+              <span className="ldg-budget-method-name">{method.name}</span>
+            </span>
+            <span className="ldg-budget-method-desc">{method.desc}</span>
+            <span className="ldg-budget-method-tag">{method.tag}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function CategoryGroups({
   groups,
   unusedGroups,
@@ -87,694 +254,1424 @@ function CategoryGroups({
   onDeleteCategory,
   onAddCategory,
 }: {
-  groups: Record<string, { id: number; name: string; budget: number; spent: number; color: string; group?: string }[]>;
-  unusedGroups: string[];
-  income: number;
-  onUpdateCategory: (id: number, patch: { budget: number }) => void;
-  onDeleteCategory: (id: number, name: string) => void;
-  onAddCategory: (name: string, group: string) => void;
+  groups: Record<string, BudgetCategory[]>
+  unusedGroups: string[]
+  income: number
+  onUpdateCategory: (id: number, patch: { budget: number }) => void
+  onDeleteCategory: (id: number, name: string) => void
+  onAddCategory: (name: string, group: string) => void
 }) {
-  // addingTo: group name to add a category to, or '__new_group__' for new group, null = hidden
-  const [addingTo, setAddingTo] = useState<string | null>(null);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupStep, setNewGroupStep] = useState<'group' | 'cat'>('group');
-  const newGroupRef = useRef<HTMLInputElement>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null)
+  const [newGroupName, setNewGroupName] = useState("")
+  const [newGroupStep, setNewGroupStep] = useState<"group" | "category">(
+    "group"
+  )
+  const newGroupRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (addingTo === '__new_group__' && newGroupStep === 'group') {
-      newGroupRef.current?.focus();
+    if (addingTo === "__new_group__" && newGroupStep === "group") {
+      newGroupRef.current?.focus()
     }
-  }, [addingTo, newGroupStep]);
+  }, [addingTo, newGroupStep])
 
-  const allGroupNames = Object.keys(GROUP_COLORS);
-  const usedGroups = Object.keys(groups);
-  const filteredUnused = unusedGroups.filter(g => !usedGroups.includes(g));
+  const filteredUnused = unusedGroups.filter(
+    (group) => !Object.keys(groups).includes(group)
+  )
+
+  const cancelCustomGroup = () => {
+    setAddingTo(null)
+    setNewGroupName("")
+    setNewGroupStep("group")
+  }
 
   return (
-    <>
-      {Object.entries(groups).map(([groupName, cats]) => {
-        const groupTotal = cats.reduce((s, c) => s + c.budget, 0);
-        const dotColor = GROUP_COLORS[groupName] ?? cats[0]?.color ?? '#94a3b8';
+    <div className="ldg-budget-category-editor">
+      {Object.entries(groups).map(([groupName, groupCategories]) => {
+        const groupTotal = groupCategories.reduce(
+          (sum, category) => sum + category.budget,
+          0
+        )
+        const dotColor =
+          GROUP_COLORS[groupName] ?? groupCategories[0]?.color ?? "#8a9e8b"
 
         return (
-          <div className="cat-group" key={groupName}>
-            <div className="cat-group-header">
-              <div className="cat-group-dot" style={{ background: dotColor }} />
-              <div className="cat-group-name">{groupName}</div>
-              <div className="cat-group-total">{fmt(groupTotal)}</div>
+          <article className="ldg-budget-group-card" key={groupName}>
+            <header className="ldg-budget-group-header">
+              <span
+                className="ldg-budget-group-mark"
+                style={{ background: dotColor }}
+              />
+              <div>
+                <h3>{groupName}</h3>
+                <p>
+                  {groupCategories.length}{" "}
+                  {groupCategories.length === 1 ? "category" : "categories"}
+                </p>
+              </div>
+              <strong>{fmt(groupTotal)}</strong>
+            </header>
+
+            <div className="ldg-budget-setup-category-list">
+              {groupCategories.map((category) => {
+                const categoryPct =
+                  income > 0
+                    ? Math.min(100, (category.budget / income) * 100)
+                    : 0
+                return (
+                  <div className="ldg-budget-setup-category" key={category.id}>
+                    <div className="ldg-budget-category-identity">
+                      <span
+                        className="ldg-budget-category-dot"
+                        style={{ background: category.color }}
+                      />
+                      <div>
+                        <span>{category.name}</span>
+                        <small>{Math.round(categoryPct)}% of income</small>
+                      </div>
+                    </div>
+                    <div className="ldg-budget-category-allocation">
+                      <div className="ldg-budget-progress-track">
+                        <span
+                          style={{
+                            width: `${categoryPct}%`,
+                            background: category.color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <label className="ldg-budget-money-input ldg-budget-money-input-sm">
+                      <span>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="10"
+                        value={category.budget}
+                        onChange={(event) => {
+                          const nextValue = parseFloat(event.target.value)
+                          if (!Number.isNaN(nextValue) && nextValue >= 0) {
+                            onUpdateCategory(category.id, { budget: nextValue })
+                          }
+                        }}
+                        aria-label={`${category.name} planned amount`}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="ldg-budget-delete-btn"
+                      onClick={() =>
+                        onDeleteCategory(category.id, category.name)
+                      }
+                      aria-label={`Delete ${category.name}`}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
 
-            {cats.map(cat => (
-              <div className="cat-row" key={cat.id}>
-                <div className="cat-row-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
-                  {cat.name}
-                </div>
-                <div style={{ flex: 1, marginLeft: 12 }}>
-                  <div style={{ height: 4, background: '#e5e2db', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${income > 0 ? Math.min(100, cat.budget / income * 100) : 0}%`,
-                      background: cat.color,
-                      borderRadius: 2,
-                      transition: 'width .3s',
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
-                    {income > 0 ? Math.round(cat.budget / income * 100) : 0}% of income
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#9ca3af', fontSize: 13 }}>$</span>
-                  <input
-                    className="cat-row-input"
-                    type="number"
-                    min="0"
-                    step="10"
-                    value={cat.budget}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v) && v >= 0) onUpdateCategory(cat.id, { budget: v });
-                    }}
-                  />
-                </div>
-                <button
-                  className="remove-cat-btn"
-                  onClick={() => onDeleteCategory(cat.id, cat.name)}
-                  title="Remove category"
-                >×</button>
-              </div>
-            ))}
-
-            {addingTo === groupName ? (
-              <InlineCatInput
-                placeholder={`Category name in ${groupName}…`}
-                onConfirm={name => { onAddCategory(name, groupName); setAddingTo(null); }}
-                onCancel={() => setAddingTo(null)}
-              />
-            ) : (
-              <button className="add-cat-btn" onClick={() => setAddingTo(groupName)}>
-                + Add category to {groupName}
-              </button>
-            )}
-          </div>
-        );
-      })}
-
-      {/* Add new group section */}
-      <div style={{ marginTop: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' }}>
-          Add a group
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {filteredUnused.map(g => (
-            <div key={g} style={{ display: 'flex', flexDirection: 'column' }}>
-              {addingTo === `__predefined__${g}` ? (
+            <div className="ldg-budget-group-add">
+              {addingTo === groupName ? (
                 <InlineCatInput
-                  placeholder={`First category in ${g}…`}
-                  onConfirm={name => { onAddCategory(name, g); setAddingTo(null); }}
+                  placeholder={`Category name in ${groupName}`}
+                  onConfirm={(name) => {
+                    onAddCategory(name, groupName)
+                    setAddingTo(null)
+                  }}
                   onCancel={() => setAddingTo(null)}
                 />
               ) : (
                 <button
-                  onClick={() => setAddingTo(`__predefined__${g}`)}
-                  style={{
-                    padding: '5px 12px', border: '1px dashed #d1d5db', borderRadius: 99,
-                    background: 'transparent', cursor: 'pointer', fontSize: 12, color: '#6b7280',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}
+                  type="button"
+                  className="ldg-budget-add-link"
+                  onClick={() => setAddingTo(groupName)}
                 >
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: GROUP_COLORS[g], display: 'inline-block' }} />
-                  + {g}
+                  <span>+</span> Add category to {groupName}
+                </button>
+              )}
+            </div>
+          </article>
+        )
+      })}
+
+      <section className="ldg-budget-add-group-card">
+        <div className="ldg-budget-section-kicker">Add another group</div>
+        <div className="ldg-budget-group-options">
+          {filteredUnused.map((group) => (
+            <div key={group}>
+              {addingTo === `__predefined__${group}` ? (
+                <InlineCatInput
+                  placeholder={`First category in ${group}`}
+                  onConfirm={(name) => {
+                    onAddCategory(name, group)
+                    setAddingTo(null)
+                  }}
+                  onCancel={() => setAddingTo(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="ldg-budget-group-option"
+                  onClick={() => setAddingTo(`__predefined__${group}`)}
+                >
+                  <span style={{ background: GROUP_COLORS[group] }} /> + {group}
                 </button>
               )}
             </div>
           ))}
 
-          {/* Custom group */}
-          {addingTo === '__new_group__' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 220 }}>
-              {newGroupStep === 'group' ? (
+          {addingTo === "__new_group__" ? (
+            <div className="ldg-budget-custom-group">
+              {newGroupStep === "group" ? (
                 <>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>New group name:</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <label htmlFor="budget-new-group">New group name</label>
+                  <div className="ldg-budget-inline-form">
                     <input
+                      id="budget-new-group"
                       ref={newGroupRef}
                       type="text"
                       value={newGroupName}
-                      onChange={e => setNewGroupName(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && newGroupName.trim()) setNewGroupStep('cat');
-                        if (e.key === 'Escape') { setAddingTo(null); setNewGroupName(''); setNewGroupStep('group'); }
+                      onChange={(event) => setNewGroupName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && newGroupName.trim())
+                          setNewGroupStep("category")
+                        if (event.key === "Escape") cancelCustomGroup()
                       }}
                       placeholder="e.g. Education"
-                      style={{ flex: 1, padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, outline: 'none' }}
                     />
                     <button
-                      onClick={() => { if (newGroupName.trim()) setNewGroupStep('cat'); }}
-                      style={{ padding: '5px 10px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                    >→</button>
+                      type="button"
+                      className="ldg-budget-icon-btn ldg-budget-icon-confirm"
+                      onClick={() =>
+                        newGroupName.trim() && setNewGroupStep("category")
+                      }
+                      disabled={!newGroupName.trim()}
+                      aria-label="Continue to category name"
+                    >
+                      <ArrowIcon />
+                    </button>
                     <button
-                      onClick={() => { setAddingTo(null); setNewGroupName(''); setNewGroupStep('group'); }}
-                      style={{ padding: '5px 8px', background: 'transparent', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
-                    >×</button>
+                      type="button"
+                      className="ldg-budget-icon-btn"
+                      onClick={cancelCustomGroup}
+                      aria-label="Cancel custom group"
+                    >
+                      ×
+                    </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>First category in <strong>{newGroupName}</strong>:</div>
+                  <label>First category in {newGroupName}</label>
                   <InlineCatInput
-                    placeholder="Category name…"
-                    onConfirm={name => {
-                      onAddCategory(name, newGroupName.trim());
-                      setAddingTo(null);
-                      setNewGroupName('');
-                      setNewGroupStep('group');
+                    placeholder="Category name"
+                    onConfirm={(name) => {
+                      onAddCategory(name, newGroupName.trim())
+                      cancelCustomGroup()
                     }}
-                    onCancel={() => { setAddingTo(null); setNewGroupName(''); setNewGroupStep('group'); }}
+                    onCancel={cancelCustomGroup}
                   />
                 </>
               )}
             </div>
           ) : (
             <button
-              onClick={() => { setAddingTo('__new_group__'); setNewGroupName(''); setNewGroupStep('group'); }}
-              style={{
-                padding: '5px 12px', border: '1px dashed #d1d5db', borderRadius: 99,
-                background: 'transparent', cursor: 'pointer', fontSize: 12, color: '#6b7280',
+              type="button"
+              className="ldg-budget-group-option"
+              onClick={() => {
+                setAddingTo("__new_group__")
+                setNewGroupName("")
+                setNewGroupStep("group")
               }}
             >
               + Custom group
             </button>
           )}
         </div>
-      </div>
-    </>
-  );
+      </section>
+    </div>
+  )
 }
 
 export function BudgetPage() {
-  const income            = useLedgerlyStore(s => s.income);
-  const budgetMethod      = useLedgerlyStore(s => s.budgetMethod);
-  const categories        = useLedgerlyStore(s => s.categories);
-  const budgetConfigured  = useLedgerlyStore(s => s.budgetConfigured);
-  const setView           = useLedgerlyStore(s => s.setView);
-  const setIncome         = useLedgerlyStore(s => s.setIncome);
-  const setBudgetMethod   = useLedgerlyStore(s => s.setBudgetMethod);
-  const setBudgetConfigured = useLedgerlyStore(s => s.setBudgetConfigured);
-  const updateCategory    = useLedgerlyStore(s => s.updateCategory);
-  const addCategory       = useLedgerlyStore(s => s.addCategory);
-  const deleteCategory    = useLedgerlyStore(s => s.deleteCategory);
+  const income = useLedgerlyStore((state) => state.income)
+  const budgetMethod = useLedgerlyStore((state) => state.budgetMethod)
+  const budgetSettings = useLedgerlyStore((state) => state.budgetSettings)
+  const categories = useLedgerlyStore((state) => state.categories)
+  const budgetConfigured = useLedgerlyStore((state) => state.budgetConfigured)
+  const bills = useLedgerlyStore((state) => state.bills)
+  const goals = useLedgerlyStore((state) => state.goals)
+  const setView = useLedgerlyStore((state) => state.setView)
+  const setIncome = useLedgerlyStore((state) => state.setIncome)
+  const setBudgetMethod = useLedgerlyStore((state) => state.setBudgetMethod)
+  const updateBudgetSettings = useLedgerlyStore(
+    (state) => state.updateBudgetSettings
+  )
+  const setBudgetConfigured = useLedgerlyStore(
+    (state) => state.setBudgetConfigured
+  )
+  const updateCategory = useLedgerlyStore((state) => state.updateCategory)
+  const addCategory = useLedgerlyStore((state) => state.addCategory)
+  const deleteCategory = useLedgerlyStore((state) => state.deleteCategory)
+  const transactions = useLedgerlyStore((state) => state.transactions)
+  const currentMonth = useLedgerlyStore((state) => state.currentMonth)
 
-  const [step, setStep]           = useState(1);
-  const [incomeVal, setIncomeVal] = useState(String(income || ''));
-  const [cadence, setCadence]     = useState<'monthly' | 'biweekly'>('monthly');
-  const [payday, setPayday]       = useState('');
-  const [showEditPanel, setShowEditPanel] = useState(false);
-  const [editIncomeVal, setEditIncomeVal] = useState('');
+  const [step, setStep] = useState(1)
+  const [incomeValue, setIncomeValue] = useState(String(income || ""))
+  const [cadence, setCadence] = useState<"monthly" | "biweekly">("monthly")
+  const [payday, setPayday] = useState(budgetSettings.firstPayday)
+  const [showEditPanel, setShowEditPanel] = useState(false)
+  const [editIncomeValue, setEditIncomeValue] = useState("")
+  const [addingToManage, setAddingToManage] = useState<string | null>(null)
+  const [activePaydayIndex, setActivePaydayIndex] = useState(0)
 
-  useEffect(() => { setIncomeVal(String(income || '')); }, [income]);
-
-  const parsedIncome = parseFloat(incomeVal) || 0;
-  const totalBudget  = categories.reduce((s, c) => s + c.budget, 0);
-  const unassigned   = (parsedIncome || income) - totalBudget;
+  const parsedIncome = parseFloat(incomeValue) || 0
+  const totalBudget = categories.reduce(
+    (sum, category) => sum + category.budget,
+    0
+  )
+  const unassigned = (parsedIncome || income) - totalBudget
+  const activeIncome = parsedIncome || income
+  const allocationPct =
+    activeIncome > 0 ? Math.min(100, (totalBudget / activeIncome) * 100) : 0
+  const setupPaydays = buildPaydays(
+    payday || budgetSettings.firstPayday,
+    currentMonth,
+    budgetSettings.paycheckCadence
+  )
 
   const saveIncome = () => {
-    const n = parseFloat(incomeVal);
-    if (!isNaN(n) && n >= 0 && n !== income) setIncome(n);
-  };
-
-  const groups: Record<string, typeof categories> = {};
-  for (const c of categories) {
-    const g = c.group ?? 'Other';
-    if (!groups[g]) groups[g] = [];
-    groups[g].push(c);
+    const nextIncome = parseFloat(incomeValue)
+    if (!Number.isNaN(nextIncome) && nextIncome >= 0 && nextIncome !== income)
+      setIncome(nextIncome)
   }
 
-  const allGroupNames = Object.keys(GROUP_COLORS);
-  const usedGroups = Object.keys(groups);
-  const unusedGroups = allGroupNames.filter(g => !usedGroups.includes(g));
+  const groups: Record<string, BudgetCategory[]> = {}
+  for (const category of categories) {
+    const groupName = category.group ?? "Other"
+    if (!groups[groupName]) groups[groupName] = []
+    groups[groupName].push(category)
+  }
 
-  const steps = ['Profile', 'Income Plan', 'Categories', 'Ready'];
+  const unusedGroups = Object.keys(GROUP_COLORS).filter(
+    (groupName) => !Object.keys(groups).includes(groupName)
+  )
 
   const goNext = (nextStep: number) => {
-    if (nextStep > 1) saveIncome();
-    setStep(nextStep);
-  };
+    if (nextStep > 1) {
+      saveIncome()
+      if (payday) updateBudgetSettings({ firstPayday: payday })
+    }
+    setStep(nextStep)
+  }
 
   const handleAddCategory = (name: string, group: string) => {
-    const dotColor = GROUP_COLORS[group] ?? '#94a3b8';
-    addCategory({ name, budget: 0, color: dotColor, group });
-  };
+    addCategory({
+      name,
+      budget: 0,
+      color: GROUP_COLORS[group] ?? "#8a9e8b",
+      group,
+    })
+  }
 
   const handleDeleteCategory = (id: number, name: string) => {
-    if (confirm(`Delete "${name}"?`)) deleteCategory(id);
-  };
+    if (window.confirm(`Delete "${name}"?`)) deleteCategory(id)
+  }
 
-  // ── Manage view (budget already configured) ──────────────────────────────
+  const restartSetup = () => {
+    setIncomeValue(String(income || ""))
+    setBudgetConfigured(false)
+    setStep(1)
+  }
+
+  const methodName =
+    METHODS.find((method) => method.id === budgetMethod)?.name ?? ""
+
   if (budgetConfigured) {
-    const effectiveIncome = income;
-    const manageTotalBudget = categories.reduce((s, c) => s + c.budget, 0);
-    const manageUnassigned = effectiveIncome - manageTotalBudget;
+    const manageTotalBudget = categories.reduce(
+      (sum, category) => sum + category.budget,
+      0
+    )
+    const manageUnassigned = income - manageTotalBudget
+    const manageAllocationPct =
+      income > 0 ? Math.min(100, (manageTotalBudget / income) * 100) : 0
+    const manageGroups: Record<string, BudgetCategory[]> = {}
 
-    const manageGroups: Record<string, typeof categories> = {};
-    for (const c of categories) {
-      const g = c.group ?? 'Other';
-      if (!manageGroups[g]) manageGroups[g] = [];
-      manageGroups[g].push(c);
+    for (const category of categories) {
+      const groupName = category.group ?? "Other"
+      if (!manageGroups[groupName]) manageGroups[groupName] = []
+      manageGroups[groupName].push(category)
     }
-    const manageUsedGroups = Object.keys(manageGroups);
-    const manageUnusedGroups = allGroupNames.filter(g => !manageUsedGroups.includes(g));
+
+    const spentMap: Record<string, number> = {}
+    for (const transaction of transactions) {
+      if (transaction.date.startsWith(currentMonth) && transaction.amount < 0) {
+        spentMap[transaction.category] =
+          (spentMap[transaction.category] ?? 0) + Math.abs(transaction.amount)
+      }
+    }
+
+    const paydays = buildPaydays(
+      budgetSettings.firstPayday,
+      currentMonth,
+      budgetSettings.paycheckCadence
+    )
+    const safeActivePaydayIndex = Math.min(activePaydayIndex, paydays.length - 1)
+    const activePayday = paydays[safeActivePaydayIndex]
+    const { end: monthEnd } = monthRange(currentMonth)
+    const nextPayday = paydays[safeActivePaydayIndex + 1]
+    const payPeriodEnd = nextPayday
+      ? new Date(nextPayday.getFullYear(), nextPayday.getMonth(), nextPayday.getDate() - 1)
+      : monthEnd
+    const periodStartKey = toDateKey(activePayday)
+    const periodEndKey = toDateKey(payPeriodEnd)
+    const periodBillOccurrences = getAllBillOccurrencesForMonth(
+      bills,
+      currentMonth
+    ).filter(
+      (occurrence) =>
+        occurrence.dueDate >= periodStartKey &&
+        occurrence.dueDate <= periodEndKey
+    )
+    const periodTransactions = transactions.filter(
+      (transaction) =>
+        transaction.date >= periodStartKey && transaction.date <= periodEndKey
+    )
+    const periodIncome = income / Math.max(1, paydays.length)
+    const periodBillTotal = periodBillOccurrences.reduce(
+      (sum, occurrence) => sum + occurrence.bill.amount,
+      0
+    )
+    const periodGoalTotal =
+      goals.reduce((sum, goal) => sum + goal.monthlyContribution, 0) /
+      Math.max(1, paydays.length)
+    const periodActual = Math.abs(
+      periodTransactions
+        .filter((transaction) => transaction.amount < 0)
+        .reduce((sum, transaction) => sum + transaction.amount, 0)
+    )
+    const periodPlanned = periodBillTotal + periodGoalTotal
+    const periodAvailable = periodIncome - periodPlanned - periodActual
 
     return (
-      <div className="budget-wizard">
-        {/* Header summary */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <h2 className="wiz-title" style={{ marginBottom: 4 }}>Monthly Budget</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13, color: '#6b7280' }}>
-              <span>
-                Income: <strong style={{ color: '#1a1f2e' }}>{fmt(effectiveIncome)}/mo</strong>
-              </span>
-              <span>·</span>
-              <span>
-                Method: <strong style={{ color: '#1a1f2e' }}>{METHODS.find(m => m.id === budgetMethod)?.name}</strong>
-              </span>
+      <div className="ldg-budget-page">
+        <PageIntroBanner view="budget" />
+        <header className="ldg-budget-hero">
+          <img src={stationery05} alt="" className="ldg-budget-hero-deco" />
+          <div className="ldg-budget-hero-copy">
+            <span className="ldg-budget-eyebrow">Monthly planning</span>
+            <h1>
+              Budget <img src={heart01} alt="" />
+            </h1>
+            <p>
+              Give every dollar a thoughtful place and keep your month feeling
+              beautifully balanced.
+            </p>
+          </div>
+          <div className="ldg-budget-hero-actions">
+            <span className="ldg-budget-method-pill">{methodName} method</span>
+            <button
+              type="button"
+              className="ldg-budget-primary-btn"
+              onClick={() => {
+                setEditIncomeValue(String(income || ""))
+                setShowEditPanel((current) => !current)
+              }}
+              aria-expanded={showEditPanel}
+            >
+              {showEditPanel ? "Close editor" : "Edit budget plan"}
+            </button>
+          </div>
+        </header>
+
+        {showEditPanel && (
+          <section
+            className="ldg-budget-plan-editor"
+            aria-label="Edit budget plan"
+          >
+            <div className="ldg-budget-panel-heading">
+              <div>
+                <span className="ldg-budget-section-kicker">Plan settings</span>
+                <h2>Shape your monthly plan</h2>
+                <p>
+                  Update your budgeting approach or monthly take-home income.
+                </p>
+              </div>
+              <img src={sparkle04} alt="" />
+            </div>
+            <MethodCards
+              value={budgetMethod}
+              onChange={setBudgetMethod}
+              compact
+            />
+            {budgetMethod === "paycheck" && (
+              <div className="ldg-budget-paycheck-settings">
+                <label className="ldg-budget-field">
+                  <span>Pay cadence</span>
+                  <select
+                    value={budgetSettings.paycheckCadence}
+                    onChange={(event) =>
+                      updateBudgetSettings({
+                        paycheckCadence: event.target.value as
+                          | "weekly"
+                          | "biweekly",
+                      })
+                    }
+                  >
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-weekly</option>
+                  </select>
+                </label>
+                <label className="ldg-budget-field">
+                  <span>First payday</span>
+                  <input
+                    type="date"
+                    value={budgetSettings.firstPayday}
+                    onChange={(event) =>
+                      updateBudgetSettings({ firstPayday: event.target.value })
+                    }
+                  />
+                </label>
+              </div>
+            )}
+            <div className="ldg-budget-editor-footer">
+              <label className="ldg-budget-field">
+                <span>Monthly take-home income</span>
+                <span className="ldg-budget-money-input">
+                  <span>$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editIncomeValue}
+                    onChange={(event) => setEditIncomeValue(event.target.value)}
+                    onBlur={() => {
+                      const nextIncome = parseFloat(editIncomeValue)
+                      if (!Number.isNaN(nextIncome) && nextIncome >= 0) {
+                        setIncome(nextIncome)
+                        setIncomeValue(String(nextIncome))
+                      }
+                    }}
+                  />
+                </span>
+              </label>
               <button
-                onClick={() => { setEditIncomeVal(String(income || '')); setShowEditPanel(v => !v); }}
-                style={{ padding: '2px 10px', border: '1px solid #d1d5db', borderRadius: 99, background: '#fff', cursor: 'pointer', fontSize: 12, color: '#374151' }}
+                type="button"
+                className="ldg-budget-primary-btn"
+                onClick={() => setShowEditPanel(false)}
               >
-                Edit
+                Save changes <CheckIcon />
               </button>
             </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 13, color: '#6b7280' }}>
-              Budgeted: <strong style={{ color: '#1a1f2e' }}>{fmt(manageTotalBudget)}</strong>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: manageUnassigned < 0 ? '#ef4444' : '#16a34a' }}>
-              {manageUnassigned >= 0 ? `${fmt(manageUnassigned)} unassigned` : `${fmt(Math.abs(manageUnassigned))} over budget`}
-            </div>
-          </div>
-        </div>
+          </section>
+        )}
 
-        {/* Inline edit panel */}
-        {showEditPanel && (
-          <div className="wiz-card" style={{ marginBottom: 16 }}>
-            <div className="wiz-section-label">Budgeting method</div>
-            <div className="method-cards">
-              {METHODS.map(m => (
-                <label
-                  key={m.id}
-                  className={`method-card${budgetMethod === m.id ? ' selected' : ''}`}
-                  onClick={() => setBudgetMethod(m.id)}
-                  style={{ cursor: 'pointer' }}
+        <section
+          className="ldg-budget-summary-grid"
+          aria-label="Budget summary"
+        >
+          <article className="ldg-budget-summary-card is-cream">
+            <div className="ldg-budget-summary-icon">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M3 6.5h14v9H3zM5 4h10v2.5M6 10h4" />
+              </svg>
+            </div>
+            <span>Monthly income</span>
+            <strong>{fmt(income)}</strong>
+            <small>Take-home income</small>
+            <img src={flower01} alt="" />
+          </article>
+          <article className="ldg-budget-summary-card is-white">
+            <div className="ldg-budget-summary-icon">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M4 16V8m6 8V4m6 12v-6" />
+              </svg>
+            </div>
+            <span>Planned</span>
+            <strong>{fmt(manageTotalBudget)}</strong>
+            <small>{Math.round(manageAllocationPct)}% of income assigned</small>
+            <img src={sprig02} alt="" />
+          </article>
+          <article
+            className={
+              manageUnassigned < 0
+                ? "ldg-budget-summary-card is-blush is-over"
+                : "ldg-budget-summary-card is-blush"
+            }
+          >
+            <div className="ldg-budget-summary-icon">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M10 6v8M7.5 8h3.7a1.6 1.6 0 0 1 0 3.2H8.8a1.6 1.6 0 0 0 0 3.2h3.7" />
+              </svg>
+            </div>
+            <span>{manageUnassigned < 0 ? "Over budget" : "Unassigned"}</span>
+            <strong>{fmt(Math.abs(manageUnassigned))}</strong>
+            <small>
+              {manageUnassigned < 0
+                ? "Reduce a few categories"
+                : "Still available to assign"}
+            </small>
+            <img src={sparkle04} alt="" />
+          </article>
+        </section>
+
+        <section className="ldg-budget-allocation-banner">
+          <div className="ldg-budget-allocation-ring-wrap">
+            <ProgressRing pct={manageAllocationPct} />
+          </div>
+          <div className="ldg-budget-allocation-copy">
+            <span className="ldg-budget-section-kicker">
+              Allocation check-in
+            </span>
+            <h2>
+              {manageUnassigned === 0
+                ? "Everything has a place."
+                : "Your plan is taking shape."}
+            </h2>
+            <p>
+              {manageUnassigned === 0
+                ? "Your monthly income is fully assigned across your budget categories."
+                : manageUnassigned > 0
+                  ? `${fmt(manageUnassigned)} is ready to be assigned to a category.`
+                  : `${fmt(Math.abs(manageUnassigned))} needs to be trimmed from the plan.`}
+            </p>
+          </div>
+          <div className="ldg-budget-allocation-total">
+            <span>Planned of income</span>
+            <strong>
+              {fmt(manageTotalBudget)} / {fmt(income)}
+            </strong>
+          </div>
+        </section>
+
+        {budgetMethod === "paycheck" && (
+          <section className="ldg-budget-paycheck-panel">
+            <div className="ldg-budget-section-heading">
+              <div>
+                <span className="ldg-budget-section-kicker">
+                  Paycheck plan
+                </span>
+                <h2>Fund this month by payday</h2>
+                <p>
+                  See which bills, goals, and actual spending land in each pay
+                  window.
+                </p>
+              </div>
+              <span className="ldg-budget-count-pill">
+                {budgetSettings.paycheckCadence === "weekly"
+                  ? "Weekly"
+                  : "Bi-weekly"}
+              </span>
+            </div>
+
+            <div className="ldg-budget-payday-tabs" role="tablist">
+              {paydays.map((paydayDate, index) => (
+                <button
+                  type="button"
+                  key={toDateKey(paydayDate)}
+                  className={index === safeActivePaydayIndex ? "active" : ""}
+                  onClick={() => setActivePaydayIndex(index)}
+                  role="tab"
+                  aria-selected={index === safeActivePaydayIndex}
                 >
-                  <div className="method-card-header">
-                    <div className="method-radio" />
-                    <div className="method-name">{m.name}</div>
-                  </div>
-                  <div className="method-desc">{m.desc}</div>
-                  <div className="method-tag">{m.tag}</div>
-                </label>
+                  Payday {index + 1}
+                  <span>{formatShortDate(paydayDate)}</span>
+                </button>
               ))}
             </div>
-            <div style={{ marginTop: 16 }}>
-              <div className="field-label">Monthly take-home income</div>
-              <div className="income-input-wrap" style={{ maxWidth: 220 }}>
-                <span className="currency-symbol">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={editIncomeVal}
-                  onChange={e => setEditIncomeVal(e.target.value)}
-                  onBlur={() => {
-                    const n = parseFloat(editIncomeVal);
-                    if (!isNaN(n) && n >= 0) setIncome(n);
-                  }}
-                  placeholder="0"
-                />
-              </div>
+
+            <div className="ldg-budget-paycheck-grid">
+              {[
+                ["Pay period income", periodIncome],
+                ["Bills funded", periodBillTotal],
+                ["Goal funding", periodGoalTotal],
+                ["Actual spending", periodActual],
+                ["Available", periodAvailable],
+              ].map(([label, value]) => (
+                <article
+                  key={label}
+                  className={
+                    Number(value) < 0
+                      ? "ldg-budget-paycheck-stat is-negative"
+                      : "ldg-budget-paycheck-stat"
+                  }
+                >
+                  <span>{label}</span>
+                  <strong>{fmt(Math.abs(Number(value)))}</strong>
+                </article>
+              ))}
             </div>
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+
+            <div className="ldg-budget-paycheck-lists">
+              <article>
+                <h3>
+                  Bills from {formatShortDate(activePayday)} to{" "}
+                  {formatShortDate(payPeriodEnd)}
+                </h3>
+                {periodBillOccurrences.length === 0 ? (
+                  <p>No bills due in this pay window.</p>
+                ) : (
+                  periodBillOccurrences.map((occurrence) => (
+                    <div key={`${occurrence.bill.id}-${occurrence.dueDate}`} className="ldg-budget-paycheck-row">
+                      <span>{occurrence.bill.icon} {occurrence.bill.name}</span>
+                      <strong>{fmt(occurrence.bill.amount)}</strong>
+                    </div>
+                  ))
+                )}
+              </article>
+              <article>
+                <h3>Goals funded by this paycheck</h3>
+                {goals.filter((goal) => goal.monthlyContribution > 0).length ===
+                0 ? (
+                  <p>No monthly goal contributions yet.</p>
+                ) : (
+                  goals
+                    .filter((goal) => goal.monthlyContribution > 0)
+                    .map((goal) => (
+                      <div key={goal.id} className="ldg-budget-paycheck-row">
+                        <span>{goal.icon} {goal.name}</span>
+                        <strong>
+                          {fmt(goal.monthlyContribution / Math.max(1, paydays.length))}
+                        </strong>
+                      </div>
+                    ))
+                )}
+              </article>
+            </div>
+          </section>
+        )}
+
+        <section className="ldg-budget-categories-section">
+          <div className="ldg-budget-section-heading">
+            <div>
+              <span className="ldg-budget-section-kicker">
+                Your spending plan
+              </span>
+              <h2>Budget categories</h2>
+              <p>
+                Adjust planned amounts and see how this month’s spending is
+                tracking.
+              </p>
+            </div>
+            <span className="ldg-budget-count-pill">
+              {categories.length}{" "}
+              {categories.length === 1 ? "category" : "categories"}
+            </span>
+          </div>
+
+          {Object.keys(manageGroups).length > 0 ? (
+            <div className="ldg-budget-manage-groups">
+              {Object.entries(manageGroups).map(
+                ([groupName, groupCategories]) => {
+                  const groupBudget = groupCategories.reduce(
+                    (sum, category) => sum + category.budget,
+                    0
+                  )
+                  const groupSpent = groupCategories.reduce(
+                    (sum, category) =>
+                      sum + (spentMap[category.name] ?? 0),
+                    0
+                  )
+                  const groupColor =
+                    GROUP_COLORS[groupName] ??
+                    groupCategories[0]?.color ??
+                    "#8a9e8b"
+
+                  return (
+                    <article className="ldg-budget-manage-card" key={groupName}>
+                      <header className="ldg-budget-manage-header">
+                        <div className="ldg-budget-manage-title">
+                          <span style={{ background: groupColor }} />
+                          <div>
+                            <h3>{groupName}</h3>
+                            <p>
+                              {groupCategories.length}{" "}
+                              {groupCategories.length === 1
+                                ? "category"
+                                : "categories"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="ldg-budget-group-totals">
+                          <span>
+                            <small>Planned</small>
+                            {fmt(groupBudget)}
+                          </span>
+                          <span>
+                            <small>Spent</small>
+                            {fmt(groupSpent)}
+                          </span>
+                        </div>
+                      </header>
+
+                      <div
+                        className="ldg-budget-manage-labels"
+                        aria-hidden="true"
+                      >
+                        <span>Category</span>
+                        <span>Planned</span>
+                        <span>Spent</span>
+                        <span>Available</span>
+                        <span>Progress</span>
+                        <span />
+                      </div>
+
+                      <div className="ldg-budget-manage-list">
+                        {groupCategories.map((category) => {
+                          const spent = spentMap[category.name] ?? 0
+                          const available = category.budget - spent
+                          const progress =
+                            category.budget > 0
+                              ? Math.min(100, (spent / category.budget) * 100)
+                              : 0
+
+                          return (
+                            <div
+                              className="ldg-budget-manage-row"
+                              key={category.id}
+                            >
+                              <div
+                                className="ldg-budget-manage-name"
+                                data-label="Category"
+                              >
+                                <span style={{ background: category.color }} />
+                                <strong>{category.name}</strong>
+                              </div>
+                              <div data-label="Planned">
+                                <label className="ldg-budget-money-input ldg-budget-money-input-sm">
+                                  <span>$</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="10"
+                                    value={category.budget}
+                                    onChange={(event) => {
+                                      const nextValue = parseFloat(
+                                        event.target.value
+                                      )
+                                      if (
+                                        !Number.isNaN(nextValue) &&
+                                        nextValue >= 0
+                                      ) {
+                                        updateCategory(category.id, {
+                                          budget: nextValue,
+                                        })
+                                      }
+                                    }}
+                                    aria-label={`${category.name} planned amount`}
+                                  />
+                                </label>
+                              </div>
+                              <strong
+                                className="ldg-budget-manage-value"
+                                data-label="Spent"
+                              >
+                                {fmt(spent)}
+                              </strong>
+                              <strong
+                                className={
+                                  available < 0
+                                    ? "ldg-budget-manage-value is-negative"
+                                    : "ldg-budget-manage-value is-positive"
+                                }
+                                data-label="Available"
+                              >
+                                {fmt(available)}
+                              </strong>
+                              <div
+                                className="ldg-budget-manage-progress"
+                                data-label="Progress"
+                              >
+                                <div className="ldg-budget-progress-track">
+                                  <span
+                                    style={{
+                                      width: `${progress}%`,
+                                      background: category.color,
+                                    }}
+                                  />
+                                </div>
+                                <small>{Math.round(progress)}%</small>
+                              </div>
+                              <button
+                                type="button"
+                                className="ldg-budget-delete-btn"
+                                onClick={() =>
+                                  handleDeleteCategory(
+                                    category.id,
+                                    category.name
+                                  )
+                                }
+                                aria-label={`Delete ${category.name}`}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <div className="ldg-budget-manage-add">
+                        {addingToManage === groupName ? (
+                          <InlineCatInput
+                            placeholder={`Category name in ${groupName}`}
+                            onConfirm={(name) => {
+                              handleAddCategory(name, groupName)
+                              setAddingToManage(null)
+                            }}
+                            onCancel={() => setAddingToManage(null)}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="ldg-budget-add-link"
+                            onClick={() => setAddingToManage(groupName)}
+                          >
+                            <span>+</span> Add category to {groupName}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  )
+                }
+              )}
+            </div>
+          ) : (
+            <div className="ldg-budget-empty-state">
+              <img src={flower01} alt="" />
+              <span className="ldg-budget-section-kicker">A fresh page</span>
+              <h3>Your budget is ready for its first category.</h3>
+              <p>
+                Run the guided setup again to add spending groups and create
+                your plan.
+              </p>
               <button
-                onClick={() => setShowEditPanel(false)}
-                style={{ padding: '6px 16px', background: '#1a1f2e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                type="button"
+                className="ldg-budget-primary-btn"
+                onClick={restartSetup}
               >
-                Done
+                Start guided setup <ArrowIcon />
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </section>
 
-        {/* Category groups */}
-        <CategoryGroups
-          groups={manageGroups}
-          unusedGroups={manageUnusedGroups}
-          income={effectiveIncome}
-          onUpdateCategory={(id, patch) => updateCategory(id, patch)}
-          onDeleteCategory={handleDeleteCategory}
-          onAddCategory={handleAddCategory}
-        />
-
-        {/* Empty state */}
-        {categories.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 14 }}>
-            No categories yet. Add a group above to get started.
-          </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <footer className="ldg-budget-page-footer">
           <button
-            onClick={() => { setBudgetConfigured(false); setStep(1); }}
-            style={{ padding: '8px 16px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, color: '#6b7280' }}
+            type="button"
+            className="ldg-budget-secondary-btn"
+            onClick={restartSetup}
           >
             Re-run setup wizard
           </button>
           <button
-            className="wiz-open-btn"
-            onClick={() => setView('dashboard')}
+            type="button"
+            className="ldg-budget-primary-btn"
+            onClick={() => setView("dashboard")}
           >
-            Open Dashboard →
+            Open dashboard <ArrowIcon />
           </button>
-        </div>
+        </footer>
       </div>
-    );
+    )
   }
 
-  // ── Budget setup wizard ───────────────────────────────────────────────────
   return (
-    <div className="budget-wizard">
+    <div className="ldg-budget-setup-page">
+      <header className="ldg-budget-setup-hero">
+        <img src={flower01} alt="" className="ldg-budget-setup-flower" />
+        <img src={sparkle04} alt="" className="ldg-budget-setup-sparkle" />
+        <span className="ldg-budget-eyebrow">A plan for your priorities</span>
+        <h1>
+          Build your budget <img src={heart01} alt="" />
+        </h1>
+        <p>
+          A calm, guided setup to help every dollar support the life you’re
+          creating.
+        </p>
+      </header>
 
-      {/* Stepper */}
-      <div className="wiz-stepper">
-        {steps.map((label, i) => {
-          const n = i + 1;
-          const isDone   = step > n;
-          const isActive = step === n;
-          const cls = `wiz-step${isActive ? ' active' : ''}${isDone ? ' done' : ''}`;
+      <nav className="ldg-budget-stepper" aria-label="Budget setup progress">
+        {STEPS.map((label, index) => {
+          const stepNumber = index + 1
+          const isComplete = step > stepNumber
+          const isActive = step === stepNumber
           return (
-            <span key={n} style={{ display: 'contents' }}>
-              <div className={cls} style={{ cursor: isDone ? 'pointer' : undefined }} onClick={() => isDone && setStep(n)}>
-                <span>{isDone ? '✓' : n}</span>
-                {label}
-              </div>
-              {i < steps.length - 1 && <div className="wiz-connector" />}
-            </span>
-          );
-        })}
-      </div>
-
-      {/* ── Step 1: Method + Income ── */}
-      <div className={step !== 1 ? 'hidden' : ''}>
-        <h2 className="wiz-title">Set up your budget</h2>
-        <p className="wiz-subtitle">Choose a budgeting method and enter your monthly take-home income.</p>
-
-        <div className="wiz-card">
-          <div className="wiz-section-label">Budgeting method</div>
-          <div className="method-cards">
-            {METHODS.map(m => (
-              <label
-                key={m.id}
-                className={`method-card${budgetMethod === m.id ? ' selected' : ''}`}
-                onClick={() => setBudgetMethod(m.id)}
-                style={{ cursor: 'pointer' }}
+            <div className="ldg-budget-step-wrap" key={label}>
+              <button
+                type="button"
+                className={[
+                  "ldg-budget-step",
+                  isActive ? "is-active" : "",
+                  isComplete ? "is-complete" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => isComplete && setStep(stepNumber)}
+                disabled={!isComplete && !isActive}
+                aria-current={isActive ? "step" : undefined}
               >
-                <div className="method-card-header">
-                  <div className="method-radio" />
-                  <div className="method-name">{m.name}</div>
-                </div>
-                <div className="method-desc">{m.desc}</div>
-                <div className="method-tag">{m.tag}</div>
-              </label>
-            ))}
-          </div>
-
-          <div className="income-row">
-            <div>
-              <div className="field-label">Monthly take-home income</div>
-              <div className="cadence-toggle">
-                <button className={`cadence-btn${cadence === 'monthly' ? ' active' : ''}`} onClick={() => setCadence('monthly')}>Monthly</button>
-                <button className={`cadence-btn${cadence === 'biweekly' ? ' active' : ''}`} onClick={() => setCadence('biweekly')}>Bi-weekly</button>
-              </div>
-              <div className="income-input-wrap">
-                <span className="currency-symbol">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={incomeVal}
-                  onChange={e => setIncomeVal(e.target.value)}
-                  onBlur={saveIncome}
-                  placeholder="0"
+                <span>{isComplete ? <CheckIcon /> : stepNumber}</span>
+                <small>{label}</small>
+              </button>
+              {index < STEPS.length - 1 && (
+                <span
+                  className={
+                    isComplete
+                      ? "ldg-budget-step-line is-complete"
+                      : "ldg-budget-step-line"
+                  }
                 />
-              </div>
-              {cadence === 'biweekly' && parsedIncome > 0 && (
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>
-                  ≈ {fmt(parsedIncome * 26 / 12)}/month
-                </div>
               )}
             </div>
+          )
+        })}
+      </nav>
 
-            <div className="payday-field">
-              <div className="field-label">Next payday</div>
-              <div className="payday-input-wrap">
-                📅
-                <input
-                  type="date"
-                  value={payday}
-                  onChange={e => setPayday(e.target.value)}
-                  style={{ border: 'none', outline: 'none', fontSize: 14, color: '#374151', background: 'transparent', flex: 1 }}
-                />
+      {step === 1 && (
+        <main className="ldg-budget-wizard-panel">
+          <div className="ldg-budget-wizard-heading">
+            <span className="ldg-budget-section-kicker">Step 1 of 4</span>
+            <h2>Choose a rhythm that feels right</h2>
+            <p>
+              Start with a budgeting method, then tell us what you bring home
+              and when you’re paid.
+            </p>
+          </div>
+
+          <section className="ldg-budget-wizard-card">
+            <div className="ldg-budget-card-heading">
+              <h3>Budgeting method</h3>
+              <p>You can change this later without losing your categories.</p>
+            </div>
+            <MethodCards value={budgetMethod} onChange={setBudgetMethod} />
+
+            <div className="ldg-budget-profile-grid">
+              <div className="ldg-budget-income-block">
+                <label className="ldg-budget-field">
+                  <span>Take-home income</span>
+                  <span
+                    className="ldg-budget-cadence-toggle"
+                    role="group"
+                    aria-label="Income cadence"
+                  >
+                    <button
+                      type="button"
+                      className={cadence === "monthly" ? "is-active" : ""}
+                      onClick={() => setCadence("monthly")}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      type="button"
+                      className={cadence === "biweekly" ? "is-active" : ""}
+                      onClick={() => {
+                        setCadence("biweekly")
+                        updateBudgetSettings({ paycheckCadence: "biweekly" })
+                      }}
+                    >
+                      Bi-weekly
+                    </button>
+                  </span>
+                  <span className="ldg-budget-money-input">
+                    <span>$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={incomeValue}
+                      onChange={(event) => setIncomeValue(event.target.value)}
+                      onBlur={saveIncome}
+                      placeholder="0"
+                    />
+                  </span>
+                </label>
+                {cadence === "biweekly" && parsedIncome > 0 && (
+                  <small className="ldg-budget-field-note">
+                    ≈ {fmt((parsedIncome * 26) / 12)} per month
+                  </small>
+                )}
+              </div>
+
+              <label className="ldg-budget-field">
+                <span>Next payday</span>
+                <span className="ldg-budget-date-input">
+                  <CalendarIcon />
+                  <input
+                    type="date"
+                    value={payday}
+                    onChange={(event) => {
+                      setPayday(event.target.value)
+                      updateBudgetSettings({ firstPayday: event.target.value })
+                    }}
+                  />
+                </span>
+              </label>
+
+              <aside className="ldg-budget-preview-card">
+                <img src={sprig02} alt="" />
+                <span className="ldg-budget-section-kicker">
+                  Your first plan
+                </span>
+                <h4>A gentle starting point</h4>
+                <ul>
+                  <li>
+                    <CheckIcon /> Income:{" "}
+                    {parsedIncome > 0 ? fmt(parsedIncome) : "Not set"}
+                  </li>
+                  <li>
+                    <CheckIcon /> {categories.length} spending categories
+                  </li>
+                  <li>
+                    <CheckIcon /> {methodName} method
+                  </li>
+                  <li>
+                    <CheckIcon />{" "}
+                    {cadence === "monthly" ? "Monthly" : "Bi-weekly"} cadence
+                  </li>
+                </ul>
+              </aside>
+            </div>
+          </section>
+
+          <div className="ldg-budget-wizard-footer is-end">
+            <button
+              type="button"
+              className="ldg-budget-primary-btn"
+              onClick={() => goNext(2)}
+            >
+              Continue to income plan <ArrowIcon />
+            </button>
+          </div>
+        </main>
+      )}
+
+      {step === 2 && (
+        <main className="ldg-budget-wizard-panel">
+          <div className="ldg-budget-wizard-heading">
+            <span className="ldg-budget-section-kicker">Step 2 of 4</span>
+            <h2>See the shape of your income</h2>
+            <p>
+              Your {methodName} plan turns {fmt(activeIncome)} into a clear
+              monthly guide.
+            </p>
+          </div>
+
+          <section className="ldg-budget-wizard-card">
+            <div className="ldg-budget-income-plan-grid">
+              {budgetMethod === "503020" ? (
+                <>
+                  <div className="ldg-budget-plan-tile is-sage">
+                    <span>50%</span>
+                    <h3>Needs</h3>
+                    <p>Housing, food and transport</p>
+                    <strong>{fmt(activeIncome * 0.5)}</strong>
+                  </div>
+                  <div className="ldg-budget-plan-tile is-blush">
+                    <span>30%</span>
+                    <h3>Wants</h3>
+                    <p>Dining and entertainment</p>
+                    <strong>{fmt(activeIncome * 0.3)}</strong>
+                  </div>
+                  <div className="ldg-budget-plan-tile is-lavender">
+                    <span>20%</span>
+                    <h3>Future you</h3>
+                    <p>Savings and debt repayment</p>
+                    <strong>{fmt(activeIncome * 0.2)}</strong>
+                  </div>
+                </>
+              ) : budgetMethod === "paycheck" ? (
+                <>
+                  <div className="ldg-budget-plan-tile is-sage">
+                    <span>{setupPaydays.length}</span>
+                    <h3>Paydays</h3>
+                    <p>Funding windows this month</p>
+                    <strong>{budgetSettings.paycheckCadence}</strong>
+                  </div>
+                  <div className="ldg-budget-plan-tile is-cream">
+                    <span>
+                      {activeIncome > 0 && setupPaydays.length > 0
+                        ? Math.round(activeIncome / setupPaydays.length / 100) /
+                          10
+                        : 0}
+                      k
+                    </span>
+                    <h3>Per paycheck</h3>
+                    <p>Estimated income per funding window</p>
+                    <strong>
+                      {fmt(activeIncome / Math.max(1, setupPaydays.length))}
+                    </strong>
+                  </div>
+                  <div
+                    className={
+                      unassigned < 0
+                        ? "ldg-budget-plan-tile is-warning"
+                        : "ldg-budget-plan-tile is-blush"
+                    }
+                  >
+                    <span>
+                      {activeIncome > 0
+                        ? Math.round((unassigned / activeIncome) * 100)
+                        : 0}
+                      %
+                    </span>
+                    <h3>Unallocated</h3>
+                    <p>Still waiting for a purpose this month</p>
+                    <strong>{fmt(Math.abs(unassigned))}</strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="ldg-budget-plan-tile is-cream">
+                    <span>100%</span>
+                    <h3>Income</h3>
+                    <p>Total ready to assign</p>
+                    <strong>{fmt(activeIncome)}</strong>
+                  </div>
+                  <div className="ldg-budget-plan-tile is-sage">
+                    <span>
+                      {activeIncome > 0
+                        ? Math.round((totalBudget / activeIncome) * 100)
+                        : 0}
+                      %
+                    </span>
+                    <h3>Planned</h3>
+                    <p>Already assigned</p>
+                    <strong>{fmt(totalBudget)}</strong>
+                  </div>
+                  <div
+                    className={
+                      unassigned < 0
+                        ? "ldg-budget-plan-tile is-warning"
+                        : "ldg-budget-plan-tile is-blush"
+                    }
+                  >
+                    <span>
+                      {activeIncome > 0
+                        ? Math.max(
+                            0,
+                            Math.round((unassigned / activeIncome) * 100)
+                          )
+                        : 0}
+                      %
+                    </span>
+                    <h3>{unassigned < 0 ? "Over plan" : "Unassigned"}</h3>
+                    <p>
+                      {unassigned < 0
+                        ? "Needs a little trimming"
+                        : "Ready for a purpose"}
+                    </p>
+                    <strong>{fmt(Math.abs(unassigned))}</strong>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="ldg-budget-plan-note">
+              <img src={stationery05} alt="" />
+              <p>
+                <strong>A budget is a guide, not a restriction.</strong> You’ll
+                fine-tune these amounts in the next step.
+              </p>
+            </div>
+          </section>
+
+          <div className="ldg-budget-wizard-footer">
+            <button
+              type="button"
+              className="ldg-budget-secondary-btn"
+              onClick={() => setStep(1)}
+            >
+              <ArrowIcon direction="left" /> Back
+            </button>
+            <button
+              type="button"
+              className="ldg-budget-primary-btn"
+              onClick={() => goNext(3)}
+            >
+              Set category targets <ArrowIcon />
+            </button>
+          </div>
+        </main>
+      )}
+
+      {step === 3 && (
+        <main className="ldg-budget-wizard-panel is-wide">
+          <div className="ldg-budget-wizard-heading">
+            <span className="ldg-budget-section-kicker">Step 3 of 4</span>
+            <h2>Give your spending a home</h2>
+            <p>
+              Adjust each target so your plan reflects the month you actually
+              want to live.
+            </p>
+          </div>
+
+          <section
+            className={
+              unassigned < 0
+                ? "ldg-budget-status-strip is-warning"
+                : "ldg-budget-status-strip"
+            }
+          >
+            <div>
+              <span>Income</span>
+              <strong>{fmt(activeIncome)}</strong>
+            </div>
+            <div>
+              <span>Planned</span>
+              <strong>{fmt(totalBudget)}</strong>
+            </div>
+            <div>
+              <span>{unassigned < 0 ? "Over budget" : "Unassigned"}</span>
+              <strong>{fmt(Math.abs(unassigned))}</strong>
+            </div>
+            <div className="ldg-budget-status-progress">
+              <span>{Math.round(allocationPct)}% allocated</span>
+              <div className="ldg-budget-progress-track">
+                <span style={{ width: `${allocationPct}%` }} />
               </div>
             </div>
+          </section>
 
-            <div className="first-budget-preview">
-              <div className="fbp-header">📋 Your first budget will include</div>
-              <ul className="fbp-list">
-                <li>✓ Income: {parsedIncome > 0 ? fmt(parsedIncome) : '—'}</li>
-                <li>✓ {categories.length} spending categories</li>
-                <li>✓ Method: {METHODS.find(m => m.id === budgetMethod)?.name}</li>
-                <li>✓ Cadence: {cadence === 'monthly' ? 'Monthly' : 'Bi-weekly'}</li>
-                <li>✓ {Object.keys(groups).length} spending groups</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+          <CategoryGroups
+            groups={groups}
+            unusedGroups={unusedGroups}
+            income={activeIncome}
+            onUpdateCategory={(id, patch) => updateCategory(id, patch)}
+            onDeleteCategory={handleDeleteCategory}
+            onAddCategory={handleAddCategory}
+          />
 
-        <div className="wiz-footer">
-          <span />
-          <button className="wiz-continue-btn" onClick={() => goNext(2)}>Continue →</button>
-        </div>
-      </div>
-
-      {/* ── Step 2: Income Plan ── */}
-      <div className={step !== 2 ? 'hidden' : ''}>
-        <h2 className="wiz-title">Your income plan</h2>
-        <p className="wiz-subtitle">
-          Based on the <strong>{METHODS.find(m => m.id === budgetMethod)?.name}</strong> method, here's how your{' '}
-          <strong>{fmt(parsedIncome || income)}</strong> breaks down.
-        </p>
-
-        <div className="wiz-card">
-          <div className="income-plan-grid">
-            {budgetMethod === '503020' ? (
-              <>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">50%</div>
-                  <div className="tile-label">Needs (housing, food, transport)</div>
-                  <div className="tile-amount">{fmt((parsedIncome || income) * 0.5)}</div>
-                </div>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">30%</div>
-                  <div className="tile-label">Wants (dining, entertainment)</div>
-                  <div className="tile-amount">{fmt((parsedIncome || income) * 0.3)}</div>
-                </div>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">20%</div>
-                  <div className="tile-label">Savings & debt repayment</div>
-                  <div className="tile-amount">{fmt((parsedIncome || income) * 0.2)}</div>
-                </div>
-              </>
-            ) : budgetMethod === 'payself' ? (
-              <>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">20%</div>
-                  <div className="tile-label">Savings (pay yourself first)</div>
-                  <div className="tile-amount">{fmt((parsedIncome || income) * 0.2)}</div>
-                </div>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">80%</div>
-                  <div className="tile-label">Free to spend as needed</div>
-                  <div className="tile-amount">{fmt((parsedIncome || income) * 0.8)}</div>
-                </div>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">{(parsedIncome || income) > 0 ? Math.round(((parsedIncome || income) - totalBudget) / (parsedIncome || income) * 100) : 0}%</div>
-                  <div className="tile-label">Currently unallocated</div>
-                  <div className="tile-amount" style={{ color: unassigned < 0 ? '#ef4444' : undefined }}>
-                    {fmt(Math.abs(unassigned))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">100%</div>
-                  <div className="tile-label">Total income to assign</div>
-                  <div className="tile-amount">{fmt(parsedIncome || income)}</div>
-                </div>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">{(parsedIncome || income) > 0 ? Math.round(totalBudget / (parsedIncome || income) * 100) : 0}%</div>
-                  <div className="tile-label">Currently budgeted</div>
-                  <div className="tile-amount">{fmt(totalBudget)}</div>
-                </div>
-                <div className="income-plan-tile">
-                  <div className="tile-pct">{(parsedIncome || income) > 0 ? Math.max(0, Math.round(unassigned / (parsedIncome || income) * 100)) : 0}%</div>
-                  <div className="tile-label">Unassigned — to allocate</div>
-                  <div className="tile-amount" style={{ color: unassigned < 0 ? '#ef4444' : '#22c55e' }}>
-                    {fmt(Math.abs(unassigned))} {unassigned < 0 ? 'over' : 'left'}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="wiz-footer">
-          <button className="wiz-back-btn" onClick={() => setStep(1)}>← Back</button>
-          <button className="wiz-continue-btn" onClick={() => goNext(3)}>Continue →</button>
-        </div>
-      </div>
-
-      {/* ── Step 3: Categories ── */}
-      <div className={step !== 3 ? 'hidden' : ''}>
-        <h2 className="wiz-title">Set your spending targets</h2>
-        <p className="wiz-hint">
-          Income: <strong>{fmt(parsedIncome || income)}</strong> &nbsp;·&nbsp;
-          Budgeted: <strong>{fmt(totalBudget)}</strong> &nbsp;·&nbsp;
-          <span style={{ color: unassigned < 0 ? '#ef4444' : '#16a34a', fontWeight: 700 }}>
-            {unassigned >= 0 ? `${fmt(unassigned)} unassigned` : `${fmt(Math.abs(unassigned))} over budget`}
-          </span>
-        </p>
-
-        <CategoryGroups
-          groups={groups}
-          unusedGroups={unusedGroups}
-          income={parsedIncome || income}
-          onUpdateCategory={(id, patch) => updateCategory(id, patch)}
-          onDeleteCategory={handleDeleteCategory}
-          onAddCategory={handleAddCategory}
-        />
-
-        {categories.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 14 }}>
-            No categories yet. Add a group above to get started.
-          </div>
-        )}
-
-        <div className="wiz-footer">
-          <button className="wiz-back-btn" onClick={() => setStep(2)}>← Back</button>
-          <button className="wiz-continue-btn" onClick={() => goNext(4)}>Continue →</button>
-        </div>
-      </div>
-
-      {/* ── Step 4: Ready ── */}
-      <div className={step !== 4 ? 'hidden' : ''}>
-        <h2 className="wiz-title">You're all set! 🎉</h2>
-        <p className="wiz-subtitle">Your budget is saved. Here's a summary before you open the dashboard.</p>
-
-        <div className="wiz-card">
-          {[
-            { label: 'Budgeting method', value: METHODS.find(m => m.id === budgetMethod)?.name ?? '' },
-            { label: 'Monthly income',   value: fmt(parsedIncome || income) },
-            { label: 'Total budgeted',   value: fmt(totalBudget) },
-            {
-              label: 'Budget balance',
-              value: unassigned === 0
-                ? '✓ Perfectly balanced!'
-                : unassigned > 0
-                  ? `${fmt(unassigned)} unassigned`
-                  : `${fmt(Math.abs(unassigned))} over budget`,
-            },
-            {
-              label: 'Categories',
-              value: `${categories.length} categories across ${Object.keys(groups).length} group${Object.keys(groups).length !== 1 ? 's' : ''}`,
-            },
-          ].map(row => (
-            <div className="ready-row" key={row.label}>
-              <div className="ready-check">✓</div>
-              <div>
-                <div className="ready-label">{row.label}</div>
-                <div className="ready-value">{row.value}</div>
-              </div>
-            </div>
-          ))}
-
-          {/* Allocation ring */}
-          <div className="ready-row">
-            <div className="ready-check" style={{ background: '#3b82f6', flexShrink: 0 }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" width="14" height="14">
-                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
-              </svg>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div className="ready-label">Budget allocation</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: progressRing(
-                      (parsedIncome || income) > 0 ? Math.min(100, totalBudget / (parsedIncome || income) * 100) : 0,
-                      60, 6, '#22c55e'
-                    ),
-                  }}
-                />
-                <div>
-                  <div className="ready-value">
-                    {(parsedIncome || income) > 0
-                      ? `${Math.round(totalBudget / (parsedIncome || income) * 100)}% of income allocated`
-                      : 'No income set'}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                    {fmt(totalBudget)} budgeted of {fmt(parsedIncome || income)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Category bars */}
-          {Object.keys(groups).length > 0 && (
-            <div className="ready-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
-              <div className="ready-label" style={{ marginBottom: 4 }}>Breakdown by group</div>
-              {Object.entries(groups).map(([g, cats]) => {
-                const total = cats.reduce((s, c) => s + c.budget, 0);
-                const pct = (parsedIncome || income) > 0 ? Math.min(100, total / (parsedIncome || income) * 100) : 0;
-                const color = GROUP_COLORS[g] ?? '#94a3b8';
-                return (
-                  <div key={g} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 80, fontSize: 12, color: '#374151', fontWeight: 600, flexShrink: 0 }}>{g}</div>
-                    <div style={{ flex: 1, height: 6, background: '#e5e2db', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width .3s' }} />
-                    </div>
-                    <div style={{ width: 70, textAlign: 'right', fontSize: 12, color: '#6b7280', flexShrink: 0 }}>{fmt(total)}</div>
-                  </div>
-                );
-              })}
+          {categories.length === 0 && (
+            <div className="ldg-budget-inline-empty">
+              Choose a group above and add your first category to get started.
             </div>
           )}
-        </div>
 
-        <div className="wiz-footer">
-          <button className="wiz-back-btn" onClick={() => setStep(3)}>← Back</button>
-          <button
-            className="wiz-open-btn"
-            onClick={() => { setBudgetConfigured(true); setView('dashboard'); }}
-          >
-            Open Dashboard →
-          </button>
-        </div>
-      </div>
+          <div className="ldg-budget-wizard-footer">
+            <button
+              type="button"
+              className="ldg-budget-secondary-btn"
+              onClick={() => setStep(2)}
+            >
+              <ArrowIcon direction="left" /> Back
+            </button>
+            <button
+              type="button"
+              className="ldg-budget-primary-btn"
+              onClick={() => goNext(4)}
+            >
+              Review your plan <ArrowIcon />
+            </button>
+          </div>
+        </main>
+      )}
 
+      {step === 4 && (
+        <main className="ldg-budget-wizard-panel">
+          <div className="ldg-budget-wizard-heading is-centered">
+            <span className="ldg-budget-section-kicker">Step 4 of 4</span>
+            <h2>Your thoughtful plan is ready</h2>
+            <p>
+              Take one last look, then open your dashboard and put the plan into
+              practice.
+            </p>
+          </div>
+
+          <section className="ldg-budget-ready-card">
+            <img src={flower01} alt="" className="ldg-budget-ready-flower" />
+            <div className="ldg-budget-ready-summary">
+              <div className="ldg-budget-ready-ring">
+                <ProgressRing pct={allocationPct} />
+              </div>
+              <div>
+                <span className="ldg-budget-section-kicker">
+                  Monthly allocation
+                </span>
+                <h3>{fmt(totalBudget)} planned</h3>
+                <p>of {fmt(activeIncome)} monthly income</p>
+              </div>
+            </div>
+
+            <div className="ldg-budget-ready-details">
+              {[
+                ["Budgeting method", methodName],
+                ["Monthly income", fmt(activeIncome)],
+                ["Total planned", fmt(totalBudget)],
+                [
+                  "Budget balance",
+                  unassigned === 0
+                    ? "Perfectly balanced"
+                    : unassigned > 0
+                      ? `${fmt(unassigned)} unassigned`
+                      : `${fmt(Math.abs(unassigned))} over budget`,
+                ],
+                [
+                  "Categories",
+                  `${categories.length} across ${Object.keys(groups).length} ${Object.keys(groups).length === 1 ? "group" : "groups"}`,
+                ],
+              ].map(([label, value]) => (
+                <div className="ldg-budget-ready-row" key={label}>
+                  <span className="ldg-budget-ready-check">
+                    <CheckIcon />
+                  </span>
+                  <span>
+                    <small>{label}</small>
+                    <strong>{value}</strong>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {Object.keys(groups).length > 0 && (
+              <div className="ldg-budget-breakdown">
+                <h4>Breakdown by group</h4>
+                {Object.entries(groups).map(([groupName, groupCategories]) => {
+                  const groupTotal = groupCategories.reduce(
+                    (sum, category) => sum + category.budget,
+                    0
+                  )
+                  const groupPct =
+                    activeIncome > 0
+                      ? Math.min(100, (groupTotal / activeIncome) * 100)
+                      : 0
+                  return (
+                    <div className="ldg-budget-breakdown-row" key={groupName}>
+                      <span>{groupName}</span>
+                      <div className="ldg-budget-progress-track">
+                        <span
+                          style={{
+                            width: `${groupPct}%`,
+                            background: GROUP_COLORS[groupName] ?? "#8a9e8b",
+                          }}
+                        />
+                      </div>
+                      <strong>{fmt(groupTotal)}</strong>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          <div className="ldg-budget-wizard-footer">
+            <button
+              type="button"
+              className="ldg-budget-secondary-btn"
+              onClick={() => setStep(3)}
+            >
+              <ArrowIcon direction="left" /> Back
+            </button>
+            <button
+              type="button"
+              className="ldg-budget-primary-btn"
+              onClick={() => {
+                setBudgetConfigured(true)
+                setView("dashboard")
+              }}
+            >
+              Open dashboard <ArrowIcon />
+            </button>
+          </div>
+        </main>
+      )}
     </div>
-  );
+  )
 }

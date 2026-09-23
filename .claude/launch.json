@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "budget-planner",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "vite.customer-budget.config.ts"],
+      "autoPort": true,
+      "url": "http://localhost:$PORT/budget-planner-app.html"
+    }
+  ]
+}
