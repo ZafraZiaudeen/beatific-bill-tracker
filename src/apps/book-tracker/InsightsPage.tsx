@@ -452,9 +452,9 @@ function YearTab({ sessions, books }: { sessions: Session[]; books: BookRef[] })
           <SectionLabel>Your Reading Profile</SectionLabel>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
             {([
-              { icon: BookOpen,  label: "Books Finished",     value: String(totalBooks),           delta: "+5 vs last year" },
-              { icon: Clock,     label: "Reading Time",        value: formatTime(totalSecs),         delta: "+12h vs last year" },
-              { icon: BarChart2, label: "Pages Read",          value: totalPageCount.toLocaleString(), delta: "+820 vs last year" },
+              { icon: BookOpen,  label: "Books Finished",     value: String(totalBooks),             delta: "" },
+              { icon: Clock,     label: "Reading Time",        value: formatTime(totalSecs),           delta: "" },
+              { icon: BarChart2, label: "Pages Read",          value: totalPageCount.toLocaleString(), delta: "" },
             ] as { icon: React.ElementType; label: string; value: string; delta: string }[]).map(({ icon: Icon, label, value, delta }) => (
               <div key={label} style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", textAlign: "center" as const, gap: 5, padding: "14px 8px" }}>
                 <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
@@ -462,7 +462,7 @@ function YearTab({ sessions, books }: { sessions: Session[]; books: BookRef[] })
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: -0.5 }}>{value}</div>
                 <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: C.muted }}>{label}</div>
-                <div style={{ fontSize: 11, color: "#3d9e5f" }}>↑ {delta}</div>
+                {delta && <div style={{ fontSize: 11, color: "#3d9e5f" }}>↑ {delta}</div>}
               </div>
             ))}
           </div>
@@ -481,8 +481,8 @@ function YearTab({ sessions, books }: { sessions: Session[]; books: BookRef[] })
 //  MONTH TAB
 // ─────────────────────────────────────────────────────────────
 function MonthTab({ sessions, books }: { sessions: Session[]; books: BookRef[] }) {
-  const [year, setYear]   = useState(2026);
-  const [month, setMonth] = useState(8); // 0-indexed; 8 = Sep
+  const [year, setYear]   = useState(() => new Date().getFullYear());
+  const [month, setMonth] = useState(() => new Date().getMonth());
 
   const go = (delta: number) => {
     let m = month + delta;

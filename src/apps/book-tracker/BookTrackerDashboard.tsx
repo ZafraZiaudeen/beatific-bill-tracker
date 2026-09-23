@@ -2,10 +2,13 @@ import { useState, useMemo } from "react";
 import {
   LayoutGrid, BookOpen, Clock, Bookmark, BarChart2,
   PenLine, Settings, CloudUpload, Search, Moon, Upload,
-  Plus, Flame, Star,
+  Plus, Flame, Star, KeyRound, Unlock,
 } from "lucide-react";
 import Heatmap from "./components/Heatmap";
+import NameEntryModal from "./components/NameEntryModal";
 import LibraryPage from "./LibraryPage";
+import ManagementPage from "./ManagementPage";
+import UnlockModal from "./components/UnlockModal";
 import ReadingLogPage from "./ReadingLogPage";
 import WishlistPage from "./WishlistPage";
 import NotesPage from "./NotesPage";
@@ -100,6 +103,11 @@ function StatTile({ icon: Icon, label, value, note }: { icon: React.ElementType;
   );
 }
 
+declare global { interface Window { __BTK_LICENSE_HASH__: string; } }
+const IS_CUSTOMER_BUILD =
+  import.meta.env.VITE_CUSTOMER_BOOK_BUILD === "true" ||
+  (typeof window !== "undefined" && !!window.__BTK_LICENSE_HASH__);
+
 const NAV = [
   { id: "overview", label: "Overview", Icon: LayoutGrid },
   { id: "library", label: "Library", Icon: BookOpen },
@@ -108,9 +116,37 @@ const NAV = [
   { id: "insights", label: "Insights", Icon: BarChart2 },
   { id: "notes", label: "Notes", Icon: PenLine },
   { id: "settings", label: "Settings", Icon: Settings },
+  ...(!IS_CUSTOMER_BUILD ? [{ id: "management", label: "Management", Icon: KeyRound }] : []),
 ];
 
-function Overview({ onNavigate }: { onNavigate: (id: string) => void }) {
+function buildHeatmapCols(sessions: Record<string, unknown>[]): number[][] {
+  const sessionDates = new Map<string, number>();
+  sessions.forEach(s => {
+    const d = String(s.date ?? "");
+    if (d) sessionDates.set(d, (sessionDates.get(d) ?? 0) + 1);
+  });
+  const today = new Date();
+  const todayDay = today.getDay(); // 0=Sun
+  // align to last Monday
+  const daysSinceMonday = (todayDay + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysSinceMonday - 20 * 7);
+  const cols: number[][] = [];
+  for (let w = 0; w < 21; w++) {
+    const col: number[] = [];
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(monday);
+      dt.setDate(monday.getDate() + w * 7 + d);
+      const key = dt.toISOString().slice(0, 10);
+      const count = sessionDates.get(key) ?? 0;
+      col.push(count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count <= 4 ? 3 : 4);
+    }
+    cols.push(col);
+  }
+  return cols;
+}
+
+function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; userName: string }) {
   const [lastBackup, setLastBackup] = useState<string | null>(() => localStorage.getItem("bt_last_backup"));
 
   const books   = useMemo(() => { try { return JSON.parse(localStorage.getItem("bt_books")    ?? "[]") as Record<string,unknown>[]; } catch { return []; } }, []);
@@ -174,6 +210,8 @@ function Overview({ onNavigate }: { onNavigate: (id: string) => void }) {
     catch { return "Never"; }
   };
 
+  const heatmapCols = useMemo(() => buildHeatmapCols(sessions), [sessions]);
+
   const handleBackupNow = () => {
     const ts = exportJSONAndRecord();
     setLastBackup(ts);
@@ -184,7 +222,7 @@ function Overview({ onNavigate }: { onNavigate: (id: string) => void }) {
       {/* Top bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "20px 28px 14px", flexShrink: 0 }}>
         <h1 style={{ ...SERIF, fontSize: 28, fontWeight: 400, flex: 1, color: C.text, letterSpacing: -0.2 }}>
-          Good books, well kept.
+          Good books, {userName}.
         </h1>
         <div style={{ position: "relative", flexShrink: 0 }}>
           <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" }} />
@@ -301,7 +339,7 @@ function Overview({ onNavigate }: { onNavigate: (id: string) => void }) {
           {/* Reading Activity */}
           <div style={card}>
             <SectionLabel>Reading Activity</SectionLabel>
-            <Heatmap />
+            <Heatmap cols={heatmapCols} />
           </div>
 
           {/* Next Up */}
@@ -376,6 +414,20 @@ function Overview({ onNavigate }: { onNavigate: (id: string) => void }) {
 
 export default function BookTrackerDashboard() {
   const [activeNav, setActiveNav] = useState("overview");
+  const [userName, setUserName] = useState<string>(() => {
+    try { return String(JSON.parse(localStorage.getItem("bt_settings") ?? "{}").userName ?? ""); } catch { return ""; }
+  });
+  const [activated, setActivated] = useState(() => localStorage.getItem("btk_activated") === "1");
+  const [showUnlockFromSidebar, setShowUnlockFromSidebar] = useState(false);
+
+  function handleActivate() {
+    setActivated(true);
+    setShowUnlockFromSidebar(false);
+  }
+
+  if (!userName) {
+    return <NameEntryModal onComplete={name => setUserName(name)} />;
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", height: "100%", overflow: "hidden" }}>
@@ -414,6 +466,39 @@ export default function BookTrackerDashboard() {
           })}
         </nav>
 
+        {activated && IS_CUSTOMER_BUILD && (
+          <div style={{ padding: "0 10px 8px" }}>
+            <div style={{ fontSize: 11, color: "#4a7a64", fontWeight: 600, display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", background: "#e8f0eb", borderRadius: 7 }}>
+              ✓ Full version active
+            </div>
+          </div>
+        )}
+
+        {!activated && IS_CUSTOMER_BUILD && (
+          <div style={{ padding: "0 10px 8px" }}>
+            <button
+              onClick={() => setShowUnlockFromSidebar(true)}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid #4a7a64",
+                background: "#e8f0eb",
+                color: C.green,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Unlock size={13} />
+              Unlock Full Version
+            </button>
+          </div>
+        )}
+
         <div style={{ padding: "10px 13px 13px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "flex-start", gap: 6, color: C.muted, fontSize: 11, lineHeight: 1.45 }}>
           <CloudUpload size={13} style={{ marginTop: 1, flexShrink: 0, color: "#aaa" }} />
           <div>
@@ -424,14 +509,19 @@ export default function BookTrackerDashboard() {
       </aside>
 
       <main style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
-        {activeNav === "library"   ? <LibraryPage />    :
-         activeNav === "log"       ? <ReadingLogPage /> :
-         activeNav === "wishlist"  ? <WishlistPage />   :
-         activeNav === "notes"     ? <NotesPage />      :
-         activeNav === "insights"  ? <InsightsPage />   :
-         activeNav === "settings"  ? <SettingsPage />   :
-         <Overview onNavigate={setActiveNav} />}
+        {activeNav === "library"    ? <LibraryPage activated={activated} onActivate={handleActivate} /> :
+         activeNav === "log"        ? <ReadingLogPage /> :
+         activeNav === "wishlist"   ? <WishlistPage />   :
+         activeNav === "notes"      ? <NotesPage />      :
+         activeNav === "insights"   ? <InsightsPage />   :
+         activeNav === "settings"   ? <SettingsPage onNameChange={setUserName} /> :
+         activeNav === "management" ? <ManagementPage /> :
+         <Overview onNavigate={setActiveNav} userName={userName} />}
       </main>
+
+      {showUnlockFromSidebar && (
+        <UnlockModal onActivate={handleActivate} onClose={() => setShowUnlockFromSidebar(false)} />
+      )}
     </div>
   );
 }

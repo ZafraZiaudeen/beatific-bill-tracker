@@ -1067,7 +1067,7 @@ export default function ReadingLogPage() {
             <h2 style={{ ...SERIF, fontSize: 26, fontWeight: 400, color: C.text, margin: 0 }}>Reading log</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px",
               border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 12.5, color: C.text, cursor: "default" }}>
-              2026 <ChevronDown size={11} color={C.muted} />
+              {new Date().getFullYear()} <ChevronDown size={11} color={C.muted} />
             </div>
           </div>
           <div style={{ fontSize: 12, color: C.muted, paddingLeft: 30 }}>

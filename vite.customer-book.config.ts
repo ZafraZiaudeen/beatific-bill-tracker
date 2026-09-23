@@ -1,4 +1,3 @@
-import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -6,21 +5,21 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile()],
+  publicDir: false,
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "./src"),
+      "@": `${import.meta.dirname}/src`,
     },
+  },
+  define: {
+    "import.meta.env.VITE_CUSTOMER_BOOK_BUILD": '"true"',
   },
   build: {
-    outDir: "dist/app-studio",
+    outDir: "public/customer-book-build",
     emptyOutDir: true,
     cssCodeSplit: false,
-    copyPublicDir: false,
     rollupOptions: {
-      input: "index.html",
+      input: "book-tracker-app.html",
     },
-  },
-  server: {
-    port: 5173,
   },
 });

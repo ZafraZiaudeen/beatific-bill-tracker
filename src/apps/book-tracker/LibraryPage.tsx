@@ -1,10 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   Search, Filter, SlidersHorizontal, LayoutGrid, List, Heart, PenLine, FileText,
   Archive, ChevronDown, Plus, BookOpen, X, Shield, Database, WifiOff, Lock,
   RefreshCw, CloudUpload, Cloud, RotateCcw,
 } from "lucide-react";
 import { isBookSearchUnavailable, searchBooks, type SearchResult } from "./bookSearch";
+import UnlockModal from "./components/UnlockModal";
+
+const FREE_LIMIT = 3;
+const IS_CUSTOMER_BUILD =
+  import.meta.env.VITE_CUSTOMER_BOOK_BUILD === "true" ||
+  (typeof window !== "undefined" && !!(window as Window & { __BTK_LICENSE_HASH__?: string }).__BTK_LICENSE_HASH__);
 
 const C = {
   bg: "#f4efe6",
@@ -50,6 +56,8 @@ interface Book {
   location: string;
   tags: string[];
   notes: string;
+  favorite?: boolean;
+  archived?: boolean;
 }
 
 const INITIAL_BOOKS: Book[] = [];
@@ -861,8 +869,13 @@ function LogSessionModal({ book, onSave, onClose }: {
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function LibraryPage() {
-  const [books, setBooks] = useState<Book[]>(() => {
+interface LibraryPageProps {
+  activated?: boolean;
+  onActivate?: () => void;
+}
+
+export default function LibraryPage({ activated: activatedProp, onActivate }: LibraryPageProps = {}) {
+  const [allBooks, setAllBooks] = useState<Book[]>(() => {
     try {
       const raw = localStorage.getItem("bt_books");
       if (raw) { const parsed = JSON.parse(raw); if (Array.isArray(parsed) && parsed.length) return parsed; }
@@ -870,11 +883,15 @@ export default function LibraryPage() {
     return INITIAL_BOOKS;
   });
 
-  useEffect(() => {
-    try { localStorage.setItem("bt_books", JSON.stringify(books)); } catch {}
-  }, [books]);
-  const [archivedBooks, setArchivedBooks] = useState<Book[]>([]);
-  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const books = allBooks.filter(b => !b.archived);
+  const archivedBooks = allBooks.filter(b => b.archived);
+  const favorites = new Set(allBooks.filter(b => b.favorite).map(b => b.id));
+
+  const persistBooks = (next: Book[]) => {
+    setAllBooks(next);
+    try { localStorage.setItem("bt_books", JSON.stringify(next)); } catch {}
+  };
+
   const [activeFilter, setActiveFilter] = useState("All books");
   const [selectedId, setSelectedId] = useState<number>(-1);
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -890,6 +907,7 @@ export default function LibraryPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [genreFilter, setGenreFilter] = useState("");
   const [loggingBook, setLoggingBook] = useState<Book | null>(null);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
 
   // selected is only set when the user explicitly clicks a book
   const allVisible = activeFilter === "Archived" ? archivedBooks : books;
@@ -903,26 +921,26 @@ export default function LibraryPage() {
 
   // ── Handlers ──────────────────────────────────────────────────
   function changeStatus(id: number, status: Book["status"]) {
-    setBooks(bs => bs.map(b => b.id === id ? { ...b, status } : b));
+    persistBooks(allBooks.map(b => b.id === id ? { ...b, status } : b));
     setStatusDropdownOpen(false);
     setMoveToOpen(false);
   }
 
   function toggleFavorite(id: number) {
-    setFavorites(prev => {
-      const s = new Set(prev);
-      if (s.has(id)) {
-        s.delete(id);
-      } else {
-        s.add(id);
-      }
-      return s;
-    });
+    persistBooks(allBooks.map(b => b.id === id ? { ...b, favorite: !b.favorite } : b));
   }
 
   function addBook(data: Omit<Book, "id">) {
+    if (IS_CUSTOMER_BUILD) {
+      const isActivated = activatedProp ?? localStorage.getItem("btk_activated") === "1";
+      const activeCount = allBooks.filter(b => !b.archived).length;
+      if (!isActivated && activeCount >= FREE_LIMIT) {
+        setShowUnlockModal(true);
+        return;
+      }
+    }
     const newBook = { ...data, id: Date.now() };
-    setBooks(bs => [...bs, newBook]);
+    persistBooks([...allBooks, newBook]);
     setSelectedId(newBook.id);
     setActiveFilter("All books");
     setShowAddModal(false);
@@ -930,25 +948,19 @@ export default function LibraryPage() {
   }
 
   function updateBook(updated: Book) {
-    setBooks(bs => bs.map(b => b.id === updated.id ? updated : b));
+    persistBooks(allBooks.map(b => b.id === updated.id ? updated : b));
     setShowAddModal(false);
     setEditingBook(null);
   }
 
   function archiveBook(id: number) {
-    const book = books.find(b => b.id === id);
-    if (!book) return;
-    setBooks(bs => bs.filter(b => b.id !== id));
-    setArchivedBooks(ab => [...ab, book]);
+    persistBooks(allBooks.map(b => b.id === id ? { ...b, archived: true } : b));
     if (selectedId === id) setSelectedId(-1);
     setMoveToOpen(false);
   }
 
   function unarchiveBook(id: number) {
-    const book = archivedBooks.find(b => b.id === id);
-    if (!book) return;
-    setArchivedBooks(ab => ab.filter(b => b.id !== id));
-    setBooks(bs => [book, ...bs]);
+    persistBooks(allBooks.map(b => b.id === id ? { ...b, archived: false } : b));
     setSelectedId(id);
     setActiveFilter("All books");
   }
@@ -960,17 +972,17 @@ export default function LibraryPage() {
 
   function addTag(bookId: number, tag: string) {
     if (!tag.trim()) { setAddingTag(false); setNewTagInput(""); return; }
-    setBooks(bs => bs.map(b => b.id === bookId && !b.tags.includes(tag.trim()) ? { ...b, tags: [...b.tags, tag.trim()] } : b));
+    persistBooks(allBooks.map(b => b.id === bookId && !b.tags.includes(tag.trim()) ? { ...b, tags: [...b.tags, tag.trim()] } : b));
     setAddingTag(false);
     setNewTagInput("");
   }
 
   function removeTag(bookId: number, tag: string) {
-    setBooks(bs => bs.map(b => b.id === bookId ? { ...b, tags: b.tags.filter(t => t !== tag) } : b));
+    persistBooks(allBooks.map(b => b.id === bookId ? { ...b, tags: b.tags.filter(t => t !== tag) } : b));
   }
 
   function handleLogSave(newCurrentPage: number, session: LoggedSession) {
-    setBooks(bs => bs.map(b => {
+    persistBooks(allBooks.map(b => {
       if (b.id !== session.bookId) return b;
       const finished = newCurrentPage >= b.pages;
       return { ...b, currentPage: newCurrentPage, status: finished ? "Finished" : b.status };
@@ -1396,6 +1408,12 @@ export default function LibraryPage() {
           book={loggingBook}
           onSave={handleLogSave}
           onClose={() => setLoggingBook(null)}
+        />
+      )}
+      {showUnlockModal && (
+        <UnlockModal
+          onActivate={() => { setShowUnlockModal(false); onActivate?.(); }}
+          onClose={() => setShowUnlockModal(false)}
         />
       )}
     </div>

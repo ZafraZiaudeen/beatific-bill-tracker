@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "build:customer": "vite build --config vite.customer.config.ts",
+    "build:customer-book": "vite build --config vite.customer-book.config.ts",
     "dev:apps": "vite --config vite.appstudio.config.ts",
     "build:apps": "vite build --config vite.appstudio.config.ts"
   },

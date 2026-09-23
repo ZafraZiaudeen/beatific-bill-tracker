@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, Download, Layers } from "lucide-react";
 import BookTrackerDashboard from "./book-tracker/BookTrackerDashboard";
-import { bookTrackerHtml } from "./book-tracker/bookTrackerTemplate";
 import BillTrackerTab from "./bill-tracker-tab/BillTrackerTab";
 import BudgetPlannerTab from "./budget-planner-tab/BudgetPlannerTab";
 
@@ -241,7 +240,6 @@ const APPS: AppDef[] = [
     id: "book-tracker",
     name: "Book Tracker",
     description: "Track your yearly reading goal, current book, activity heatmap, and queue.",
-    html: bookTrackerHtml,
     Preview: BookTrackerPreview,
     Component: BookTrackerDashboard,
   },

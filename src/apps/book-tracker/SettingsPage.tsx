@@ -26,14 +26,25 @@ function saveSettings(patch: Record<string, unknown>) {
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-function exportJSON() {
-  const data: Record<string, unknown> = {};
-  BT_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v !== null) data[k] = JSON.parse(v); });
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+function triggerDownloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `book-tracker-backup-${todayStr()}.json`;
-  a.click(); URL.revokeObjectURL(url);
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+function exportJSON() {
+  const data: Record<string, unknown> = {};
+  BT_KEYS.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v !== null) { try { data[k] = JSON.parse(v); } catch { data[k] = v; } }
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  triggerDownloadBlob(blob, `book-tracker-backup-${todayStr()}.json`);
   const ts = new Date().toISOString();
   localStorage.setItem("bt_last_backup", ts);
   return ts;
@@ -52,10 +63,7 @@ function exportCSV() {
     );
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `books-${todayStr()}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    triggerDownloadBlob(blob, `books-${todayStr()}.csv`);
   } catch (e) { console.error(e); }
 }
 
@@ -67,7 +75,11 @@ function parseAndImport(file: File, onDone: (msg: string) => void) {
       if (typeof data !== "object" || !data) { onDone("Error: invalid file format"); return; }
       let count = 0;
       BT_KEYS.forEach(k => {
-        if (k in data) { localStorage.setItem(k, JSON.stringify(data[k])); count++; }
+        if (k in data) {
+          const v = data[k];
+          localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v));
+          count++;
+        }
       });
       const books = Array.isArray(data.bt_books) ? data.bt_books.length : 0;
       const sessions = Array.isArray(data.bt_sessions) ? data.bt_sessions.length : 0;
@@ -122,8 +134,9 @@ function fmtBackup(iso: string | null) {
   catch { return "Never"; }
 }
 
-export default function SettingsPage() {
+export default function SettingsPage({ onNameChange }: { onNameChange?: (name: string) => void } = {}) {
   const settings = loadSettings();
+  const [userName, setUserName] = useState<string>(() => String(loadSettings().userName ?? ""));
   const [yearlyGoal, setYearlyGoal] = useState<number>(() => Number(loadSettings().yearlyGoal ?? 24));
   const [backupReminder, setBackupReminder] = useState<boolean>(settings.backupReminder !== false);
   const [lastBackup, setLastBackup] = useState<string | null>(() => localStorage.getItem("bt_last_backup"));
@@ -131,6 +144,12 @@ export default function SettingsPage() {
   const [dragOver, setDragOver] = useState(false);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUserNameChange = (v: string) => {
+    setUserName(v);
+    saveSettings({ userName: v });
+    onNameChange?.(v);
+  };
 
   const transferCode = (() => {
     try {
@@ -207,7 +226,6 @@ export default function SettingsPage() {
     { icon: Download, label: "Export JSON",       onClick: handleExportJSON },
     { icon: Upload,   label: "Import JSON",       onClick: () => fileInputRef.current?.click() },
     { icon: Download, label: "Export CSV",        onClick: exportCSV },
-    { icon: Upload,   label: "Import CSV / Excel", onClick: () => fileInputRef.current?.click() },
   ];
 
   return (
@@ -259,6 +277,16 @@ export default function SettingsPage() {
           {/* Security */}
           <div style={card}>
             <CardHeader icon={Lock} title="Security" subtitle="Your data is protected on this device" />
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text, marginBottom: 4 }}>Your name</div>
+              <input
+                type="text"
+                value={userName}
+                onChange={e => handleUserNameChange(e.target.value)}
+                placeholder="Enter your name…"
+                style={{ width: "100%", padding: "7px 11px", border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" as const, background: C.white }}
+              />
+            </div>
             <Divider />
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
@@ -284,9 +312,7 @@ export default function SettingsPage() {
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>Local encryption</div>
                 <div style={{ fontSize: 12, color: C.muted }}>All data is encrypted on this device</div>
               </div>
-              <div style={{ background: "#e8f7ef", color: "#2d7a4f", border: "1px solid #b2e0c5", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-                Active
-              </div>
+              <div style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>localStorage</div>
             </div>
           </div>
 
@@ -378,33 +404,28 @@ export default function SettingsPage() {
         </div>
 
         {/* Transfer card */}
-        <div style={{ ...card, background: "#f0f5f2", border: "1px solid #d0e4d8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, marginBottom: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 50, height: 50, borderRadius: 12, background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
-              <Monitor size={22} strokeWidth={1.6} />
+        <div style={{ ...card, background: "#f0f5f2", border: "1px solid #d0e4d8", marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
+              <Monitor size={20} strokeWidth={1.6} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 3 }}>Transfer to another device</div>
-              <div style={{ fontSize: 12.5, color: C.muted }}>Export your data as JSON and import it on the other device</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Transfer to another device</div>
+              <div style={{ fontSize: 12, color: C.muted }}>Move your entire library to a new device</div>
             </div>
           </div>
-          <div style={{ textAlign: "center" as const, flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 22px" }}>
-              <span style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: 24, fontWeight: 700, letterSpacing: 5, color: C.text }}>
-                {transferCode}
-              </span>
-              <button
-                onClick={handleCopyCode}
-                title={copied ? "Copied!" : "Copy code"}
-                style={{ background: "none", border: "none", cursor: "pointer", color: copied ? C.green : C.muted, padding: 4, display: "flex", alignItems: "center" }}
-              >
-                <Copy size={16} />
-              </button>
-            </div>
-            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 7 }}>
-              {copied ? "Copied to clipboard!" : "Copy then use Export JSON to share your data"}
-            </div>
-          </div>
+          <ol style={{ margin: "0 0 16px 0", padding: "0 0 0 18px", fontSize: 13, color: C.text, lineHeight: 2 }}>
+            <li>Click <strong>Export JSON</strong> below to download your library data</li>
+            <li>Send or copy that file to the other device</li>
+            <li>On the other device, go to <strong>Settings → Import JSON</strong> (drag-and-drop or use the import button below)</li>
+          </ol>
+          <button
+            onClick={handleExportJSON}
+            style={{ background: C.green, color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}
+          >
+            <Download size={15} />
+            Export JSON
+          </button>
         </div>
 
         {/* Danger zone */}
