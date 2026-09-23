@@ -180,47 +180,6 @@ function LockOverlay({ pinHash, onUnlock }: { pinHash: string; onUnlock: () => v
   );
 }
 
-function NameEntryModal() {
-  const setUserName = useLedgerlyStore(s => s.setUserName);
-  const [name, setName] = useState('');
-  const [touched, setTouched] = useState(false);
-
-  const handleSubmit = () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setTouched(true);
-      return;
-    }
-    setUserName(trimmed);
-  };
-
-  return (
-    <div className="ldg-name-overlay">
-      <div className="ldg-name-card">
-        <div className="ldg-name-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 7h18" />
-            <path d="M6 7v12h12V7" />
-            <path d="M9 11h6" />
-            <path d="M9 15h4" />
-          </svg>
-        </div>
-        <h2>Welcome to Ledgerly</h2>
-        <p>Your budget planner stays on this device. Before we begin, what should we call you?</p>
-        <input
-          autoFocus
-          value={name}
-          onChange={e => setName(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
-          placeholder="Your name"
-          aria-invalid={touched && !name.trim()}
-        />
-        {touched && !name.trim() && <span className="ldg-name-error">Please enter your name to continue.</span>}
-        <button onClick={handleSubmit}>Get started</button>
-      </div>
-    </div>
-  );
-}
 
 function LicenseOverlay({ onActivate }: { onActivate: () => void }) {
   const [code, setCode] = useState('');
@@ -340,7 +299,6 @@ export function LedgerlyApp() {
   const setView = useLedgerlyStore(s => s.setView);
   const setSelectedGoalId = useLedgerlyStore(s => s.setSelectedGoalId);
   const securitySettings = useLedgerlyStore(s => s.securitySettings);
-  const userName = useLedgerlyStore(s => s.userName);
   const [locked, setLocked] = useState(() => securitySettings.pinEnabled && Boolean(securitySettings.pinHash));
   const [licenseActive, setLicenseActive] = useState(() =>
     !IS_CUSTOMER_BUDGET_BUILD ||

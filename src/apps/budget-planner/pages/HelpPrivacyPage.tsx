@@ -65,7 +65,6 @@ const ARTICLE_ICON_COLORS = [
   { bg: 'rgba(196,138,138,.15)', color: '#a05050' },
   { bg: 'rgba(196,163,90,.15)', color: '#8a6020' },
 ];
-const QL_TINTS = ['ldg-stat-blush', 'ldg-stat-cream', 'ldg-stat-white'];
 const QL_ICON_COLORS = [
   { bg: 'rgba(122,158,126,.12)', color: '#4a7060' },
   { bg: 'rgba(196,138,138,.12)', color: '#a05050' },

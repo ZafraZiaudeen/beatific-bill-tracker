@@ -181,7 +181,6 @@ export function DashboardPage() {
 
   const sortedBills = billOccurrences.filter(occ => occ.status !== 'paid').slice(0, 5);
   const goalBills   = billOccurrences.slice(0, 4);
-  const billDays = new Set(billOccurrences.map(occ => occ.dueDay));
   const spentByCategory = new Map<string, number>();
   transactions
     .filter(transaction => transaction.date.startsWith(currentMonth) && transaction.amount < 0)

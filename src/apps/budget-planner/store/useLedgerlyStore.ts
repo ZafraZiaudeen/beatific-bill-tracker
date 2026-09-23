@@ -394,7 +394,7 @@ function load(): typeof DEFAULTS {
       budgetSettings: { ...DEFAULT_BUDGET_SETTINGS, ...(s.budgetSettings ?? {}) },
       budgetConfigured: s.budgetConfigured ?? false,
     };
-    if (!s.categories || s.categories.length === 0 || s.budgetMethod === 'payself' || s.bills || s.accounts || s.goals || s.debts || s.debtPlan) save(next);
+    if (!s.categories || s.categories.length === 0 || (s.budgetMethod as string) === 'payself' || s.bills || s.accounts || s.goals || s.debts || s.debtPlan) save(next);
     return next;
   } catch {
     return { ...DEFAULTS };

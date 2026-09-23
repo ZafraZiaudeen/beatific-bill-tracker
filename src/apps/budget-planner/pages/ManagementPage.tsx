@@ -23,6 +23,7 @@ interface LicenseRecord {
   code: string;
   hash: string;
   date: string;
+  lockedViews?: LedgerlyView[];
 }
 
 function loadRegistry(): LicenseRecord[] {
@@ -98,7 +99,7 @@ export function ManagementPage() {
         date: new Date().toISOString(),
       };
       downloadHtml(html, filenameFor(record.customer));
-      const next = [record, ...loadRegistry()];
+      const next = [{ ...record, lockedViews }, ...loadRegistry()];
       saveRegistry(next);
       setRecords(next);
       setCustomer('');
@@ -113,7 +114,7 @@ export function ManagementPage() {
 
   const handleRedownload = async (record: LicenseRecord) => {
     try {
-      downloadHtml(await buildBudgetPlannerHtml(record.hash), filenameFor(record.customer));
+      downloadHtml(await buildBudgetPlannerHtml(record.hash, record.lockedViews ?? []), filenameFor(record.customer));
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Failed to re-download HTML.');
     }

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import {
-  BookOpen, Cloud, Shield, Lock, Download, Upload, FileText, Copy, Monitor,
+  BookOpen, Cloud, Shield, Lock, Download, Upload, FileText, Monitor,
 } from "lucide-react";
 
 const C = {
@@ -142,7 +142,6 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
   const [lastBackup, setLastBackup] = useState<string | null>(() => localStorage.getItem("bt_last_backup"));
   const [importStatus, setImportStatus] = useState<string>("");
   const [dragOver, setDragOver] = useState(false);
-  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUserNameChange = (v: string) => {
@@ -210,10 +209,6 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
     if (!/^\d{4}$/.test(newPin)) { window.alert("PIN must be exactly 4 digits."); return; }
     saveSettings({ pin: newPin });
     window.alert("PIN saved.");
-  };
-
-  const handleCopyCode = () => {
-    try { navigator.clipboard.writeText(transferCode); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
   };
 
   const handleClearAll = () => {

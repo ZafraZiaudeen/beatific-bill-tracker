@@ -22,8 +22,6 @@ export default function UnlockModal({ onActivate, onClose }: Props) {
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
 
-  const isDevMode = !window.__BTK_LICENSE_HASH__;
-
   const handleUnlock = async () => {
     const trimmed = code.trim();
     if (!trimmed) { setError("Please enter a license code."); return; }
