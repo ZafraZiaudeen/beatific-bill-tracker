@@ -352,6 +352,7 @@ const CC_CSS = `
 
 const NAV_ITEMS: { id: ContentCalendarView; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'calendar', label: 'Calendar' },
   { id: 'campaigns', label: 'Campaigns' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'ideas', label: 'Ideas' },
