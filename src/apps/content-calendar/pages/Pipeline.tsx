@@ -7,10 +7,6 @@ import {
 } from 'lucide-react';
 import { useContentCalendarStore } from '../store';
 import type { PipelineItem, PipelineStage, Platform, PostType } from '../types';
-import referenceImage from '../../../assets/content-calendar/pipeline-reference.png';
-import ideasReferenceImage from '../../../assets/content-calendar/ideas-reference.png';
-import mediaReferenceImage from '../../../assets/content-calendar/media-library-reference.png';
-import composerReferenceImage from '../../../assets/content-calendar/composer-reference.png';
 
 const STAGES: { id: PipelineStage; label: string; progress: string; color: string; bg: string; icon: typeof Lightbulb }[] = [
   { id: 'ideas', label: 'Ideas', progress: 'Ideas', color: '#e5a31f', bg: '#f8efe1', icon: Lightbulb },
@@ -51,7 +47,7 @@ const PIPELINE_CSS = `
 .cc-pipeline-column-head{height:39px;display:flex;align-items:flex-start;gap:9px;padding:2px 3px 0}.cc-pipeline-column-head h2{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:15.5px;margin:1px 0 0;white-space:nowrap}.cc-pipeline-column-icon{margin-top:0}.cc-pipeline-count{margin-left:auto;margin-top:2px;width:17px;height:17px;display:grid;place-items:center;border-radius:50%;background:rgba(39,56,58,.14);font-size:9px;color:#536363}
 .cc-pipeline-title-line{width:43px;height:2px;border-radius:50%;margin-top:5px;transform:rotate(-5deg)}.cc-pipeline-stack{display:flex;flex-direction:column;gap:1px}.cc-pipeline-empty{text-align:center;color:#927f75;font-size:11px;padding:36px 8px}
 .cc-pipeline-card{display:flex;gap:9px;min-height:96px;padding:10px 9px;background:rgba(255,255,255,.84);border:1px solid rgba(230,224,215,.72);border-radius:6px;cursor:grab;transition:opacity .15s,box-shadow .15s,transform .15s;outline:none}.cc-pipeline-card:hover,.cc-pipeline-card:focus-visible{box-shadow:0 5px 15px rgba(67,54,45,.09);transform:translateY(-1px)}.cc-pipeline-card.is-dragging{opacity:.35}
-.cc-pipeline-thumb{width:53px;height:53px;flex:0 0 53px;border-radius:6px;background-repeat:no-repeat;background-size:1280px 720px;background-color:#ddd1c3}.cc-pipeline-card-body{flex:1;min-width:0;display:flex;flex-direction:column}.cc-pipeline-card-top{display:flex;align-items:flex-start;gap:4px}.cc-pipeline-card-title{font-size:10.5px;line-height:1.25;font-weight:650;min-height:26px;flex:1;color:#17262c}.cc-pipeline-more{padding:0;color:#26363b}
+.cc-pipeline-thumb{width:53px;height:53px;flex:0 0 53px;border:1px solid rgba(121,105,91,.16);border-radius:6px;background-color:#e8dfd4;background-image:linear-gradient(135deg,rgba(255,255,255,.55) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.55) 75%,transparent 75%);background-size:12px 12px}.cc-pipeline-thumb-ideas{background-color:#f1e4d3}.cc-pipeline-thumb-media{background-color:#dfe8e6}.cc-pipeline-thumb-composer{background-color:#eadfe5}.cc-pipeline-card-body{flex:1;min-width:0;display:flex;flex-direction:column}.cc-pipeline-card-top{display:flex;align-items:flex-start;gap:4px}.cc-pipeline-card-title{font-size:10.5px;line-height:1.25;font-weight:650;min-height:26px;flex:1;color:#17262c}.cc-pipeline-more{padding:0;color:#26363b}
 .cc-pipeline-card-meta{display:flex;align-items:center;gap:7px;height:22px}.cc-pipeline-socials{display:flex;align-items:center;gap:6px}.cc-social{display:inline-flex;align-items:center;justify-content:center}.cc-social.instagram{color:#ef442f}.cc-social.tiktok{color:#17262c}.cc-social.youtube{color:#d6312f}.cc-social.pinterest{color:#d83839;font-weight:800;font-family:Georgia,serif;font-size:13px}
 .cc-type-pill{padding:2px 11px;border-radius:99px;font-size:8.5px;line-height:14px;white-space:nowrap}.cc-type-Reel{background:#fce7dc;color:#e06d45}.cc-type-Carousel{background:#f2e4e8;color:#9e5872}.cc-type-Story{background:#e5eff5;color:#56819a}.cc-type-Static{background:#ececed;color:#666b70}.cc-type-Lifestyle{background:#f8e9e8;color:#c06773}
 .cc-pipeline-card-date{display:flex;align-items:center;gap:5px;font-size:9px;color:#3e4b4e;margin-top:0}.cc-pipeline-progress{margin-top:auto;display:flex;align-items:center;gap:5px;font-size:7.8px;color:#71807f;white-space:nowrap}.cc-progress-label{max-width:54px;overflow:hidden;text-overflow:ellipsis}.cc-progress-dot{width:9px;height:9px;border:1px solid #b9c7c5;border-radius:50%;display:grid;place-items:center}.cc-progress-dot.done{border-color:#69a69b;background:#69a69b;color:white}.cc-progress-count{color:#a9afb1;margin-left:1px}
@@ -68,8 +64,8 @@ function PlatformIcon({ platform, size = 12 }: { platform: Platform; size?: numb
 }
 
 function Thumbnail({ item, className = 'cc-pipeline-thumb' }: { item: PipelineItem; className?: string }) {
-  const image = item.thumbnail.source === 'ideas' ? ideasReferenceImage : item.thumbnail.source === 'media' ? mediaReferenceImage : item.thumbnail.source === 'composer' ? composerReferenceImage : referenceImage;
-  return <div className={className} aria-hidden="true" style={{ backgroundImage: `url(${image})`, backgroundPosition: `-${item.thumbnail.x}px -${item.thumbnail.y}px` }} />;
+  const source = item.thumbnail.source ?? 'pipeline';
+  return <div className={`${className} cc-pipeline-thumb-${source}`} aria-hidden="true" />;
 }
 
 function formatDate(value: string) {

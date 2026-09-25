@@ -5,6 +5,11 @@ import Pipeline from './pages/Pipeline';
 import Ideas from './pages/Ideas';
 import MediaLibrary from './pages/MediaLibrary';
 import Composer from './pages/Composer';
+import Templates from './pages/Templates';
+import Campaigns from './pages/Campaigns';
+import Hashtags from './pages/Hashtags';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 
 import type { ContentCalendarView } from './types';
 import underlineImg from '../../assets/budget-assets/stationery-accents/stationery-accents-02.png';
@@ -347,10 +352,12 @@ const CC_CSS = `
 
 const NAV_ITEMS: { id: ContentCalendarView; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'calendar', label: 'Calendar' },
+  { id: 'campaigns', label: 'Campaigns' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'ideas', label: 'Ideas' },
   { id: 'hashtags', label: 'Hashtags' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'templates', label: 'Templates' },
   { id: 'media', label: 'Media Library' },
   { id: 'composer', label: 'Post Composer' },
   { id: 'settings', label: 'Settings' },
@@ -491,6 +498,8 @@ export default function ContentCalendarApp() {
           <div className="cc-content">
             {activeView === 'dashboard' ? (
               <Dashboard />
+            ) : activeView === 'campaigns' ? (
+              <Campaigns />
             ) : activeView === 'calendar' ? (
               <Calendar />
             ) : activeView === 'pipeline' ? (
@@ -499,8 +508,16 @@ export default function ContentCalendarApp() {
               <Ideas />
             ) : activeView === 'media' ? (
               <MediaLibrary />
+            ) : activeView === 'hashtags' ? (
+              <Hashtags />
+            ) : activeView === 'analytics' ? (
+              <Analytics />
+            ) : activeView === 'templates' ? (
+              <Templates />
             ) : activeView === 'composer' ? (
               <Composer />
+            ) : activeView === 'settings' ? (
+              <Settings />
             ) : (
               <PlaceholderView view={activeView} />
             )}

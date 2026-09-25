@@ -1,14 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react"
+import type { ChangeEvent, DragEvent } from "react"
 import {
-  CalendarDays, ChevronDown, Eye, Folder, Image as ImageIcon, Lightbulb,
-  MapPin, Plus, Search, Tag, Upload, X,
-} from 'lucide-react';
-import { useContentCalendarStore } from '../store';
-import type { MediaFolder, MediaItem, PipelineItem } from '../types';
-import { loadMedia, MEDIA_SEED, saveMedia, storeUpload } from '../mediaStorage';
-import type { StoredMediaItem } from '../mediaStorage';
-import mediaReference from '../../../assets/content-calendar/media-library-reference.png';
+  CalendarDays,
+  ChevronDown,
+  Eye,
+  Folder,
+  Image as ImageIcon,
+  Lightbulb,
+  MapPin,
+  Plus,
+  Search,
+  Tag,
+  Upload,
+  X,
+} from "lucide-react"
+import { useContentCalendarStore } from "../store"
+import type { MediaFolder, MediaItem, PipelineItem } from "../types"
+import { loadMedia, MEDIA_SEED, saveMedia, storeUpload } from "../mediaStorage"
+import type { StoredMediaItem } from "../mediaStorage"
+import placeholderMedia from "../../../assets/content-calendar/placeholder-media.svg"
 
 const MEDIA_CSS = `
 .cc-media{min-width:1035px;background:#faf7f2;color:#263338;min-height:100%;padding:16px 18px 24px}.cc-media-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}.cc-media-title{font:400 29px/.98 'DM Serif Display',Georgia,serif;margin:0}.cc-media-title-row{display:flex;align-items:flex-end;gap:10px}.cc-media-star{color:#e7ae42;transform:rotate(-8deg)}.cc-media-line{width:101px;border-top:3px solid #d97855;border-radius:50%;margin-top:10px;transform:rotate(-3deg)}.cc-media-meta{display:flex;align-items:center;gap:20px;font-size:12px;font-weight:650}.cc-media-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px}
@@ -17,40 +27,468 @@ const MEDIA_CSS = `
 .cc-media-detail{width:365px;flex:0 0 365px;border-radius:8px;background:#edf4f6;padding:16px;min-height:442px}.cc-detail-top{display:flex;justify-content:space-between;align-items:flex-start}.cc-detail-preview{width:154px;height:101px;border-radius:6px;background-repeat:no-repeat;background-size:cover}.cc-detail-preview.reference{background-size:1280px 720px}.cc-detail-close{color:#6f7a7e}.cc-detail-badge{margin-left:auto;margin-right:12px;background:#fae7c5;border-radius:99px;padding:4px 10px;font-size:8px;display:flex;align-items:center;gap:5px}.cc-detail-name{font:400 15px 'DM Serif Display',Georgia,serif;margin:10px 0 3px}.cc-detail-meta{font-size:9px;color:#838c8f}.cc-detail-section{border-top:1px solid #dce5e7;margin-top:12px;padding-top:10px}.cc-detail-heading{display:flex;align-items:center;gap:8px;font-size:10px;margin-bottom:8px}.cc-detail-tags{display:flex;flex-wrap:wrap;gap:6px}.cc-detail-tag{padding:4px 12px;border-radius:99px;background:#f6dfdf;color:#9c5365;font-size:8px}.cc-detail-tag:nth-child(2n){background:#e4edf3;color:#52758a}.cc-detail-tag:nth-child(3n){background:#f9e8c9;color:#876b38}.cc-add-tag{font-size:8px;color:#8a9193}.cc-tag-input{width:90px;border:1px solid #d3dfe1;border-radius:99px;padding:4px 8px;font-size:8px;outline:0}.cc-used-count{background:#f0dede;border-radius:99px;padding:2px 8px;color:#9b6464}.cc-used-list{background:rgba(255,255,255,.56);border-radius:6px;padding:2px 10px}.cc-used-row{height:25px;display:flex;align-items:center;gap:8px;color:#7d878a;font-size:8.5px}.cc-used-row span{flex:1}.cc-add-post{width:100%;height:37px;margin-top:14px;border-radius:7px;background:linear-gradient(90deg,#d66b48,#d77855);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;gap:8px}.cc-device-note{border-top:1px solid #dce5e7;margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;color:#7e888b;font-size:8px}.cc-local-script{font:600 13px 'Caveat',cursive;color:#dc7656;transform:rotate(-3deg)}
 .cc-media-overlay{position:fixed;inset:0;background:rgba(29,34,35,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-media-modal{width:min(440px,100%);max-height:85vh;overflow:auto;background:#fffaf6;border:1px solid #e6dbd2;border-radius:14px;padding:21px}.cc-media-modal h2{font:400 23px 'DM Serif Display',Georgia,serif;margin:0 0 13px}.cc-post-choice{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee5de;text-align:left;font-size:10px}.cc-post-choice small{color:#899092}.cc-media-modal-actions{display:flex;justify-content:flex-end;margin-top:14px}.cc-media-modal-actions button{padding:8px 13px;border:1px solid #ddd3cb;border-radius:8px;background:white;font-size:10px}
 @media(max-width:1120px){.cc-media{min-width:1020px}.cc-media-detail{width:330px;flex-basis:330px}.cc-media-grid{gap:7px}}
-`;
+`
 
-const FOLDER_CARDS: { id: 'all' | MediaFolder; label: string; base: number }[] = [
-  { id:'all',label:'All media',base:248},{id:'brand',label:'Brand',base:72},{id:'campaigns',label:'Campaigns',base:46},{id:'reels',label:'Reels',base:58},{id:'carousels',label:'Carousels',base:32},
-];
+const FOLDER_CARDS: { id: "all" | MediaFolder; label: string; base: number }[] =
+  [
+    { id: "all", label: "All media", base: 248 },
+    { id: "brand", label: "Brand", base: 72 },
+    { id: "campaigns", label: "Campaigns", base: 46 },
+    { id: "reels", label: "Reels", base: 58 },
+    { id: "carousels", label: "Carousels", base: 32 },
+  ]
 
-function bytes(value: number) { return value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)} MB` : `${Math.round(value / 1000)} KB`; }
-function thumbStyle(item: StoredMediaItem, urls: Record<string,string>) {
-  if (item.source.kind === 'reference') return { backgroundImage:`url(${mediaReference})`, backgroundPosition:`-${item.source.crop.x}px -${item.source.crop.y}px` };
-  return { backgroundImage:`url(${urls[item.id] ?? ''})` };
+function bytes(value: number) {
+  return value >= 1_000_000
+    ? `${(value / 1_000_000).toFixed(1)} MB`
+    : `${Math.round(value / 1000)} KB`
 }
-function FilterSelect({ label, value, onChange, children }: { label:string; value:string; onChange:(value:string)=>void; children:React.ReactNode }) {
-  return <div className="cc-media-select-wrap"><select className="cc-media-select" aria-label={label} value={value} onChange={event => onChange(event.target.value)}>{children}</select><ChevronDown size={11} /></div>;
+function thumbStyle(item: StoredMediaItem, urls: Record<string, string>) {
+  if (item.source.kind === "reference")
+    return {
+      backgroundImage: `url(${placeholderMedia})`,
+      backgroundPosition: `-${item.source.crop.x}px -${item.source.crop.y}px`,
+    }
+  return { backgroundImage: `url(${urls[item.id] ?? ""})` }
+}
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="cc-media-select-wrap">
+      <select
+        className="cc-media-select"
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+      <ChevronDown size={11} />
+    </div>
+  )
 }
 
-function PostPicker({ item, posts, assign, close }: { item:StoredMediaItem; posts:PipelineItem[]; assign:(post:PipelineItem)=>void; close:()=>void }) {
-  return <div className="cc-media-overlay" onMouseDown={event => event.target === event.currentTarget && close()}><div className="cc-media-modal" role="dialog" aria-modal="true"><h2>Add media to a post</h2>{posts.filter(post => post.stage !== 'published').map(post => <button key={post.id} className="cc-post-choice" disabled={item.usedInIds.includes(post.id)} onClick={() => assign(post)}><span>{post.title}</span><small>{item.usedInIds.includes(post.id) ? 'Already added' : post.stage}</small></button>)}<div className="cc-media-modal-actions"><button onClick={close}>Cancel</button></div></div></div>;
+function PostPicker({
+  item,
+  posts,
+  assign,
+  close,
+}: {
+  item: StoredMediaItem
+  posts: PipelineItem[]
+  assign: (post: PipelineItem) => void
+  close: () => void
+}) {
+  return (
+    <div
+      className="cc-media-overlay"
+      onMouseDown={(event) => event.target === event.currentTarget && close()}
+    >
+      <div className="cc-media-modal" role="dialog" aria-modal="true">
+        <h2>Add media to a post</h2>
+        {posts
+          .filter((post) => post.stage !== "published")
+          .map((post) => (
+            <button
+              key={post.id}
+              className="cc-post-choice"
+              disabled={item.usedInIds.includes(post.id)}
+              onClick={() => assign(post)}
+            >
+              <span>{post.title}</span>
+              <small>
+                {item.usedInIds.includes(post.id)
+                  ? "Already added"
+                  : post.stage}
+              </small>
+            </button>
+          ))}
+        <div className="cc-media-modal-actions">
+          <button onClick={close}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function MediaLibrary() {
-  const { pipelineItems, updatePipelineItem } = useContentCalendarStore();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const objectUrlsRef = useRef<string[]>([]);
-  const [items,setItems] = useState<StoredMediaItem[]>([]); const [urls,setUrls] = useState<Record<string,string>>({}); const [selectedId,setSelectedId] = useState('seed-media-1');
-  const [folder,setFolder] = useState<'all'|MediaFolder>('all'); const [search,setSearch] = useState(''); const [type,setType] = useState('all'); const [date,setDate] = useState('all'); const [tag,setTag] = useState('all'); const [over,setOver] = useState(false); const [error,setError] = useState(''); const [newTag,setNewTag] = useState(''); const [showPicker,setShowPicker] = useState(false);
-  useEffect(() => { let active=true; loadMedia(MEDIA_SEED).then(records => { if(!active)return; const nextUrls:Record<string,string>={}; for(const record of records){if(record.blob){const url=URL.createObjectURL(record.blob);nextUrls[record.id]=url;objectUrlsRef.current.push(url);}} setItems(records);setUrls(nextUrls);}).catch(reason => setError(reason instanceof Error?reason.message:'Could not load local media.')); return()=>{active=false;for(const url of objectUrlsRef.current)URL.revokeObjectURL(url);objectUrlsRef.current=[];}; },[]);
-  const selected=selectedId ? items.find(item=>item.id===selectedId) : undefined; const tags=useMemo(()=>Array.from(new Set(items.flatMap(item=>item.tags))).sort(),[items]);
-  const shown=useMemo(()=>items.filter(item=>{const hay=`${item.filename} ${item.description} ${item.tags.join(' ')}`.toLowerCase(); const mediaType=type==='all'||(type==='images'&&item.mimeType.startsWith('image/')); const dateOk=date==='all'||(date==='week'&&item.createdAt>='2025-04-21')||(date==='month'&&item.createdAt.startsWith('2025-04')); return (folder==='all'||item.folder===folder)&&(!search||hay.includes(search.toLowerCase()))&&mediaType&&dateOk&&(tag==='all'||item.tags.includes(tag));}),[items,folder,search,type,date,tag]);
-  async function uploadFiles(fileList:FileList|File[]){setError('');const files=Array.from(fileList);try{const added:StoredMediaItem[]=[];const addedUrls:Record<string,string>={};for(const file of files){const item=await storeUpload(file,folder==='all'?'brand':folder);added.push(item);if(item.blob){const url=URL.createObjectURL(item.blob);addedUrls[item.id]=url;objectUrlsRef.current.push(url);}}setItems(current=>[...added,...current]);setUrls(current=>({...current,...addedUrls}));if(added[0])setSelectedId(added[0].id);}catch(reason){setError(reason instanceof Error?reason.message:'Upload failed.');}}
-  function filesChanged(event:ChangeEvent<HTMLInputElement>){if(event.target.files?.length)void uploadFiles(event.target.files);event.target.value='';}
-  function dropped(event:DragEvent){event.preventDefault();setOver(false);if(event.dataTransfer.files.length)void uploadFiles(event.dataTransfer.files);}
-  async function patchSelected(updates:Partial<MediaItem>){if(!selected)return;const next={...selected,...updates};setItems(current=>current.map(item=>item.id===selected.id?next:item));await saveMedia(next);}
-  async function addTag(){const value=newTag.trim().toLowerCase();if(!selected||!value||selected.tags.includes(value))return;await patchSelected({tags:[...selected.tags,value]});setNewTag('');}
-  async function assign(post:PipelineItem){if(!selected)return;await patchSelected({usedInIds:[...selected.usedInIds,post.id]});updatePipelineItem(post.id,{mediaIds:Array.from(new Set([...(post.mediaIds??[]),selected.id]))});setShowPicker(false);}
-  const uploadCount=items.filter(item=>item.source.kind==='upload').length;
-  return <div className="cc-media"><style>{MEDIA_CSS}</style><header className="cc-media-head"><div><div className="cc-media-title-row"><h1 className="cc-media-title">Everything you may<br/>want to publish.</h1><span className="cc-media-star">☆</span></div><div className="cc-media-line"/></div><div className="cc-media-meta"><span>Apr 21 – Apr 27, 2025 &nbsp; <CalendarDays size={13} style={{display:'inline'}}/></span><span className="cc-media-local"><MapPin size={11} fill="currentColor"/>Local only</span></div></header><div className="cc-folders">{FOLDER_CARDS.map(card=>{const extra=card.id==='all'?uploadCount:items.filter(item=>item.source.kind==='upload'&&item.folder===card.id).length;return <button key={card.id} className={`cc-folder${folder===card.id?' active':''}`} onClick={()=>setFolder(card.id)}><Folder size={23}/><span><strong>{card.label}</strong><em>{card.base+extra}</em></span></button>;})}</div><div className="cc-media-toolbar"><label className="cc-media-search"><Search size={13}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search media by filename, tag or description..."/></label><FilterSelect label="Media type" value={type} onChange={setType}><option value="all">All media types</option><option value="images">Images</option></FilterSelect><FilterSelect label="Date" value={date} onChange={setDate}><option value="all">All dates</option><option value="week">This week</option><option value="month">This month</option></FilterSelect><FilterSelect label="Tag" value={tag} onChange={setTag}><option value="all">All tags</option>{tags.map(item=><option key={item}>{item}</option>)}</FilterSelect><button className="cc-upload-button" onClick={()=>inputRef.current?.click()}><Upload size={13}/>Upload media⌄</button><input ref={inputRef} hidden multiple type="file" accept="image/*" onChange={filesChanged}/></div><div className="cc-media-body"><main className="cc-media-left"><div className={`cc-dropzone${over?' over':''}`} onDragOver={event=>{event.preventDefault();setOver(true);}} onDragLeave={()=>setOver(false)} onDrop={dropped} onClick={()=>inputRef.current?.click()}><div className="cc-drop-center"><Upload size={24} color="#c55b39" style={{margin:'auto'}}/><strong>Drag and drop files here</strong><small>or click to upload from your device</small></div><span className="cc-drop-local"><MapPin size={9} fill="currentColor"/>Local only</span></div>{error&&<div className="cc-upload-error">{error}</div>}<div className="cc-media-grid">{shown.map(item=><button key={item.id} className={`cc-media-tile${selected?.id===item.id?' selected':''}`} onClick={()=>setSelectedId(item.id)}><span className={`cc-media-image${item.source.kind==='reference'?' reference':''}`} style={thumbStyle(item,urls)}/><span className="cc-media-check">{selected?.id===item.id?'✓':''}</span></button>)}</div></main>{selected&&<aside className="cc-media-detail"><div className="cc-detail-top"><div className={`cc-detail-preview${selected.source.kind==='reference'?' reference':''}`} style={thumbStyle(selected,urls)}/><span className="cc-detail-badge"><MapPin size={9} fill="currentColor"/>Local only</span><button className="cc-detail-close" onClick={()=>setSelectedId('')}><X size={14}/></button></div><h2 className="cc-detail-name">{selected.filename}</h2><div className="cc-detail-meta">{selected.extension} &nbsp;·&nbsp; {selected.width} × {selected.height} &nbsp;·&nbsp; {bytes(selected.size)}</div><section className="cc-detail-section"><div className="cc-detail-heading"><Tag size={13}/>Tags</div><div className="cc-detail-tags">{selected.tags.map(item=><button key={item} className="cc-detail-tag" title="Remove tag" onClick={()=>void patchSelected({tags:selected.tags.filter(value=>value!==item)})}>{item}</button>)}<input className="cc-tag-input" value={newTag} onChange={event=>setNewTag(event.target.value)} onKeyDown={event=>{if(event.key==='Enter')void addTag();}} placeholder="+ Add tag"/></div></section><section className="cc-detail-section"><div className="cc-detail-heading"><Eye size={13}/>Used in <span className="cc-used-count">{selected.usedInIds.length} posts</span></div><div className="cc-used-list">{selected.usedInIds.length?selected.usedInIds.map(id=>{const post=pipelineItems.find(item=>item.id===id);return <div className="cc-used-row" key={id}><CalendarDays size={11}/><span>{post?.title??'Archived post'}</span><b>›</b></div>}):<div className="cc-used-row"><ImageIcon size={11}/><span>Not used in a post yet</span></div>}</div></section><button className="cc-add-post" onClick={()=>setShowPicker(true)}><Plus size={14}/>Add to post</button><div className="cc-device-note"><span><Lightbulb size={11} style={{display:'inline'}}/> Stored on this device</span><span className="cc-local-script">Local only</span></div></aside>}</div>{showPicker&&selected&&<PostPicker item={selected} posts={pipelineItems} assign={post=>void assign(post)} close={()=>setShowPicker(false)}/>}</div>;
+  const { pipelineItems, updatePipelineItem } = useContentCalendarStore()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const objectUrlsRef = useRef<string[]>([])
+  const [items, setItems] = useState<StoredMediaItem[]>([])
+  const [urls, setUrls] = useState<Record<string, string>>({})
+  const [selectedId, setSelectedId] = useState("seed-media-1")
+  const [folder, setFolder] = useState<"all" | MediaFolder>("all")
+  const [search, setSearch] = useState("")
+  const [type, setType] = useState("all")
+  const [date, setDate] = useState("all")
+  const [tag, setTag] = useState("all")
+  const [over, setOver] = useState(false)
+  const [error, setError] = useState("")
+  const [newTag, setNewTag] = useState("")
+  const [showPicker, setShowPicker] = useState(false)
+  useEffect(() => {
+    let active = true
+    loadMedia(MEDIA_SEED)
+      .then((records) => {
+        if (!active) return
+        const nextUrls: Record<string, string> = {}
+        for (const record of records) {
+          if (record.blob) {
+            const url = URL.createObjectURL(record.blob)
+            nextUrls[record.id] = url
+            objectUrlsRef.current.push(url)
+          }
+        }
+        setItems(records)
+        setUrls(nextUrls)
+      })
+      .catch((reason) =>
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Could not load local media."
+        )
+      )
+    return () => {
+      active = false
+      for (const url of objectUrlsRef.current) URL.revokeObjectURL(url)
+      objectUrlsRef.current = []
+    }
+  }, [])
+  const selected = selectedId
+    ? items.find((item) => item.id === selectedId)
+    : undefined
+  const tags = useMemo(
+    () => Array.from(new Set(items.flatMap((item) => item.tags))).sort(),
+    [items]
+  )
+  const shown = useMemo(
+    () =>
+      items.filter((item) => {
+        const hay =
+          `${item.filename} ${item.description} ${item.tags.join(" ")}`.toLowerCase()
+        const mediaType =
+          type === "all" ||
+          (type === "images" && item.mimeType.startsWith("image/"))
+        const dateOk =
+          date === "all" ||
+          (date === "week" && item.createdAt >= "2025-04-21") ||
+          (date === "month" && item.createdAt.startsWith("2025-04"))
+        return (
+          (folder === "all" || item.folder === folder) &&
+          (!search || hay.includes(search.toLowerCase())) &&
+          mediaType &&
+          dateOk &&
+          (tag === "all" || item.tags.includes(tag))
+        )
+      }),
+    [items, folder, search, type, date, tag]
+  )
+  async function uploadFiles(fileList: FileList | File[]) {
+    setError("")
+    const files = Array.from(fileList)
+    try {
+      const added: StoredMediaItem[] = []
+      const addedUrls: Record<string, string> = {}
+      for (const file of files) {
+        const item = await storeUpload(
+          file,
+          folder === "all" ? "brand" : folder
+        )
+        added.push(item)
+        if (item.blob) {
+          const url = URL.createObjectURL(item.blob)
+          addedUrls[item.id] = url
+          objectUrlsRef.current.push(url)
+        }
+      }
+      setItems((current) => [...added, ...current])
+      setUrls((current) => ({ ...current, ...addedUrls }))
+      if (added[0]) setSelectedId(added[0].id)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Upload failed.")
+    }
+  }
+  function filesChanged(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.files?.length) void uploadFiles(event.target.files)
+    event.target.value = ""
+  }
+  function dropped(event: DragEvent) {
+    event.preventDefault()
+    setOver(false)
+    if (event.dataTransfer.files.length)
+      void uploadFiles(event.dataTransfer.files)
+  }
+  async function patchSelected(updates: Partial<MediaItem>) {
+    if (!selected) return
+    const next = { ...selected, ...updates }
+    setItems((current) =>
+      current.map((item) => (item.id === selected.id ? next : item))
+    )
+    await saveMedia(next)
+  }
+  async function addTag() {
+    const value = newTag.trim().toLowerCase()
+    if (!selected || !value || selected.tags.includes(value)) return
+    await patchSelected({ tags: [...selected.tags, value] })
+    setNewTag("")
+  }
+  async function assign(post: PipelineItem) {
+    if (!selected) return
+    await patchSelected({ usedInIds: [...selected.usedInIds, post.id] })
+    updatePipelineItem(post.id, {
+      mediaIds: Array.from(new Set([...(post.mediaIds ?? []), selected.id])),
+    })
+    setShowPicker(false)
+  }
+  const uploadCount = items.filter(
+    (item) => item.source.kind === "upload"
+  ).length
+  return (
+    <div className="cc-media">
+      <style>{MEDIA_CSS}</style>
+      <header className="cc-media-head">
+        <div>
+          <div className="cc-media-title-row">
+            <h1 className="cc-media-title">
+              Everything you may
+              <br />
+              want to publish.
+            </h1>
+            <span className="cc-media-star">☆</span>
+          </div>
+          <div className="cc-media-line" />
+        </div>
+        <div className="cc-media-meta">
+          <span>
+            Apr 21 – Apr 27, 2025 &nbsp;{" "}
+            <CalendarDays size={13} style={{ display: "inline" }} />
+          </span>
+          <span className="cc-media-local">
+            <MapPin size={11} fill="currentColor" />
+            Local only
+          </span>
+        </div>
+      </header>
+      <div className="cc-folders">
+        {FOLDER_CARDS.map((card) => {
+          const extra =
+            card.id === "all"
+              ? uploadCount
+              : items.filter(
+                  (item) =>
+                    item.source.kind === "upload" && item.folder === card.id
+                ).length
+          return (
+            <button
+              key={card.id}
+              className={`cc-folder${folder === card.id ? "active" : ""}`}
+              onClick={() => setFolder(card.id)}
+            >
+              <Folder size={23} />
+              <span>
+                <strong>{card.label}</strong>
+                <em>{card.base + extra}</em>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="cc-media-toolbar">
+        <label className="cc-media-search">
+          <Search size={13} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search media by filename, tag or description..."
+          />
+        </label>
+        <FilterSelect label="Media type" value={type} onChange={setType}>
+          <option value="all">All media types</option>
+          <option value="images">Images</option>
+        </FilterSelect>
+        <FilterSelect label="Date" value={date} onChange={setDate}>
+          <option value="all">All dates</option>
+          <option value="week">This week</option>
+          <option value="month">This month</option>
+        </FilterSelect>
+        <FilterSelect label="Tag" value={tag} onChange={setTag}>
+          <option value="all">All tags</option>
+          {tags.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </FilterSelect>
+        <button
+          className="cc-upload-button"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload size={13} />
+          Upload media⌄
+        </button>
+        <input
+          ref={inputRef}
+          hidden
+          multiple
+          type="file"
+          accept="image/*"
+          onChange={filesChanged}
+        />
+      </div>
+      <div className="cc-media-body">
+        <main className="cc-media-left">
+          <div
+            className={`cc-dropzone${over ? "over" : ""}`}
+            onDragOver={(event) => {
+              event.preventDefault()
+              setOver(true)
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={dropped}
+            onClick={() => inputRef.current?.click()}
+          >
+            <div className="cc-drop-center">
+              <Upload size={24} color="#c55b39" style={{ margin: "auto" }} />
+              <strong>Drag and drop files here</strong>
+              <small>or click to upload from your device</small>
+            </div>
+            <span className="cc-drop-local">
+              <MapPin size={9} fill="currentColor" />
+              Local only
+            </span>
+          </div>
+          {error && <div className="cc-upload-error">{error}</div>}
+          <div className="cc-media-grid">
+            {shown.map((item) => (
+              <button
+                key={item.id}
+                className={`cc-media-tile${selected?.id === item.id ? "selected" : ""}`}
+                onClick={() => setSelectedId(item.id)}
+              >
+                <span
+                  className={`cc-media-image${item.source.kind === "reference" ? "reference" : ""}`}
+                  style={thumbStyle(item, urls)}
+                />
+                <span className="cc-media-check">
+                  {selected?.id === item.id ? "✓" : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        </main>
+        {selected && (
+          <aside className="cc-media-detail">
+            <div className="cc-detail-top">
+              <div
+                className={`cc-detail-preview${selected.source.kind === "reference" ? "reference" : ""}`}
+                style={thumbStyle(selected, urls)}
+              />
+              <span className="cc-detail-badge">
+                <MapPin size={9} fill="currentColor" />
+                Local only
+              </span>
+              <button
+                className="cc-detail-close"
+                onClick={() => setSelectedId("")}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <h2 className="cc-detail-name">{selected.filename}</h2>
+            <div className="cc-detail-meta">
+              {selected.extension} &nbsp;·&nbsp; {selected.width} ×{" "}
+              {selected.height} &nbsp;·&nbsp; {bytes(selected.size)}
+            </div>
+            <section className="cc-detail-section">
+              <div className="cc-detail-heading">
+                <Tag size={13} />
+                Tags
+              </div>
+              <div className="cc-detail-tags">
+                {selected.tags.map((item) => (
+                  <button
+                    key={item}
+                    className="cc-detail-tag"
+                    title="Remove tag"
+                    onClick={() =>
+                      void patchSelected({
+                        tags: selected.tags.filter((value) => value !== item),
+                      })
+                    }
+                  >
+                    {item}
+                  </button>
+                ))}
+                <input
+                  className="cc-tag-input"
+                  value={newTag}
+                  onChange={(event) => setNewTag(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void addTag()
+                  }}
+                  placeholder="+ Add tag"
+                />
+              </div>
+            </section>
+            <section className="cc-detail-section">
+              <div className="cc-detail-heading">
+                <Eye size={13} />
+                Used in{" "}
+                <span className="cc-used-count">
+                  {selected.usedInIds.length} posts
+                </span>
+              </div>
+              <div className="cc-used-list">
+                {selected.usedInIds.length ? (
+                  selected.usedInIds.map((id) => {
+                    const post = pipelineItems.find((item) => item.id === id)
+                    return (
+                      <div className="cc-used-row" key={id}>
+                        <CalendarDays size={11} />
+                        <span>{post?.title ?? "Archived post"}</span>
+                        <b>›</b>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="cc-used-row">
+                    <ImageIcon size={11} />
+                    <span>Not used in a post yet</span>
+                  </div>
+                )}
+              </div>
+            </section>
+            <button className="cc-add-post" onClick={() => setShowPicker(true)}>
+              <Plus size={14} />
+              Add to post
+            </button>
+            <div className="cc-device-note">
+              <span>
+                <Lightbulb size={11} style={{ display: "inline" }} /> Stored on
+                this device
+              </span>
+              <span className="cc-local-script">Local only</span>
+            </div>
+          </aside>
+        )}
+      </div>
+      {showPicker && selected && (
+        <PostPicker
+          item={selected}
+          posts={pipelineItems}
+          assign={(post) => void assign(post)}
+          close={() => setShowPicker(false)}
+        />
+      )}
+    </div>
+  )
 }
