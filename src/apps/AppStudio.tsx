@@ -3,8 +3,9 @@ import { ArrowLeft, Download, Layers } from "lucide-react";
 import BookTrackerDashboard from "./book-tracker/BookTrackerDashboard";
 import BillTrackerTab from "./bill-tracker-tab/BillTrackerTab";
 import BudgetPlannerTab from "./budget-planner-tab/BudgetPlannerTab";
+import ContentCalendarTab from "./content-calendar-tab/ContentCalendarTab";
 
-type AppId = "bill-tracker" | "book-tracker" | "budget-planner";
+type AppId = "bill-tracker" | "book-tracker" | "budget-planner" | "content-calendar";
 
 interface AppDef {
   id: AppId;
@@ -228,6 +229,75 @@ function BudgetPlannerPreview() {
   );
 }
 
+function ContentCalendarPreview() {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", overflow: "hidden", pointerEvents: "none", userSelect: "none" }}>
+      {/* Sidebar strip */}
+      <div style={{
+        width: 48, flexShrink: 0,
+        background: "linear-gradient(160deg, #f3ede6 0%, #ece4da 100%)",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        padding: "10px 6px", gap: 7,
+        borderRight: "1px solid #ece4da",
+      }}>
+        <div style={{ width: "100%", paddingBottom: 8, borderBottom: "1px solid #ece4da", marginBottom: 2 }}>
+          <div style={{ fontSize: 5, fontWeight: 800, color: "#3d2f2f", lineHeight: 1.3 }}>The<br />Content<br />Edit</div>
+        </div>
+        {["⊞","▦","≡","◈","#","⊙"].map((icon, i) => (
+          <div key={i} style={{
+            width: 32, height: 20, borderRadius: 4,
+            background: i === 0 ? "#fce8e3" : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 9, color: i === 0 ? "#c27b6a" : "#8a7a72",
+          }}>{icon}</div>
+        ))}
+      </div>
+      {/* Main area */}
+      <div style={{ flex: 1, background: "#f9f5f0", padding: "8px 9px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Header */}
+        <div style={{ fontSize: 8, fontWeight: 800, color: "#3d2f2f", lineHeight: 1.3 }}>
+          Plan beautifully.<br />Publish intentionally. ⭐
+        </div>
+        {/* Stat cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3 }}>
+          {[
+            { label: "Planned", val: "12", bg: "#f9d5cc", line: "#e0906e" },
+            { label: "Scheduled", val: "8", bg: "#ddd6f8", line: "#7b5ea8" },
+            { label: "Published", val: "14", bg: "#d3e9fb", line: "#3a80b0" },
+            { label: "Ideas", val: "27", bg: "#fdf3c0", line: "#c8a800" },
+          ].map(({ label, val, bg, line }) => (
+            <div key={label} style={{ background: "#fff", borderRadius: 5, padding: "4px 5px", border: "1px solid #ece4da" }}>
+              <div style={{ width: 14, height: 14, borderRadius: 3, background: bg, marginBottom: 2 }} />
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#3d2f2f" }}>{val}</div>
+              <div style={{ fontSize: 4.5, color: "#8a7a72" }}>{label}</div>
+              <div style={{ width: 10, height: 1.5, background: line, borderRadius: 1, marginTop: 2 }} />
+            </div>
+          ))}
+        </div>
+        {/* Schedule list */}
+        <div style={{ background: "#fff", borderRadius: 6, padding: "5px 6px", flex: 1, border: "1px solid #ece4da" }}>
+          <div style={{ fontSize: 5.5, fontWeight: 700, color: "#3d2f2f", marginBottom: 5 }}>This Week's Schedule ⭐</div>
+          {[
+            { day: "Mon", type: "Carousel", typeBg: "#fce8e3", typeColor: "#c27b6a", status: "Scheduled", sBg: "#ede8f8", sColor: "#6b52a8" },
+            { day: "Tue", type: "Reel",     typeBg: "#fde8d0", typeColor: "#b5672b", status: "Scheduled", sBg: "#ede8f8", sColor: "#6b52a8" },
+            { day: "Wed", type: "Story",    typeBg: "#e3f0e8", typeColor: "#4a7c5f", status: "Planned",   sBg: "#fdf0e5", sColor: "#b56e2f" },
+            { day: "Thu", type: "Static",   typeBg: "#e8e9ec", typeColor: "#555f72", status: "Scheduled", sBg: "#ede8f8", sColor: "#6b52a8" },
+            { day: "Fri", type: "Reel",     typeBg: "#fde8d0", typeColor: "#b5672b", status: "Planned",   sBg: "#fdf0e5", sColor: "#b56e2f" },
+          ].map(({ day, type, typeBg, typeColor, status, sBg, sColor }) => (
+            <div key={day} style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3.5 }}>
+              <div style={{ width: 14, fontSize: 4.5, color: "#8a7a72", fontWeight: 600, flexShrink: 0 }}>{day}</div>
+              <div style={{ width: 20, height: 14, borderRadius: 3, background: "#e0d0c0", flexShrink: 0 }} />
+              <span style={{ fontSize: 4, padding: "1px 3px", borderRadius: 99, background: typeBg, color: typeColor, fontWeight: 600 }}>{type}</span>
+              <div style={{ flex: 1, height: 4, borderRadius: 2, background: "#f3ede6" }} />
+              <span style={{ fontSize: 4, padding: "1px 4px", borderRadius: 99, background: sBg, color: sColor }}>{status}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const APPS: AppDef[] = [
   {
     id: "bill-tracker",
@@ -249,6 +319,13 @@ const APPS: AppDef[] = [
     description: "Zero-based budget dashboard — track income, spending, sinking funds and net worth.",
     Preview: BudgetPlannerPreview,
     Component: BudgetPlannerTab,
+  },
+  {
+    id: "content-calendar",
+    name: "Content Calendar",
+    description: "Plan beautifully. Schedule content, track ideas, and manage hashtags — all locally.",
+    Preview: ContentCalendarPreview,
+    Component: ContentCalendarTab,
   },
 ];
 
@@ -306,7 +383,7 @@ export default function AppStudio() {
             </button>
           )}
         </div>
-        <div style={{ flex: 1, overflow: "hidden" }}>
+        <div style={{ flex: 1, overflow: "auto" }}>
           <Component />
         </div>
       </div>
