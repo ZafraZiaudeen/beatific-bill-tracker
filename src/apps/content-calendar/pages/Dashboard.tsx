@@ -189,7 +189,7 @@ export default function Dashboard() {
       {/* Page header */}
       <div className="cc-header">
         <div className="cc-header-left">
-          <div style={{ fontSize: 12, color: 'var(--cc-text-3)', marginBottom: 4 }}>Welcome back, <strong style={{ color: 'var(--cc-text-2)' }}>{userName || 'creator'}</strong>.</div>
+          <div style={{ fontSize: 16, color: 'var(--cc-text-3)', marginBottom: 6 }}>Welcome back, <strong style={{ color: 'var(--cc-text-2)' }}>{userName || 'creator'}</strong>.</div>
           <h1 className="cc-header-title">Plan beautifully.</h1>
           <div className="cc-header-title-row2">
             <span className="cc-header-title" style={{ display: 'inline' }}>Publish intentionally.</span>
