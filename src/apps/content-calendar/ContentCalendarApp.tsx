@@ -79,7 +79,7 @@ function LicenseGateOverlay({ viewName, onUnlock, onCancel }: { viewName: string
     if (!window.__CC_LICENSE_HASH__) { setError('This file is missing its license hash.'); return; }
     const hash = await sha256(CC_HASH_SALT + trimmed);
     if (hash === window.__CC_LICENSE_HASH__) {
-      try { sessionStorage.setItem('cc-license-activated', '1'); } catch {}
+      try { sessionStorage.setItem('cc-license-activated', '1'); } catch { /* Storage can be unavailable in embedded HTML previews. */ }
       setCode(''); setError(''); onUnlock(); return;
     }
     setError('Invalid license code. Try again.');
@@ -121,7 +121,8 @@ const CC_CSS = `
 .cc-app {
   display: flex;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   background: var(--cc-bg);
   font-family: 'Nunito', -apple-system, sans-serif;
@@ -239,10 +240,12 @@ const CC_CSS = `
 .cc-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overflow-x: auto;
+  overscroll-behavior: contain;
 }
 
 .cc-header {
@@ -403,6 +406,7 @@ const CC_CSS = `
 
 .cc-content {
   flex: 1;
+  min-height: min-content;
 }
 
 .cc-placeholder {
