@@ -6,13 +6,13 @@ import {
 
 // ── Tokens ─────────────────────────────────────────────────────
 const C = {
-  bg: "#f4efe6",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
 } as const;
 
 const SERIF = { fontFamily: "'Lora', Georgia, 'Times New Roman', serif" } as const;
@@ -787,7 +787,7 @@ function SaveSessionDialog({ pf, onSave, onDiscard }: {
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
                   <Clock size={14} color={C.muted} />
                 </span>
-                <div style={{ ...INP, paddingLeft: 36, color: C.text, background: "#f8f6f1" }}>
+                <div style={{ ...INP, paddingLeft: 36, color: C.text, background: "var(--bt-surface-subtle)" }}>
                   {date}
                 </div>
               </div>
@@ -1027,7 +1027,7 @@ export default function ReadingLogPage() {
   function openLogPast() { setShowStart(false); setShowLogPast(true); }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
+    <div className="bt-reading-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
 
       {/* Dialogs */}
       {showStart && !activeSession && (
@@ -1059,7 +1059,7 @@ export default function ReadingLogPage() {
       )}
 
       {/* ── Header ── */}
-      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "16px 28px 14px",
+      <div className="bt-reading-header" style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "16px 28px 14px",
         flexShrink: 0, display: "flex", alignItems: "flex-start", gap: 16 }}>
         <div style={{ flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -1097,12 +1097,12 @@ export default function ReadingLogPage() {
           <Cloud size={13} color={C.green} />
           <span>Save locally</span>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, display: "inline-block" }} />
-          <span style={{ color: "#aaa" }}>Just now</span>
+          <span style={{ color: C.muted }}>Just now</span>
         </div>
       </div>
 
       {/* ── Date strip ── */}
-      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 12px",
+      <div className="bt-reading-date-strip" style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 12px",
         flexShrink: 0, display: "flex", alignItems: "center", gap: 2 }}>
         <button onClick={() => setStripStart(s => s - 7)} style={{ width: 28, height: 28, display: "flex",
           alignItems: "center", justifyContent: "center", border: "none", background: "transparent",
@@ -1147,10 +1147,10 @@ export default function ReadingLogPage() {
       </div>
 
       {/* ── Main: list + sidebar ── */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="bt-reading-main" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* Session list */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div className="bt-reading-table-panel" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
           {/* Column headers */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 14px",
@@ -1239,12 +1239,12 @@ export default function ReadingLogPage() {
             <div style={{ fontSize: 12, color: C.muted, textAlign: "center" }}>
               {displaySessions.length} session{displaySessions.length !== 1 ? "s" : ""} on {formatMonthDate(selectedDate)}
             </div>
-            <div style={{ fontSize: 11, color: "#bbb", textAlign: "center", marginTop: 4 }}>All data stored only on this device.</div>
+            <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 4 }}>All data stored only on this device.</div>
           </div>
         </div>
 
         {/* ── Sidebar ── */}
-        <div style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${C.border}`,
+        <div className="bt-reading-sidebar" style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${C.border}`,
           background: C.white, display: "flex", flexDirection: "column", overflowY: "auto" }}>
 
           {/* Week stats */}

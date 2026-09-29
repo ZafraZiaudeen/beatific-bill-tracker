@@ -45,12 +45,13 @@ export default function UnlockModal({ onActivate, onClose }: Props) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
-      background: "rgba(0,0,0,0.45)",
+      background: "var(--bt-overlay)",
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: "24px",
     }}>
       <div style={{
-        background: "#fff",
+        background: "var(--bt-surface)",
+        border: "1px solid var(--bt-border-card)",
         borderRadius: 24,
         padding: "40px 32px",
         maxWidth: 420,
@@ -62,24 +63,24 @@ export default function UnlockModal({ onActivate, onClose }: Props) {
         <button onClick={onClose} style={{
           position: "absolute", top: 16, right: 16,
           background: "none", border: "none", cursor: "pointer",
-          color: "#8a8a8a", padding: 4,
+          color: "var(--bt-muted)", padding: 4,
         }}>
           <X size={18} />
         </button>
 
         <div style={{
           width: 56, height: 56, borderRadius: "50%",
-          background: "#e8f0eb", display: "flex",
+          background: "var(--bt-green-faint)", display: "flex",
           alignItems: "center", justifyContent: "center",
           margin: "0 auto 20px",
         }}>
-          <KeyRound size={24} color="#2d4a3e" strokeWidth={1.6} />
+          <KeyRound size={24} color="var(--bt-green)" strokeWidth={1.6} />
         </div>
 
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a", marginBottom: 8 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--bt-text)", marginBottom: 8 }}>
           Unlock Full Access
         </h2>
-        <p style={{ fontSize: 14, color: "#8a8a8a", marginBottom: 24, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, color: "var(--bt-muted)", marginBottom: 24, lineHeight: 1.5 }}>
           You've reached the 3-book free tier limit.<br />
           Enter your license code to unlock unlimited books.
         </p>
@@ -92,12 +93,12 @@ export default function UnlockModal({ onActivate, onClose }: Props) {
           placeholder="Enter license code…"
           style={{
             width: "100%",
-            border: error ? "1.5px solid #e05c5c" : "1.5px solid #e0dbd2",
+            border: error ? "1.5px solid #e05c5c" : "1.5px solid var(--bt-border)",
             borderRadius: 12,
             padding: "10px 14px",
             fontSize: 14,
-            color: "#1a1a1a",
-            background: "#faf8f5",
+            color: "var(--bt-text)",
+            background: "var(--bt-surface-subtle)",
             outline: "none",
             marginBottom: error ? 8 : 16,
             boxSizing: "border-box",
@@ -115,7 +116,7 @@ export default function UnlockModal({ onActivate, onClose }: Props) {
           disabled={checking}
           style={{
             width: "100%",
-            background: checking ? "#4a7a64" : "#2d4a3e",
+            background: checking ? "#4a7a64" : "var(--bt-green)",
             color: "#fff",
             border: "none",
             borderRadius: 12,

@@ -5,13 +5,13 @@ import {
 } from "lucide-react";
 
 const C = {
-  bg: "#f4efe6",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
   gold: "#f5a623",
   blue: "#3b82f6",
   red: "#c0392b",
@@ -565,7 +565,7 @@ export default function WishlistPage() {
 
   const sel = sidebarBook;
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
+    <div className="bt-wishlist-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
 
       {/* Dialogs */}
       {(showAdd || editBook) && (
@@ -593,7 +593,7 @@ export default function WishlistPage() {
       )}
 
       {/* ── Header ── */}
-      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`,
+      <div className="bt-wishlist-header" style={{ background: C.white, borderBottom: `1px solid ${C.border}`,
         padding: "20px 28px 20px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
@@ -612,7 +612,7 @@ export default function WishlistPage() {
             <Cloud size={13} color={C.green} />
             <span>Save locally</span>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, display: "inline-block" }} />
-            <span style={{ color: "#aaa" }}>Just now</span>
+            <span style={{ color: C.muted }}>Just now</span>
           </div>
         </div>
 
@@ -663,10 +663,10 @@ export default function WishlistPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="bt-wishlist-body" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* List */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px" }}>
+        <div className="bt-wishlist-list" style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px" }}>
           {books.length === 0 && (
             <div style={{ textAlign: "center", padding: "80px 0", color: C.muted }}>
               <Bookmark size={32} color={C.border} style={{ marginBottom: 12 }} />
@@ -705,7 +705,7 @@ export default function WishlistPage() {
                   const groupBooks = books.filter(b => b.priority === priority).sort((a, b2) => a.order - b2.order);
                   const bookIdx = groupBooks.findIndex(b => b.id === book.id);
                   return (
-                    <div key={book.id}
+                    <div className="bt-wishlist-book-row" key={book.id}
                       onClick={() => setSidebarBook(book)}
                       style={{ display: "flex", alignItems: "center", gap: 16,
                         borderBottom: `1px solid ${C.border}`,
@@ -731,7 +731,7 @@ export default function WishlistPage() {
                       </div>
 
                       {/* Pages */}
-                      <div style={{ fontSize: 12.5, color: C.muted, flexShrink: 0, minWidth: 70, textAlign: "right" }}>
+                      <div className="bt-wishlist-pages" style={{ fontSize: 12.5, color: C.muted, flexShrink: 0, minWidth: 70, textAlign: "right" }}>
                         {book.pages} pages
                       </div>
 
@@ -741,7 +741,7 @@ export default function WishlistPage() {
                       </div>
 
                       {/* Genre tags */}
-                      <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", maxWidth: 180 }}>
+                      <div className="bt-wishlist-genres" style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", maxWidth: 180 }}>
                         {book.genres.slice(0, 2).map(g => (
                           <span key={g} style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${C.border}`,
                             fontSize: 11.5, color: C.text, background: C.white }}>
@@ -804,7 +804,7 @@ export default function WishlistPage() {
         </div>
 
         {/* ── Sidebar: Choose your next read ── */}
-        <div style={{ width: 260, flexShrink: 0, borderLeft: `1px solid ${C.border}`,
+        <div className="bt-wishlist-sidebar" style={{ width: 260, flexShrink: 0, borderLeft: `1px solid ${C.border}`,
           background: C.white, padding: 20, display: "flex", flexDirection: "column",
           gap: 16, overflowY: "auto" }}>
 
@@ -862,7 +862,7 @@ export default function WishlistPage() {
               </button>
 
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8,
-                padding: "10px 12px", borderRadius: 8, background: "#f8f6f2",
+                padding: "10px 12px", borderRadius: 8, background: "var(--bt-surface-subtle)",
                 border: `1px solid ${C.border}` }}>
                 <Info size={13} color={C.muted} style={{ marginTop: 1, flexShrink: 0 }} />
                 <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>

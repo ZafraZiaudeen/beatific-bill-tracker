@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback } from "react";
 import {
-  BookOpen, Cloud, Shield, Lock, Download, Upload, FileText, Monitor,
+  BookOpen, Cloud, Shield, Lock, Download, Upload, FileText, Monitor, Moon, Sparkles,
 } from "lucide-react";
 
 const C = {
-  bg: "#F7F5F0", white: "#ffffff", green: "#2d4a3e", greenFaint: "#e8f0eb",
-  border: "#e8e2d8", borderCard: "#ede8df", muted: "#8a8a8a", text: "#1a1a1a",
-  shadow: "0 1px 4px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04)",
+  bg: "var(--bt-bg)", white: "var(--bt-surface)", green: "var(--bt-green)", greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)", borderCard: "var(--bt-border-card)", muted: "var(--bt-muted)", text: "var(--bt-text)",
+  shadow: "var(--bt-shadow)",
 } as const;
 
 const card: React.CSSProperties = {
@@ -73,12 +73,10 @@ function parseAndImport(file: File, onDone: (msg: string) => void) {
     try {
       const data = JSON.parse(e.target?.result as string);
       if (typeof data !== "object" || !data) { onDone("Error: invalid file format"); return; }
-      let count = 0;
       BT_KEYS.forEach(k => {
         if (k in data) {
           const v = data[k];
           localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v));
-          count++;
         }
       });
       const books = Array.isArray(data.bt_books) ? data.bt_books.length : 0;
@@ -108,13 +106,16 @@ function Divider() {
   return <hr style={{ border: "none", borderTop: `1px solid ${C.border}`, margin: "16px 0" }} />;
 }
 
-function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+function Toggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onToggle}
+      aria-label={label}
+      aria-pressed={on}
       style={{
         width: 42, height: 24, borderRadius: 99, background: on ? C.green : "#ccc",
-        cursor: "pointer", position: "relative", transition: "background .2s", flexShrink: 0,
+        cursor: "pointer", position: "relative", transition: "background .2s", flexShrink: 0, border: 0, padding: 0,
       }}
     >
       <div style={{
@@ -124,7 +125,7 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
         transition: "left .2s",
         boxShadow: "0 1px 3px rgba(0,0,0,.25)",
       }} />
-    </div>
+    </button>
   );
 }
 
@@ -134,7 +135,14 @@ function fmtBackup(iso: string | null) {
   catch { return "Never"; }
 }
 
-export default function SettingsPage({ onNameChange }: { onNameChange?: (name: string) => void } = {}) {
+interface SettingsPageProps {
+  onNameChange?: (name: string) => void;
+  theme?: "light" | "dark";
+  onThemeChange?: (theme: "light" | "dark") => void;
+  onStartOnboarding?: () => void;
+}
+
+export default function SettingsPage({ onNameChange, theme = "light", onThemeChange, onStartOnboarding }: SettingsPageProps = {}) {
   const settings = loadSettings();
   const [userName, setUserName] = useState<string>(() => String(loadSettings().userName ?? ""));
   const [yearlyGoal, setYearlyGoal] = useState<number>(() => Number(loadSettings().yearlyGoal ?? 24));
@@ -208,20 +216,20 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
     window.location.reload();
   };
 
-  const portabilityActions: { icon: React.ElementType; label: string; onClick: () => void }[] = [
-    { icon: Download, label: "Export JSON",       onClick: handleExportJSON },
-    { icon: Upload,   label: "Import JSON",       onClick: () => fileInputRef.current?.click() },
-    { icon: Download, label: "Export CSV",        onClick: exportCSV },
+  const portabilityActions: { icon: React.ElementType; label: string }[] = [
+    { icon: Download, label: "Export JSON" },
+    { icon: Upload,   label: "Import JSON" },
+    { icon: Download, label: "Export CSV" },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: C.bg }}>
+    <div className="bt-settings-page" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: C.bg }}>
 
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept=".json,.csv,.xlsx" style={{ display: "none" }} onChange={handleFileChange} />
 
       {/* Header */}
-      <div style={{ flexShrink: 0, padding: "14px 28px 0" }}>
+      <div className="bt-settings-header" style={{ flexShrink: 0, padding: "14px 28px 0" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 22, height: 22, background: C.green, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <BookOpen size={12} stroke="white" strokeWidth={2.2} />
@@ -231,9 +239,9 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
           <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Your data, your shelf</span>
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <Cloud size={13} style={{ color: "#aaa" }} />
+            <Cloud size={13} style={{ color: C.muted }} />
             <div>
-              <div style={{ fontWeight: 600, color: "#555", fontSize: 11.5 }}>Save locally</div>
+              <div style={{ fontWeight: 600, color: "var(--bt-text-secondary)", fontSize: 11.5 }}>Save locally</div>
               <div style={{ fontSize: 11, color: C.muted }}>Just now</div>
             </div>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3d9e5f", marginLeft: 3 }} />
@@ -242,7 +250,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px" }}>
+      <div className="bt-settings-content" style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px" }}>
 
         {/* Hero */}
         <div style={{ textAlign: "center", padding: "44px 0 32px" }}>
@@ -258,7 +266,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
         </div>
 
         {/* 3-column grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, marginBottom: 18, alignItems: "start" }}>
+        <div className="bt-settings-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, marginBottom: 18, alignItems: "start" }}>
 
           {/* Security */}
           <div style={card}>
@@ -284,7 +292,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
               </div>
               <button
                 onClick={handleChangePin}
-                style={{ border: `1px solid ${C.border}`, background: C.white, padding: "5px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, color: "#555", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" as const }}
+                style={{ border: `1px solid ${C.border}`, background: C.white, padding: "5px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, color: "var(--bt-text-secondary)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" as const }}
               >
                 Change PIN
               </button>
@@ -306,11 +314,15 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
           <div style={card}>
             <CardHeader icon={Download} title="Portability" subtitle="Export or import your data anytime" />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-              {portabilityActions.map(({ icon: Icon, label, onClick }) => (
+              {portabilityActions.map(({ icon: Icon, label }) => (
                 <button
                   key={label}
-                  onClick={onClick}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: `1px solid ${C.border}`, background: C.white, padding: "8px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, color: "#444", cursor: "pointer" }}
+                  onClick={() => {
+                    if (label === "Export JSON") handleExportJSON();
+                    else if (label === "Import JSON") fileInputRef.current?.click();
+                    else exportCSV();
+                  }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: `1px solid ${C.border}`, background: C.white, padding: "8px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, color: "var(--bt-text-secondary)", cursor: "pointer" }}
                   onMouseEnter={e => (e.currentTarget.style.background = C.greenFaint)}
                   onMouseLeave={e => (e.currentTarget.style.background = C.white)}
                 >
@@ -333,7 +345,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
               }}
             >
               <FileText size={20} style={{ color: dragOver ? C.green : C.muted, marginBottom: 8 }} />
-              <div style={{ fontSize: 13, color: dragOver ? C.green : "#555" }}>Drop a file here to import</div>
+              <div style={{ fontSize: 13, color: dragOver ? C.green : "var(--bt-text-secondary)" }}>Drop a file here to import</div>
               <div style={{ fontSize: 11.5, color: C.muted }}>JSON, CSV, or Excel (.xlsx)</div>
             </div>
             {/* Import status */}
@@ -352,7 +364,30 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
 
           {/* Backup */}
           <div style={card}>
-            <CardHeader icon={Cloud} title="Backup & Goal" subtitle="Reminder settings and yearly target" />
+            <CardHeader icon={Cloud} title="Preferences & Goal" subtitle="Appearance, reminders, and yearly target" />
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
+                <Moon size={15} strokeWidth={1.8} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>Dark mode</div>
+                <div style={{ fontSize: 12, color: C.muted }}>Use a low-light reading theme</div>
+              </div>
+              <Toggle on={theme === "dark"} onToggle={() => onThemeChange?.(theme === "dark" ? "light" : "dark")} label="Toggle dark mode" />
+            </div>
+            <Divider />
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
+                <Sparkles size={15} strokeWidth={1.8} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>Welcome tour</div>
+                <div style={{ fontSize: 12, color: C.muted }}>Review the Book Tracker basics</div>
+              </div>
+              <button type="button" onClick={onStartOnboarding} style={{ border: `1px solid ${C.border}`, background: C.white, color: C.text, padding: "5px 12px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+                Replay
+              </button>
+            </div>
             <Divider />
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -374,7 +409,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: C.text }}>Remind me to backup</div>
                 <div style={{ fontSize: 12, color: C.muted }}>Get a reminder every 30 days</div>
               </div>
-              <Toggle on={backupReminder} onToggle={handleToggleBackupReminder} />
+              <Toggle on={backupReminder} onToggle={handleToggleBackupReminder} label="Toggle backup reminders" />
             </div>
             <Divider />
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -390,7 +425,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
         </div>
 
         {/* Transfer card */}
-        <div style={{ ...card, background: "#f0f5f2", border: "1px solid #d0e4d8", marginBottom: 18 }}>
+        <div style={{ ...card, background: C.greenFaint, border: `1px solid ${C.border}`, marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
             <div style={{ width: 42, height: 42, borderRadius: 10, background: C.greenFaint, display: "flex", alignItems: "center", justifyContent: "center", color: C.green, flexShrink: 0 }}>
               <Monitor size={20} strokeWidth={1.6} />
@@ -415,7 +450,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
         </div>
 
         {/* Danger zone */}
-        <div style={{ ...card, border: "1px solid #f5c6cb", background: "#fff8f8", marginBottom: 18 }}>
+        <div style={{ ...card, border: "1px solid var(--bt-danger-border)", background: "var(--bt-danger-bg)", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: "#c0392b" }}>Clear all data</div>
@@ -423,7 +458,7 @@ export default function SettingsPage({ onNameChange }: { onNameChange?: (name: s
             </div>
             <button
               onClick={handleClearAll}
-              style={{ border: "1px solid #f5c6cb", background: "#fff0f0", padding: "5px 14px", borderRadius: 7, fontSize: 12, fontWeight: 500, color: "#c0392b", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" as const }}
+              style={{ border: "1px solid var(--bt-danger-border)", background: "var(--bt-danger-soft)", padding: "5px 14px", borderRadius: 7, fontSize: 12, fontWeight: 500, color: "#d96c6c", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" as const }}
             >
               Clear all data
             </button>

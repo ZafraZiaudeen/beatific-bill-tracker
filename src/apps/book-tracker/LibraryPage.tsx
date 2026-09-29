@@ -13,15 +13,15 @@ const IS_CUSTOMER_BUILD =
   (typeof window !== "undefined" && !!(window as Window & { __BTK_LICENSE_HASH__?: string }).__BTK_LICENSE_HASH__);
 
 const C = {
-  bg: "#f4efe6",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  borderCard: "#ede8df",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
-  shadow: "0 1px 4px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04)",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  borderCard: "var(--bt-border-card)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
+  shadow: "var(--bt-shadow)",
 } as const;
 
 const SERIF = { fontFamily: "'Lora', Georgia, 'Times New Roman', serif" } as const;
@@ -345,7 +345,7 @@ function BookModal({ initial, onSave, onClose }: {
             {tab === "search" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ position: "relative" }}>
-                  <Search size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" }} />
+                  <Search size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.muted, pointerEvents: "none" }} />
                   <input
                     value={query}
                     onChange={e => handleQueryChange(e.target.value)}
@@ -411,7 +411,7 @@ function BookModal({ initial, onSave, onClose }: {
                 {!searching && !searchError && searchResults.length === 0 && (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "32px 0", color: C.muted }}>
                     <Search size={36} strokeWidth={1.2} />
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "#555" }}>Search for a book</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--bt-text-secondary)" }}>Search for a book</div>
                     <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 260, lineHeight: 1.6 }}>Type a title, author name, or ISBN above to find books from online book catalogs.</div>
                   </div>
                 )}
@@ -498,14 +498,14 @@ function BookModal({ initial, onSave, onClose }: {
                         coverInputRef.current?.click();
                       }
                     }}
-                    style={{ border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: form.coverUrl ? 10 : "20px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "#fafaf8", cursor: "pointer" }}
+                    style={{ border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: form.coverUrl ? 10 : "20px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "var(--bt-surface-subtle)", cursor: "pointer" }}
                   >
                     {form.coverUrl ? (
                       <img src={form.coverUrl} alt="Cover preview" style={{ width: 92, height: 132, borderRadius: 6, objectFit: "cover", boxShadow: "1px 2px 8px rgba(0,0,0,.18)" }} />
                     ) : (
                       <CloudUpload size={22} color={C.muted} strokeWidth={1.5} />
                     )}
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#555" }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--bt-text-secondary)" }}>
                       {form.coverUrl ? "Replace cover image" : "Upload cover image"}
                     </div>
                     <div style={{ fontSize: 11.5, color: C.muted }}>JPG, PNG up to 5MB</div>
@@ -543,7 +543,7 @@ function BookModal({ initial, onSave, onClose }: {
               ].map(({ icon: Icon, text }) => (
                 <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
                   <Icon size={14} color={C.green} strokeWidth={1.8} style={{ marginTop: 1, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>{text}</span>
+                  <span style={{ fontSize: 12, color: "var(--bt-text-secondary)", lineHeight: 1.5 }}>{text}</span>
                 </div>
               ))}
             </div>
@@ -1024,11 +1024,11 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
   const isArchiveView = activeFilter === "Archived";
 
   return (
-    <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+    <div className="bt-library-layout" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
       {/* ══ LEFT: selected book panel ══ */}
       {selected && (
-      <div style={{ width: 220, flexShrink: 0, background: C.white, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div className="bt-library-selected" style={{ width: 220, flexShrink: 0, background: C.white, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {(
           <>
             <BookCover from={selected.coverFrom} to={selected.coverTo} title={selected.title} height={270} coverUrl={selected.coverUrl} />
@@ -1092,10 +1092,10 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
       )}
 
       {/* ══ CENTER ══ */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f7f5f0" }}>
+      <div className="bt-library-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg }}>
 
         {/* Header */}
-        <div style={{ padding: "20px 24px 0", flexShrink: 0 }}>
+        <div className="bt-library-header" style={{ padding: "20px 24px 0", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 3 }}>
             <h2 style={{ ...SERIF, fontSize: 26, fontWeight: 400, color: C.text, margin: 0 }}>Your library</h2>
             <button
@@ -1126,14 +1126,14 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
           {/* Toolbar */}
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             <div style={{ position: "relative", flex: 1, minWidth: 160, maxWidth: 300 }}>
-              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" }} />
+              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, pointerEvents: "none" }} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title, author..."
                 style={{ width: "100%", padding: "7px 12px 7px 30px", border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12.5, background: C.white, outline: "none", boxSizing: "border-box" as const }} />
             </div>
 
             {/* Filter button */}
             <div style={{ position: "relative" }}>
-              <button onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", border: `1.5px solid ${genreFilter ? C.green : C.border}`, borderRadius: 8, background: genreFilter ? C.greenFaint : C.white, fontSize: 12.5, fontWeight: 500, color: genreFilter ? C.green : "#555", cursor: "pointer" }}>
+              <button onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", border: `1.5px solid ${genreFilter ? C.green : C.border}`, borderRadius: 8, background: genreFilter ? C.greenFaint : C.white, fontSize: 12.5, fontWeight: 500, color: genreFilter ? C.green : "var(--bt-text-secondary)", cursor: "pointer" }}>
                 <Filter size={13} /> {genreFilter || "Filter"}
                 {genreFilter && <span onClick={e => { e.stopPropagation(); setGenreFilter(""); }} style={{ marginLeft: 3, fontSize: 13, lineHeight: 1, color: C.green }}>×</span>}
               </button>
@@ -1154,7 +1154,7 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
 
             {/* Sort button */}
             <div style={{ position: "relative" }}>
-              <button onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, fontSize: 12.5, fontWeight: 500, color: "#555", cursor: "pointer" }}>
+              <button onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, fontSize: 12.5, fontWeight: 500, color: "var(--bt-text-secondary)", cursor: "pointer" }}>
                 <SlidersHorizontal size={13} /> {SORT_OPTIONS.find(o => o.key === sortBy)?.label ?? "Sort by"}
                 <ChevronDown size={11} style={{ color: C.muted }} />
               </button>
@@ -1180,7 +1180,7 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
         </div>
 
         {/* Book grid / list */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 16px" }}>
+        <div className="bt-library-content" style={{ flex: 1, overflowY: "auto", padding: "0 24px 16px" }}>
           {sorted.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60%", gap: 10, color: C.muted }}>
               <BookOpen size={36} strokeWidth={1.2} />
@@ -1274,7 +1274,7 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
           )}
         </div>
 
-        <div style={{ padding: "8px 24px", borderTop: `1px solid ${C.border}`, fontSize: 11.5, color: "#bbb", textAlign: "center", flexShrink: 0 }}>
+        <div style={{ padding: "8px 24px", borderTop: `1px solid ${C.border}`, fontSize: 11.5, color: C.muted, textAlign: "center", flexShrink: 0 }}>
           All data stored only on this device.
         </div>
       </div>
@@ -1350,7 +1350,7 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
               )}
 
               <Section label="Notes">
-                <div style={{ fontSize: 12, color: "#444", lineHeight: 1.65, marginTop: 4, whiteSpace: "pre-line" }}>{selected.notes}</div>
+                <div style={{ fontSize: 12, color: "var(--bt-text-secondary)", lineHeight: 1.65, marginTop: 4, whiteSpace: "pre-line" }}>{selected.notes}</div>
               </Section>
             </div>
           </div>
@@ -1363,13 +1363,13 @@ export default function LibraryPage({ activated: activatedProp, onActivate }: Li
               </button>
             ) : (
               <>
-                <button onClick={() => openEditModal(selected)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, fontSize: 10.5, color: "#555", cursor: "pointer" }}>
+                <button onClick={() => openEditModal(selected)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, fontSize: 10.5, color: "var(--bt-text-secondary)", cursor: "pointer" }}>
                   <PenLine size={14} style={{ color: C.muted }} /> Edit book
                 </button>
 
                 {/* Move to... */}
                 <div style={{ flex: 1, position: "relative" }}>
-                  <button onClick={() => setMoveToOpen(o => !o)} style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, fontSize: 10.5, color: "#555", cursor: "pointer" }}>
+                  <button onClick={() => setMoveToOpen(o => !o)} style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, fontSize: 10.5, color: "var(--bt-text-secondary)", cursor: "pointer" }}>
                     <BookOpen size={14} style={{ color: C.muted }} /> Move to...
                   </button>
                   {moveToOpen && (

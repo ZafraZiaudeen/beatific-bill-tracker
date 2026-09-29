@@ -6,15 +6,15 @@ const BTK_HASH_SALT = "btk-lic-v1";
 const REGISTRY_KEY = "btk-license-registry";
 
 const C = {
-  bg: "#f4efe6",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  borderCard: "#ede8df",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
-  shadow: "0 1px 4px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04)",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  borderCard: "var(--bt-border-card)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
+  shadow: "var(--bt-shadow)",
 } as const;
 
 interface LicenseRecord {
@@ -141,7 +141,7 @@ export default function ManagementPage() {
     padding: "10px 14px",
     fontSize: 14,
     color: C.text,
-    background: "#faf8f5",
+    background: "var(--bt-surface-subtle)",
     outline: "none",
     boxSizing: "border-box",
     fontFamily: "inherit",

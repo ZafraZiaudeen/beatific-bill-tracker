@@ -1,10 +1,10 @@
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May'];
 const COLS_PER_MONTH = [4, 4, 5, 4, 4];
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const INTENSITY = ['#e4e9e5', '#b8d4c4', '#7aaa90', '#4a7c5f', '#2d4a3e'];
+const INTENSITY = ['var(--bt-green-faint)', '#b8d4c4', '#7aaa90', '#4a7c5f', 'var(--bt-green)'];
 const CELL = 10, GAP = 2;
 
-export const DEFAULT_COLS: number[][] = [
+const DEFAULT_COLS: number[][] = [
   [0,0,1,0,0,0,0],[0,1,0,0,1,0,0],[0,0,0,1,0,0,1],[1,0,0,0,1,0,0],
   [0,0,1,1,0,0,1],[0,1,0,0,1,0,0],[1,0,1,0,0,1,0],[0,1,0,1,0,1,0],
   [0,1,2,0,1,0,1],[1,2,0,1,0,1,0],[0,1,1,2,1,1,0],[2,0,1,2,1,0,2],[0,2,1,2,2,1,0],
@@ -23,7 +23,7 @@ export default function Heatmap({ cols = DEFAULT_COLS }: { cols?: number[][] }) 
           return (
             <div
               key={m}
-              style={{ width: w, flexShrink: 0, fontSize: 10, color: '#8a8a8a', marginLeft: i > 0 ? GAP : 0 }}
+              style={{ width: w, flexShrink: 0, fontSize: 10, color: 'var(--bt-muted)', marginLeft: i > 0 ? GAP : 0 }}
             >
               {m}
             </div>
@@ -39,7 +39,7 @@ export default function Heatmap({ cols = DEFAULT_COLS }: { cols?: number[][] }) 
             <div
               key={d}
               style={{
-                fontSize: 8.5, color: '#8a8a8a',
+                fontSize: 8.5, color: 'var(--bt-muted)',
                 height: CELL, lineHeight: `${CELL}px`,
                 width: 22, textAlign: 'right',
                 visibility: [0, 2, 4].includes(i) ? 'visible' : 'hidden',
@@ -66,7 +66,7 @@ export default function Heatmap({ cols = DEFAULT_COLS }: { cols?: number[][] }) 
       </div>
 
       {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 6, justifyContent: 'flex-end', fontSize: 10, color: '#8a8a8a' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 6, justifyContent: 'flex-end', fontSize: 10, color: 'var(--bt-muted)' }}>
         <span>Less</span>
         {INTENSITY.map((c, i) => (
           <div key={i} style={{ width: CELL, height: CELL, borderRadius: 2, background: c }} />

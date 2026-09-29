@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
 import {
   LayoutGrid, BookOpen, Clock, Bookmark, BarChart2,
-  PenLine, Settings, CloudUpload, Search, Moon, Upload,
+  PenLine, Settings, CloudUpload, Search, Moon, Sun, Upload,
   Plus, Flame, Star, KeyRound, Unlock,
 } from "lucide-react";
 import Heatmap from "./components/Heatmap";
-import NameEntryModal from "./components/NameEntryModal";
+import BookTrackerOnboarding from "./components/BookTrackerOnboarding";
 import LibraryPage from "./LibraryPage";
 import ManagementPage from "./ManagementPage";
 import UnlockModal from "./components/UnlockModal";
@@ -14,17 +14,18 @@ import WishlistPage from "./WishlistPage";
 import NotesPage from "./NotesPage";
 import InsightsPage from "./InsightsPage";
 import SettingsPage from "./SettingsPage";
+import "./bookTracker.css";
 
 const C = {
-  bg: "#f4efe6",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  borderCard: "#ede8df",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
-  shadow: "0 1px 4px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04)",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  borderCard: "var(--bt-border-card)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
+  shadow: "var(--bt-shadow)",
 } as const;
 
 const card = {
@@ -146,7 +147,7 @@ function buildHeatmapCols(sessions: Record<string, unknown>[]): number[][] {
   return cols;
 }
 
-function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; userName: string }) {
+function Overview({ onNavigate, userName, theme, onToggleTheme }: { onNavigate: (id: string) => void; userName: string; theme: "light" | "dark"; onToggleTheme: () => void }) {
   const [lastBackup, setLastBackup] = useState<string | null>(() => localStorage.getItem("bt_last_backup"));
 
   const books   = useMemo(() => { try { return JSON.parse(localStorage.getItem("bt_books")    ?? "[]") as Record<string,unknown>[]; } catch { return []; } }, []);
@@ -220,22 +221,29 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
   return (
     <>
       {/* Top bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "20px 28px 14px", flexShrink: 0 }}>
+      <div className="bt-overview-header" style={{ display: "flex", alignItems: "center", gap: 8, padding: "20px 28px 14px", flexShrink: 0 }}>
         <h1 style={{ ...SERIF, fontSize: 28, fontWeight: 400, flex: 1, color: C.text, letterSpacing: -0.2 }}>
           Good books, {userName}.
         </h1>
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" }} />
+        <div className="bt-overview-search" style={{ position: "relative", flexShrink: 0 }}>
+          <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, pointerEvents: "none" }} />
           <input
             type="text"
             placeholder="Search books, authors, tags…"
             style={{ border: `1px solid ${C.border}`, borderRadius: 20, padding: "6.5px 14px 6.5px 30px", fontSize: 12.5, background: C.white, width: 220, outline: "none" }}
           />
         </div>
-        <button style={{ width: 33, height: 33, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>
-          <Moon size={15} />
+        <button
+          className="bt-theme-button"
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          style={{ width: 33, height: 33, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", color: C.text, cursor: "pointer" }}
+        >
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
         </button>
-        <button onClick={() => { exportJSONAndRecord(); }} style={{ border: `1px solid ${C.border}`, background: C.white, padding: "6.5px 13px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, color: "#555", display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+        <button onClick={() => { exportJSONAndRecord(); }} style={{ border: `1px solid ${C.border}`, background: C.white, padding: "6.5px 13px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, color: "var(--bt-text-secondary)", display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
           <Upload size={13} />
           Export
         </button>
@@ -246,12 +254,12 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px", display: "flex", flexDirection: "column", gap: 13 }}>
+      <div className="bt-overview-content" style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px", display: "flex", flexDirection: "column", gap: 13 }}>
 
         {/* Yearly Goal */}
         <div style={card}>
           <SectionLabel>Yearly Goal</SectionLabel>
-          <div style={{ display: "flex", alignItems: "center" }}>
+          <div className="bt-year-goal-row" style={{ display: "flex", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 20, paddingRight: 24, borderRight: `1px solid ${C.border}`, marginRight: 24, flexShrink: 0 }}>
               <div style={{ position: "relative", width: 114, height: 114, flexShrink: 0 }}>
                 <svg width={114} height={114} viewBox="0 0 114 114">
@@ -273,7 +281,7 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
                 <div style={{ fontSize: 12.5, color: C.muted }}>{new Date().getFullYear()}</div>
               </div>
             </div>
-            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px 12px", alignContent: "center" }}>
+            <div className="bt-year-stats" style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px 12px", alignContent: "center" }}>
               <StatTile icon={Clock}    label="Reading Time" value={fmtTime(totalSecs)} note="this year" />
               <StatTile icon={BookOpen} label="Pages Read"   value={totalPages > 999 ? `${(totalPages/1000).toFixed(1)}k` : String(totalPages)} note="this year" />
               <StatTile icon={Flame}    label="Day Streak"   value={String(streak)} note="days" />
@@ -282,7 +290,7 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13, alignItems: "start" }}>
+        <div className="bt-overview-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13, alignItems: "start" }}>
 
           {/* Current Read */}
           <div style={card}>
@@ -307,7 +315,7 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 3 }}>{String(currentRead.title)}</div>
                     <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>{String(currentRead.author)}</div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#555", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "var(--bt-text-secondary)", marginBottom: 6 }}>
                       <span>{Number(currentRead.currentPage)} / {Number(currentRead.pages)} pages</span>
                       <span style={{ fontWeight: 600 }}>{currentProgress}%</span>
                     </div>
@@ -316,10 +324,10 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
                     </div>
                   </div>
                 </div>
-                <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 500, color: "#444", background: "#fafaf8", cursor: "pointer" }}>
+                <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 500, color: "var(--bt-text-secondary)", background: "var(--bt-surface-subtle)", cursor: "pointer" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3d7a58", flexShrink: 0 }} />
                   Reading
-                  <span style={{ color: "#bbb", fontSize: 9 }}>▾</span>
+                  <span style={{ color: C.muted, fontSize: 9 }}>▾</span>
                 </button>
               </>
             ) : (
@@ -363,7 +371,7 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
                     </div>
                   ))}
                 </div>
-                <button onClick={() => onNavigate("wishlist")} style={{ width: "100%", border: `1px solid ${C.border}`, background: "transparent", padding: 8, borderRadius: 8, fontSize: 12.5, fontWeight: 500, color: "#666", textAlign: "center", cursor: "pointer" }}>
+                <button onClick={() => onNavigate("wishlist")} style={{ width: "100%", border: `1px solid ${C.border}`, background: "transparent", padding: 8, borderRadius: 8, fontSize: 12.5, fontWeight: 500, color: "var(--bt-text-secondary)", textAlign: "center", cursor: "pointer" }}>
                   View full queue
                 </button>
               </>
@@ -398,7 +406,7 @@ function Overview({ onNavigate, userName }: { onNavigate: (id: string) => void; 
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
               <button
                 onClick={handleBackupNow}
-                style={{ border: `1px solid ${C.border}`, background: C.white, padding: "6.5px 13px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, color: "#555", cursor: "pointer" }}
+                style={{ border: `1px solid ${C.border}`, background: C.white, padding: "6.5px 13px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, color: "var(--bt-text-secondary)", cursor: "pointer" }}
               >
                 Back up now
               </button>
@@ -419,18 +427,49 @@ export default function BookTrackerDashboard() {
   });
   const [activated, setActivated] = useState(() => localStorage.getItem("btk_activated") === "1");
   const [showUnlockFromSidebar, setShowUnlockFromSidebar] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try { return JSON.parse(localStorage.getItem("bt_settings") ?? "{}").theme === "dark" ? "dark" : "light"; }
+    catch { return "light"; }
+  });
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try {
+      const settings = JSON.parse(localStorage.getItem("bt_settings") ?? "{}") as Record<string, unknown>;
+      return !String(settings.userName ?? "").trim() && settings.onboardingComplete !== true;
+    } catch { return true; }
+  });
 
   function handleActivate() {
     setActivated(true);
     setShowUnlockFromSidebar(false);
   }
 
-  if (!userName) {
-    return <NameEntryModal onComplete={name => setUserName(name)} />;
+  function saveSettings(patch: Record<string, unknown>) {
+    const current = (() => {
+      try { return JSON.parse(localStorage.getItem("bt_settings") ?? "{}") as Record<string, unknown>; }
+      catch { return {}; }
+    })();
+    localStorage.setItem("bt_settings", JSON.stringify({ ...current, ...patch }));
+  }
+
+  function handleThemeChange(nextTheme: "light" | "dark") {
+    setTheme(nextTheme);
+    saveSettings({ theme: nextTheme });
+  }
+
+  function handleOnboardingComplete(name: string, destination: "overview" | "library" | "log") {
+    try {
+      saveSettings({ userName: name, onboardingComplete: true });
+      setUserName(name);
+      setActiveNav(destination);
+      setShowOnboarding(false);
+      return null;
+    } catch {
+      return "Book Tracker could not save your setup. Check that browser storage is available and try again.";
+    }
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", height: "100%", overflow: "hidden" }}>
+    <div className={`bt-app${theme === "dark" ? " bt-dark" : ""}`} style={{ display: "grid", gridTemplateColumns: "180px 1fr", height: "100%", overflow: "hidden" }}>
 
       <aside style={{ background: C.white, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "18px 14px 14px", display: "flex", alignItems: "center", gap: 9 }}>
@@ -450,17 +489,17 @@ export default function BookTrackerDashboard() {
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "7.5px 10px", borderRadius: 8,
                   background: active ? C.green : "transparent",
-                  color: active ? "#fff" : "#5a5a5a",
+                  color: active ? "#fff" : "var(--bt-text-secondary)",
                   fontSize: 13, fontWeight: 500,
                   transition: "background .13s, color .13s",
                   width: "100%", textAlign: "left", cursor: "pointer",
                   border: "none",
                 }}
                 onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = C.greenFaint; (e.currentTarget as HTMLElement).style.color = C.green; }}}
-                onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#5a5a5a"; }}}
+                onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--bt-text-secondary)"; }}}
               >
                 <Icon size={15} strokeWidth={2} />
-                {label}
+                <span className="bt-nav-label">{label}</span>
               </button>
             );
           })}
@@ -468,7 +507,7 @@ export default function BookTrackerDashboard() {
 
         {activated && IS_CUSTOMER_BUILD && (
           <div style={{ padding: "0 10px 8px" }}>
-            <div style={{ fontSize: 11, color: "#4a7a64", fontWeight: 600, display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", background: "#e8f0eb", borderRadius: 7 }}>
+            <div className="bt-activated-sidebar" style={{ fontSize: 11, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", background: C.greenFaint, borderRadius: 7 }}>
               ✓ Full version active
             </div>
           </div>
@@ -477,13 +516,14 @@ export default function BookTrackerDashboard() {
         {!activated && IS_CUSTOMER_BUILD && (
           <div style={{ padding: "0 10px 8px" }}>
             <button
+              className="bt-unlock-sidebar"
               onClick={() => setShowUnlockFromSidebar(true)}
               style={{
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 8,
-                border: "1px solid #4a7a64",
-                background: "#e8f0eb",
+                border: `1px solid ${C.green}`,
+                background: C.greenFaint,
                 color: C.green,
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -494,15 +534,15 @@ export default function BookTrackerDashboard() {
               }}
             >
               <Unlock size={13} />
-              Unlock Full Version
+              <span>Unlock Full Version</span>
             </button>
           </div>
         )}
 
         <div style={{ padding: "10px 13px 13px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "flex-start", gap: 6, color: C.muted, fontSize: 11, lineHeight: 1.45 }}>
-          <CloudUpload size={13} style={{ marginTop: 1, flexShrink: 0, color: "#aaa" }} />
+          <CloudUpload size={13} style={{ marginTop: 1, flexShrink: 0, color: C.muted }} />
           <div>
-            <div style={{ fontWeight: 600, color: "#666" }}>Offline by default</div>
+            <div style={{ fontWeight: 600, color: "var(--bt-text-secondary)" }}>Offline by default</div>
             <div>Nothing sent to any server</div>
           </div>
         </div>
@@ -514,10 +554,14 @@ export default function BookTrackerDashboard() {
          activeNav === "wishlist"   ? <WishlistPage />   :
          activeNav === "notes"      ? <NotesPage />      :
          activeNav === "insights"   ? <InsightsPage />   :
-         activeNav === "settings"   ? <SettingsPage onNameChange={setUserName} /> :
+         activeNav === "settings"   ? <SettingsPage onNameChange={setUserName} theme={theme} onThemeChange={handleThemeChange} onStartOnboarding={() => setShowOnboarding(true)} /> :
          activeNav === "management" ? <ManagementPage /> :
-         <Overview onNavigate={setActiveNav} userName={userName} />}
+         <Overview onNavigate={setActiveNav} userName={userName || "Reader"} theme={theme} onToggleTheme={() => handleThemeChange(theme === "dark" ? "light" : "dark")} />}
       </main>
+
+      {showOnboarding && (
+        <BookTrackerOnboarding initialName={userName} onComplete={handleOnboardingComplete} />
+      )}
 
       {showUnlockFromSidebar && (
         <UnlockModal onActivate={handleActivate} onClose={() => setShowUnlockFromSidebar(false)} />

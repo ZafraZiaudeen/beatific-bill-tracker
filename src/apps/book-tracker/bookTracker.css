@@ -1,0 +1,296 @@
+.bt-app {
+  --bt-bg: #f4efe6;
+  --bt-surface: #ffffff;
+  --bt-surface-subtle: #faf9f6;
+  --bt-green: #2d4a3e;
+  --bt-green-faint: #e8f0eb;
+  --bt-border: #e8e2d8;
+  --bt-border-card: #ede8df;
+  --bt-muted: #7d7d7d;
+  --bt-text: #1a1a1a;
+  --bt-text-secondary: #555555;
+  --bt-shadow: 0 1px 4px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --bt-overlay: rgba(18, 24, 21, 0.52);
+  --bt-danger-bg: #fff8f8;
+  --bt-danger-soft: #fff0f0;
+  --bt-danger-border: #f5c6cb;
+  --bt-success-bg: #e8f7ef;
+  color: var(--bt-text);
+  background: var(--bt-bg);
+  color-scheme: light;
+}
+
+.bt-app.bt-dark {
+  --bt-bg: #111713;
+  --bt-surface: #1b231e;
+  --bt-surface-subtle: #202a24;
+  --bt-green: #3f7f60;
+  --bt-green-faint: #26382e;
+  --bt-border: #35423a;
+  --bt-border-card: #303b34;
+  --bt-muted: #a3aea8;
+  --bt-text: #f0f4f1;
+  --bt-text-secondary: #c5cec9;
+  --bt-shadow: 0 1px 4px rgba(0, 0, 0, 0.24), 0 8px 22px rgba(0, 0, 0, 0.16);
+  --bt-overlay: rgba(0, 0, 0, 0.68);
+  --bt-danger-bg: #2b1d1d;
+  --bt-danger-soft: #382222;
+  --bt-danger-border: #694141;
+  --bt-success-bg: #1c3427;
+  color-scheme: dark;
+}
+
+.bt-app.bt-dark .recharts-cartesian-grid line {
+  stroke: var(--bt-border);
+}
+
+.bt-app.bt-dark .recharts-text {
+  fill: var(--bt-muted);
+}
+
+.bt-app button,
+.bt-app input,
+.bt-app textarea,
+.bt-app select {
+  font: inherit;
+}
+
+.bt-app input,
+.bt-app textarea,
+.bt-app select {
+  color: var(--bt-text);
+}
+
+.bt-app input::placeholder,
+.bt-app textarea::placeholder {
+  color: var(--bt-muted);
+}
+
+.bt-app > main {
+  min-width: 0;
+}
+
+.bt-library-main,
+.bt-reading-main,
+.bt-wishlist-body,
+.bt-notes-body {
+  min-width: 0;
+}
+
+.bt-theme-button:focus-visible,
+.bt-onboarding button:focus-visible,
+.bt-onboarding input:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--bt-green) 36%, transparent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1180px) {
+  .bt-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .bt-library-selected,
+  .bt-reading-sidebar,
+  .bt-wishlist-sidebar,
+  .bt-notes-sidebar {
+    display: none !important;
+  }
+
+  .bt-notes-body {
+    grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr) !important;
+  }
+
+  .bt-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .bt-year-goal-row {
+    align-items: stretch !important;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .bt-year-goal-row > :first-child {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 20px;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--bt-border);
+  }
+
+  .bt-overview-grid,
+  .bt-settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bt-reading-header {
+    align-items: stretch !important;
+    flex-wrap: wrap;
+  }
+
+  .bt-reading-header > :nth-child(2) {
+    order: 3;
+    flex-basis: 100% !important;
+  }
+
+  .bt-insights-page [style*="grid-template-columns"]:not([style*="repeat(7"]) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bt-insights-page [style*="grid-template-columns: 1fr 1px 1fr"] > :nth-child(2) {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .bt-app {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+  }
+
+  .bt-app > aside > div:first-child {
+    justify-content: center;
+    padding-inline: 8px !important;
+  }
+
+  .bt-app > aside > div:last-child {
+    display: none !important;
+  }
+
+  .bt-app nav button {
+    justify-content: center;
+    padding-inline: 8px !important;
+  }
+
+  .bt-app nav button span.bt-nav-label {
+    display: none;
+  }
+
+  .bt-overview-header {
+    flex-wrap: wrap;
+    padding: 14px 14px 10px !important;
+  }
+
+  .bt-overview-header h1 {
+    flex: 1 0 100% !important;
+    font-size: 23px !important;
+  }
+
+  .bt-overview-search {
+    flex: 1 1 100% !important;
+  }
+
+  .bt-overview-search input {
+    width: 100% !important;
+  }
+
+  .bt-overview-content,
+  .bt-library-content,
+  .bt-settings-content {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .bt-overview-content {
+    overflow-x: hidden;
+  }
+
+  .bt-unlock-sidebar {
+    justify-content: center !important;
+    min-height: 36px;
+    padding: 8px !important;
+  }
+
+  .bt-unlock-sidebar span,
+  .bt-activated-sidebar {
+    display: none !important;
+  }
+
+  .bt-library-header,
+  .bt-settings-header {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .bt-year-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: 18px !important;
+  }
+
+  .bt-notes-search {
+    padding-inline: 14px !important;
+    flex-wrap: wrap;
+  }
+
+  .bt-notes-body {
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+
+  .bt-notes-list {
+    flex: 0 0 auto;
+    max-height: 230px;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--bt-border);
+  }
+
+  .bt-notes-detail {
+    flex: 1 0 360px;
+    overflow: visible !important;
+  }
+
+  .bt-reading-table-panel {
+    overflow-x: auto !important;
+  }
+
+  .bt-reading-table-panel > * {
+    min-width: 720px;
+  }
+
+  .bt-reading-date-strip {
+    overflow-x: auto;
+  }
+
+  .bt-reading-date-strip > div {
+    min-width: 54px;
+  }
+
+  .bt-wishlist-header,
+  .bt-wishlist-list {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .bt-wishlist-book-row {
+    gap: 10px !important;
+  }
+
+  .bt-wishlist-pages,
+  .bt-wishlist-genres {
+    display: none !important;
+  }
+
+  .bt-insights-header > div,
+  .bt-insights-content > div {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bt-year-goal-row > :first-child {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .bt-overview-header .bt-theme-button {
+    margin-left: auto;
+  }
+
+  .bt-wishlist-header > div:first-child {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}

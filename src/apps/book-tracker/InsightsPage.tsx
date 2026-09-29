@@ -12,17 +12,17 @@ import {
 
 // ── Tokens ─────────────────────────────────────────────────────
 const C = {
-  bg: "#F7F5F0",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  borderCard: "#ede8df",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
-  shadow: "0 1px 4px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04)",
-  terra: "#c0634a",
-  terraFaint: "#f8ece9",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  borderCard: "var(--bt-border-card)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
+  shadow: "var(--bt-shadow)",
+  terra: "#c97861",
+  terraFaint: "var(--bt-surface-subtle)",
 } as const;
 
 
@@ -249,7 +249,7 @@ function YearTab({ sessions, books }: { sessions: Session[]; books: BookRef[] })
         <div style={{ position: "relative" }}>
           <button
             onClick={() => setExportOpen(o => !o)}
-            style={{ display: "flex", alignItems: "center", gap: 6, border: `1px solid ${C.border}`, background: C.white, color: "#555", padding: "6px 13px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: 6, border: `1px solid ${C.border}`, background: C.white, color: "var(--bt-text-secondary)", padding: "6px 13px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer" }}
           >
             <Download size={13} />
             Export report
@@ -800,7 +800,7 @@ function PaceTab({ sessions }: { sessions: Session[] }) {
             <SectionLabel>Your Reading Pace</SectionLabel>
             <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: -2, color: C.green, lineHeight: 1 }}>{pph}</div>
             <div style={{ fontSize: 14, color: C.muted, marginBottom: 10 }}>pages per hour</div>
-            <div style={{ fontSize: 12.5, color: "#555", lineHeight: 1.55 }}>
+            <div style={{ fontSize: 12.5, color: "var(--bt-text-secondary)", lineHeight: 1.55 }}>
               Based on {sessions.length} session{sessions.length !== 1 ? "s" : ""}. {sessions.length > 0 ? <>At this pace you&apos;ll finish your <strong>{goalBooks}-book</strong> goal for the year.</> : "Log sessions to see your projected finish date."}
             </div>
             <div style={{ display: "flex", gap: 14, marginTop: 12 }}>
@@ -913,9 +913,9 @@ export default function InsightsPage() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: C.bg }}>
+    <div className="bt-insights-page" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: C.bg }}>
       {/* Header */}
-      <div style={{ flexShrink: 0 }}>
+      <div className="bt-insights-header" style={{ flexShrink: 0 }}>
         <div style={{ padding: "14px 24px 0", display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 22, height: 22, background: C.green, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <BookOpen size={12} stroke="white" strokeWidth={2.2} />
@@ -925,9 +925,9 @@ export default function InsightsPage() {
           <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Insights</span>
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <Cloud size={13} style={{ color: "#aaa" }} />
+            <Cloud size={13} style={{ color: C.muted }} />
             <div>
-              <div style={{ fontWeight: 600, color: "#555", fontSize: 11.5 }}>Save locally</div>
+              <div style={{ fontWeight: 600, color: "var(--bt-text-secondary)", fontSize: 11.5 }}>Save locally</div>
               <div style={{ fontSize: 11, color: C.muted }}>Just now</div>
             </div>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3d9e5f", marginLeft: 3 }} />
@@ -965,7 +965,7 @@ export default function InsightsPage() {
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", paddingTop: 16 }}>
+      <div className="bt-insights-content" style={{ flex: 1, overflowY: "auto", paddingTop: 16 }}>
         {tab === "year"  && <YearTab  sessions={sessions} books={books} />}
         {tab === "month" && <MonthTab sessions={sessions} books={books} />}
         {tab === "pace"  && <PaceTab  sessions={sessions} />}

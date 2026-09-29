@@ -6,15 +6,15 @@ import {
 } from "lucide-react";
 
 const C = {
-  bg: "#F7F5F0",
-  white: "#ffffff",
-  green: "#2d4a3e",
-  greenFaint: "#e8f0eb",
-  border: "#e8e2d8",
-  borderCard: "#ede8df",
-  muted: "#8a8a8a",
-  text: "#1a1a1a",
-  shadow: "0 1px 4px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04)",
+  bg: "var(--bt-bg)",
+  white: "var(--bt-surface)",
+  green: "var(--bt-green)",
+  greenFaint: "var(--bt-green-faint)",
+  border: "var(--bt-border)",
+  borderCard: "var(--bt-border-card)",
+  muted: "var(--bt-muted)",
+  text: "var(--bt-text)",
+  shadow: "var(--bt-shadow)",
 } as const;
 
 const SERIF = { fontFamily: "'Lora', Georgia, 'Times New Roman', serif" } as const;
@@ -150,12 +150,12 @@ function DeleteDialog({ note, onCancel, onConfirm }: { note: BookNote; onCancel:
           </div>
         </div>
 
-        <p style={{ fontSize: 13, color: "#666", marginBottom: 22, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: "var(--bt-text-secondary)", marginBottom: 22, lineHeight: 1.5 }}>
           This note will be permanently removed from your local reading journal.
         </p>
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "9px 20px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13.5, fontWeight: 500, color: "#555", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onCancel} style={{ padding: "9px 20px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13.5, fontWeight: 500, color: "var(--bt-text-secondary)", cursor: "pointer" }}>Cancel</button>
           <button onClick={onConfirm} style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid #c0392b", background: "transparent", fontSize: 13.5, fontWeight: 500, color: "#c0392b", cursor: "pointer" }}>Delete note</button>
         </div>
       </div>
@@ -218,7 +218,7 @@ function NoteDialog({
 
         {/* Book selector */}
         <div style={{ marginBottom: 18 }}>
-          {mode === "add" && <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Choose book</div>}
+          {mode === "add" && <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 6 }}>Choose book</div>}
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setShowBookDrop(b => !b)}
@@ -260,11 +260,11 @@ function NoteDialog({
         {/* Note type + page row */}
         <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Note type</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 6 }}>Note type</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
               {noteTypes.map(t => (
                 <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
-                  style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${form.type === t ? C.green : C.border}`, background: form.type === t ? C.green : "transparent", color: form.type === t ? "#fff" : "#555", fontSize: 12.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                  style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${form.type === t ? C.green : C.border}`, background: form.type === t ? C.green : "transparent", color: form.type === t ? "#fff" : "var(--bt-text-secondary)", fontSize: 12.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                   {form.type === t && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff", display: "inline-block" }} />}
                   {t}
                 </button>
@@ -273,7 +273,7 @@ function NoteDialog({
           </div>
           {mode === "add" && (
             <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Page (optional)</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 6 }}>Page (optional)</div>
               <input type="number" placeholder="211" value={form.page} onChange={e => setForm(f => ({ ...f, page: e.target.value }))}
                 style={{ width: 90, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none" }} />
             </div>
@@ -282,7 +282,7 @@ function NoteDialog({
 
         {mode === "edit" && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Page</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 6 }}>Page</div>
             <input type="number" placeholder="211" value={form.page} onChange={e => setForm(f => ({ ...f, page: e.target.value }))}
               style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none" }} />
           </div>
@@ -290,7 +290,7 @@ function NoteDialog({
 
         {/* Note */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Note</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 6 }}>Note</div>
           <textarea value={form.text} onChange={e => setForm(f => ({ ...f, text: e.target.value }))}
             placeholder="Write what you're thinking..."
             style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, outline: "none", resize: "vertical", minHeight: 110, lineHeight: 1.55, boxSizing: "border-box" }} />
@@ -298,7 +298,7 @@ function NoteDialog({
 
         {/* Personal note */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>My note (optional)</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 6 }}>My note (optional)</div>
           <textarea value={form.personalNote} onChange={e => setForm(f => ({ ...f, personalNote: e.target.value }))}
             placeholder="Write your personal reflection..."
             style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, outline: "none", resize: "vertical", minHeight: 90, lineHeight: 1.55, boxSizing: "border-box", fontFamily: "'Kalam', cursive, sans-serif" }} />
@@ -306,7 +306,7 @@ function NoteDialog({
 
         {/* Mood */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 8 }}>Mood {mode === "add" ? "(optional)" : ""}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 8 }}>Mood {mode === "add" ? "(optional)" : ""}</div>
           <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, alignItems: "center" }}>
             {allMoods.map(m => (
               <button key={m} onClick={() => toggleMood(m)}
@@ -341,18 +341,18 @@ function NoteDialog({
         {/* Footer */}
         {noteCreatedAt && (
           <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 14, display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ color: "#aaa" }}>ⓘ</span> Created {noteCreatedAt} · Edited just now
+            <span style={{ color: C.muted }}>ⓘ</span> Created {noteCreatedAt} · Edited just now
           </div>
         )}
 
         {mode === "add" && (
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ color: "#aaa" }}>ⓘ</span> Your note will be stored locally on this device.
+            <span style={{ color: C.muted }}>ⓘ</span> Your note will be stored locally on this device.
           </div>
         )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "9px 20px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13.5, fontWeight: 500, color: "#555", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onCancel} style={{ padding: "9px 20px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13.5, fontWeight: 500, color: "var(--bt-text-secondary)", cursor: "pointer" }}>Cancel</button>
           <button onClick={() => onSave(form)} style={{ padding: "9px 22px", borderRadius: 8, background: C.green, color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: "pointer", border: "none" }}>
             {mode === "add" ? "Save note" : "Save changes"}
           </button>
@@ -404,13 +404,13 @@ function NoteDetailPage({ note, onBack, onEdit, onCopy, onDelete, copied }: {
 
       <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.borderCard}`, boxShadow: SHADOW, padding: "28px 32px" }}>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 22 }}>
-          <button onClick={onEdit} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 12.5, color: "#555" }}>
+          <button onClick={onEdit} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 12.5, color: "var(--bt-text-secondary)" }}>
             <Edit3 size={13} /> Edit note
           </button>
-          <button onClick={onCopy} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 12.5, color: copied ? C.green : "#555" }}>
+          <button onClick={onCopy} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 12.5, color: copied ? C.green : "var(--bt-text-secondary)" }}>
             {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />} {copied ? "Copied!" : "Copy quote"}
           </button>
-          <button onClick={onDelete} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid #e8c5c5", background: "#fff5f5", cursor: "pointer", fontSize: 12.5, color: "#c0392b" }}>
+          <button onClick={onDelete} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid var(--bt-danger-border)", background: "var(--bt-danger-bg)", cursor: "pointer", fontSize: 12.5, color: "#c0392b" }}>
             <Trash2 size={13} /> Delete note
           </button>
         </div>
@@ -425,13 +425,13 @@ function NoteDetailPage({ note, onBack, onEdit, onCopy, onDelete, copied }: {
             {note.speaker && <p style={{ ...SERIF, fontSize: 15, color: C.muted, marginBottom: 16 }}>— {note.speaker}</p>}
 
             <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 18, marginTop: 8 }}>
-              <div style={{ fontSize: 13, color: "#555", marginBottom: 4 }}><b style={{ color: C.text }}>{note.bookTitle}</b></div>
+              <div style={{ fontSize: 13, color: "var(--bt-text-secondary)", marginBottom: 4 }}><b style={{ color: C.text }}>{note.bookTitle}</b></div>
               <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 14 }}>{note.bookAuthor} · {note.createdAt}{note.page ? ` · p. ${note.page}` : ""}</div>
 
               {note.type && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: C.muted, marginBottom: 6 }}>Note type</div>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 20, border: `1px solid ${C.border}`, fontSize: 12.5, color: "#555" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 20, border: `1px solid ${C.border}`, fontSize: 12.5, color: "var(--bt-text-secondary)" }}>
                     {note.type === "Quote" ? <Quote size={12} /> : <FileText size={12} />} {note.type}
                   </span>
                 </div>
@@ -579,7 +579,7 @@ export default function NotesPage() {
   const tabStyle = (active: boolean) => ({
     padding: "5px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500,
     background: active ? C.green : "transparent",
-    color: active ? "#fff" : "#555",
+    color: active ? "#fff" : "var(--bt-text-secondary)",
     border: `1px solid ${active ? C.green : C.border}`,
     cursor: "pointer",
   });
@@ -604,13 +604,13 @@ export default function NotesPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: C.bg }}>
+    <div className="bt-notes-page" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: C.bg }}>
       <PageHeader onNewNote={() => setShowAddDialog(true)} />
 
       {/* Search + filter bar */}
-      <div style={{ padding: "0 24px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="bt-notes-search" style={{ padding: "0 24px 10px", flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ position: "relative", flex: 1 }}>
-          <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#bbb", pointerEvents: "none" }} />
+          <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: C.muted, pointerEvents: "none" }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
             placeholder="Search your notes, quotes, and books..."
             style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 22, padding: "8px 14px 8px 32px", fontSize: 13, background: C.white, outline: "none", boxSizing: "border-box" }} />
@@ -644,10 +644,10 @@ export default function NotesPage() {
       </div>
 
       {/* Three-panel body */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "0.85fr 1fr 340px", overflow: "hidden", borderTop: `1px solid ${C.border}` }}>
+      <div className="bt-notes-body" style={{ flex: 1, display: "grid", gridTemplateColumns: "0.85fr 1fr 340px", overflow: "hidden", borderTop: `1px solid ${C.border}` }}>
 
         {/* LEFT: Note list */}
-        <div style={{ borderRight: `1px solid ${C.border}`, overflowY: "auto", background: C.white }}>
+        <div className="bt-notes-list" style={{ borderRight: `1px solid ${C.border}`, overflowY: "auto", background: C.white }}>
           {filtered.length === 0 ? (
             <div style={{ padding: 24, textAlign: "center", color: C.muted, fontSize: 13, marginTop: 32 }}>No notes found</div>
           ) : filtered.map(note => (
@@ -663,16 +663,16 @@ export default function NotesPage() {
         </div>
 
         {/* CENTER: Selected note detail */}
-        <div style={{ overflowY: "auto", background: C.white, display: "flex", flexDirection: "column" }}>
+        <div className="bt-notes-detail" style={{ overflowY: "auto", background: C.white, display: "flex", flexDirection: "column" }}>
           {selectedNote ? (
             <div style={{ padding: "20px 24px", flex: 1 }}>
               {/* Center header */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: C.muted, flex: 1 }}>Selected note</span>
-                <button onClick={() => setShowEditDialog(true)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: "#555", cursor: "pointer" }}>
+                <button onClick={() => setShowEditDialog(true)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: "var(--bt-text-secondary)", cursor: "pointer" }}>
                   <Edit3 size={12} /> Edit note
                 </button>
-                <button onClick={() => handleCopy(selectedNote)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: centerCopied ? C.green : "#555", cursor: "pointer" }}>
+                <button onClick={() => handleCopy(selectedNote)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: centerCopied ? C.green : "var(--bt-text-secondary)", cursor: "pointer" }}>
                   {centerCopied ? <CheckCircle2 size={12} style={{ color: C.green }} /> : <Copy size={12} />} Copy quote
                 </button>
               </div>
@@ -709,7 +709,7 @@ export default function NotesPage() {
               {selectedNote.personalNote && (
                 <div>
                   <div style={{ ...SERIF, fontSize: 17, fontStyle: "italic", color: C.text, marginBottom: 10 }}>My note</div>
-                  <p style={{ fontFamily: "'Kalam', cursive, sans-serif", fontSize: 14.5, lineHeight: 1.75, color: "#333", whiteSpace: "pre-line" as const }}>{selectedNote.personalNote}</p>
+                  <p style={{ fontFamily: "'Kalam', cursive, sans-serif", fontSize: 14.5, lineHeight: 1.75, color: C.text, whiteSpace: "pre-line" as const }}>{selectedNote.personalNote}</p>
                 </div>
               )}
 
@@ -727,7 +727,7 @@ export default function NotesPage() {
         </div>
 
         {/* RIGHT: Sidebar */}
-        <div style={{ borderLeft: `1px solid ${C.border}`, overflowY: "auto", padding: "20px 16px", background: C.white, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="bt-notes-sidebar" style={{ borderLeft: `1px solid ${C.border}`, overflowY: "auto", padding: "20px 16px", background: C.white, display: "flex", flexDirection: "column", gap: 24 }}>
 
           {/* Random note */}
           <div style={{ position: "relative" }}>
@@ -756,7 +756,7 @@ export default function NotesPage() {
                   <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>{randomNote.createdAt}</div>
                   {randomNote.moods[0] && <MoodPill mood={randomNote.moods[0]} />}
                   <button onClick={() => setSelectedId(randomNote.id)}
-                    style={{ display: "block", width: "100%", marginTop: 12, padding: "7px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 12, color: "#555", cursor: "pointer" }}>
+                    style={{ display: "block", width: "100%", marginTop: 12, padding: "7px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", fontSize: 12, color: "var(--bt-text-secondary)", cursor: "pointer" }}>
                     View in notes
                   </button>
                 </div>
@@ -783,7 +783,7 @@ export default function NotesPage() {
                 </button>
               ))}
               <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12.5, color: "#555", fontWeight: 500 }}>Total notes</span>
+                <span style={{ fontSize: 12.5, color: "var(--bt-text-secondary)", fontWeight: 500 }}>Total notes</span>
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: C.text }}>{notes.length}</span>
               </div>
             </div>
@@ -829,9 +829,9 @@ function PageHeader({ onNewNote }: { onNewNote: () => void }) {
         <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Notes &amp; highlights</span>
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Cloud size={13} style={{ color: "#aaa" }} />
+          <Cloud size={13} style={{ color: C.muted }} />
           <div>
-            <div style={{ fontWeight: 600, color: "#555", fontSize: 11.5 }}>Save locally</div>
+            <div style={{ fontWeight: 600, color: "var(--bt-text-secondary)", fontSize: 11.5 }}>Save locally</div>
             <div style={{ fontSize: 11, color: C.muted }}>Just now</div>
           </div>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3d9e5f", marginLeft: 3 }} />
@@ -877,7 +877,7 @@ function NoteCard({ note, selected, onClick, onStar, onMenu }: {
           </p>
         </div>
         {/* Book info */}
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: "#555", marginBottom: 2 }}>{note.bookTitle}</div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--bt-text-secondary)", marginBottom: 2 }}>{note.bookTitle}</div>
         <div style={{ fontSize: 11, color: C.muted, marginBottom: 7 }}>
           {note.page ? `p. ${note.page}` : ""}
           {note.page && note.createdAt ? " · " : ""}

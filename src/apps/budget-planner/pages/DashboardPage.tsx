@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
 import { fmt } from '../utils/formatters';
@@ -29,6 +29,28 @@ function fmtIsoDay(iso: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function monthlyCashflow(transactions: { date: string; amount: number }[], currentMonth: string) {
+  const [year, month] = currentMonth.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const bucketCount = Math.ceil(daysInMonth / 7);
+  const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const start = index * 7 + 1;
+    const end = Math.min(start + 6, daysInMonth);
+    return { label: `${start}–${end}`, income: 0, spending: 0 };
+  });
+
+  for (const transaction of transactions) {
+    if (!transaction.date.startsWith(`${currentMonth}-`) || !Number.isFinite(transaction.amount)) continue;
+    const day = Number(transaction.date.slice(8, 10));
+    if (!Number.isInteger(day) || day < 1 || day > daysInMonth) continue;
+    const bucket = buckets[Math.floor((day - 1) / 7)];
+    if (transaction.amount >= 0) bucket.income += transaction.amount;
+    else bucket.spending += Math.abs(transaction.amount);
+  }
+
+  return buckets;
+}
+
 function CashFlowSvg({ data }: { data: { label: string; income: number; spending: number }[] }) {
   const W = 420, H = 160, padL = 40, padR = 12, padT = 10, padB = 32;
   const cW = W - padL - padR, cH = H - padT - padB;
@@ -37,14 +59,23 @@ function CashFlowSvg({ data }: { data: { label: string; income: number; spending
   const barW = Math.min(22, groupW * 0.38);
   const gap = 4;
   const maxVal = Math.max(...data.flatMap(d => [d.income, d.spending]), 1);
-  const yMax = Math.ceil(maxVal / 500) * 500 || 2000;
-  const yLabels = [0, 500, 1000, 1500, 2000].filter(v => v <= yMax);
+  const rawStep = maxVal / 4;
+  const stepMagnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalizedStep = rawStep / stepMagnitude;
+  const stepSize = (normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 : normalizedStep <= 5 ? 5 : 10) * stepMagnitude;
+  const yMax = Math.max(stepSize, Math.ceil(maxVal / stepSize) * stepSize);
+  const yLabels = Array.from({ length: Math.floor(yMax / stepSize) + 1 }, (_, index) => index * stepSize);
+  const formatAxisValue = (value: number) => {
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}m`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(value % 1_000 === 0 ? 0 : 1)}k`;
+    return `$${Math.round(value)}`;
+  };
 
   const els: ReactNode[] = [];
   yLabels.forEach(v => {
     const y = padT + cH - (v / yMax) * cH;
     els.push(<line key={`gl${v}`} x1={padL} y1={y} x2={W - padR} y2={y} stroke="#d5ddd0" strokeWidth={1} />);
-    els.push(<text key={`gt${v}`} x={padL - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#8a9e8b">{v >= 1000 ? `$${v / 1000}k` : `$${v}`}</text>);
+    els.push(<text key={`gt${v}`} x={padL - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#8a9e8b">{formatAxisValue(v)}</text>);
   });
   data.forEach((d, i) => {
     const cx = padL + i * groupW + groupW / 2;
@@ -52,8 +83,8 @@ function CashFlowSvg({ data }: { data: { label: string; income: number; spending
     const sx = cx + gap / 2;
     const ih = (d.income / yMax) * cH;
     const sh = (d.spending / yMax) * cH;
-    els.push(<rect key={`ib${i}`} x={ix} y={padT + cH - ih} width={barW} height={Math.max(ih, 1)} fill="#7a9e7e" rx={3} />);
-    els.push(<rect key={`sb${i}`} x={sx} y={padT + cH - sh} width={barW} height={Math.max(sh, 1)} fill="#c48a8a" rx={3} />);
+    els.push(<rect key={`ib${i}`} x={ix} y={padT + cH - ih} width={barW} height={ih} fill="#7a9e7e" rx={3} />);
+    els.push(<rect key={`sb${i}`} x={sx} y={padT + cH - sh} width={barW} height={sh} fill="#c48a8a" rx={3} />);
     els.push(<text key={`xl${i}`} x={cx} y={H - padB + 17} textAnchor="middle" fontSize={9} fill="#8a9e8b">{d.label}</text>);
   });
 
@@ -148,7 +179,6 @@ export function DashboardPage() {
   const income       = useLedgerlyStore(s => s.income);
   const categories   = useLedgerlyStore(s => s.categories);
   const transactions = useLedgerlyStore(s => s.transactions);
-  const cashflow     = useLedgerlyStore(s => s.cashflow);
   const sinkingFunds = useLedgerlyStore(s => s.sinkingFunds);
   const netWorth     = useLedgerlyStore(s => s.netWorth);
   const bills        = useLedgerlyStore(s => s.bills);
@@ -161,6 +191,12 @@ export function DashboardPage() {
   const safeToSpend  = Math.max(0, income - totalBudget);
   const billOccurrences = getAllBillOccurrencesForMonth(bills, currentMonth);
   const totalBills   = billOccurrences.reduce((s, occ) => s + occ.bill.amount, 0);
+  const cashflow = useMemo(
+    () => monthlyCashflow(transactions, currentMonth),
+    [currentMonth, transactions],
+  );
+  const cashflowIncome = cashflow.reduce((sum, bucket) => sum + bucket.income, 0);
+  const cashflowSpending = cashflow.reduce((sum, bucket) => sum + bucket.spending, 0);
 
   const sfCurrent    = sinkingFunds.reduce((s, f) => s + f.current, 0);
   const sfTarget     = sinkingFunds.reduce((s, f) => s + f.target, 0);
@@ -331,7 +367,9 @@ export function DashboardPage() {
           <div className="ldg-card-hdr">
             <div>
               <div className="ldg-card-title">Cash Flow</div>
-              <div className="ldg-card-sub">Income vs. spending · {monthLabel}</div>
+              <div className="ldg-card-sub">
+                {fmt(cashflowIncome)} income · {fmt(cashflowSpending)} spending · {monthLabel}
+              </div>
             </div>
             <div className="ldg-cf-legend">
               <span><i style={{ background: '#7a9e7e', display: 'inline-block', width: 9, height: 9, borderRadius: 2, marginRight: 5 }} />Income</span>
