@@ -244,6 +244,14 @@ function normalizeBills(bills?: Bill[]): Bill[] {
   return (bills ?? []).map((bill, index) => normalizeBill(bill, index + 1));
 }
 
+function nextAvailableBillId(bills: Bill[], preferred?: number): number {
+  const afterExisting = bills.reduce((highest, bill) => Math.max(highest, bill.id), 0) + 1;
+  const preferredId = Number(preferred);
+  return Number.isInteger(preferredId) && preferredId > 0
+    ? Math.max(preferredId, afterExisting)
+    : afterExisting;
+}
+
 function normalizeAccounts(accounts?: Account[]): Account[] {
   return (accounts ?? []).map((account, index) => normalizeAccount(account, index + 1));
 }
@@ -374,6 +382,7 @@ function load(): typeof DEFAULTS {
     const s = JSON.parse(raw) as Partial<typeof DEFAULTS> & { budgetMethod?: unknown };
     const categories = normalizeCategories(s.categories);
     const accounts = normalizeAccounts(s.accounts);
+    const bills = normalizeBills(s.bills);
     const next = {
       ...DEFAULTS,
       ...s,
@@ -381,7 +390,8 @@ function load(): typeof DEFAULTS {
       currentMonth: s.currentMonth || new Date().toISOString().slice(0, 7),
       goals:        normalizeGoals(s.goals),
       debts:        normalizeDebts(s.debts),
-      bills:        normalizeBills(s.bills),
+      bills,
+      nextBillId:   nextAvailableBillId(bills, s.nextBillId),
       accounts,
       debtPlan:     normalizeDebtPlan(s.debtPlan),
       transactions: (s.transactions ?? DEFAULTS.transactions).map(normalizeTransaction),
@@ -438,13 +448,15 @@ function backupFromState(state: Partial<typeof DEFAULTS>) {
 }
 
 function mergeImportedData(raw: Partial<typeof DEFAULTS>) {
+  const bills = normalizeBills(raw.bills);
   return {
     ...DEFAULTS,
     ...raw,
     userName: raw.userName ?? DEFAULTS.userName,
     goals: normalizeGoals(raw.goals),
     debts: normalizeDebts(raw.debts),
-    bills: normalizeBills(raw.bills),
+    bills,
+    nextBillId: nextAvailableBillId(bills, raw.nextBillId),
     accounts: normalizeAccounts(raw.accounts),
     debtPlan: normalizeDebtPlan(raw.debtPlan),
     transactions: (raw.transactions ?? DEFAULTS.transactions).map(normalizeTransaction),
@@ -481,8 +493,8 @@ interface LedgerlyStore extends ReturnType<typeof load> {
   setDebtPlan(plan: DebtPlan): void;
 
   // Bills
-  addBill(b: Omit<Bill, 'id'>): void;
-  updateBill(id: number, changes: Partial<Bill>): void;
+  addBill(b: Omit<Bill, 'id'>): Bill;
+  updateBill(id: number, changes: Partial<Bill>): Bill | null;
   deleteBill(id: number): void;
   toggleAutopay(id: number): void;
   markBillPaid(id: number, paidDate?: string): void;
@@ -606,19 +618,29 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
     },
 
     addBill(b) {
+      let created: Bill | null = null;
       set(s => {
-        const next = [...s.bills, normalizeBill({ ...b, id: s.nextBillId }, s.nextBillId)];
-        const upd = { bills: next, nextBillId: s.nextBillId + 1 };
+        const billId = nextAvailableBillId(s.bills, s.nextBillId);
+        created = normalizeBill({ ...b, id: billId }, billId);
+        const next = [...s.bills, created];
+        const upd = { bills: next, nextBillId: billId + 1 };
         save({ ...s, ...upd });
         return upd;
       });
+      if (!created) throw new Error('Bill could not be created.');
+      return created;
     },
     updateBill(id, changes) {
+      const existing = get().bills.find(bill => bill.id === id);
+      if (!existing) return null;
+      let updated: Bill | null = null;
       set(s => {
-        const next = s.bills.map(b => b.id === id ? normalizeBill({ ...b, ...changes, id }, id) : b);
+        updated = normalizeBill({ ...existing, ...changes, id }, id);
+        const next = s.bills.map(b => b.id === id ? updated as Bill : b);
         save({ ...s, bills: next });
         return { bills: next };
       });
+      return updated;
     },
     deleteBill(id) {
       set(s => {

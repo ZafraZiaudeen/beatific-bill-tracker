@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageIntroBanner } from '../components/PageIntroBanner';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
 import { fmt, fmtYMFull } from '../utils/formatters';
-import { getAllBillOccurrencesForMonth, monthlyBillEquivalent } from '../utils/bills';
-import { BillDialog } from '../dialogs/BillDialog';
+import { getAllBillOccurrencesForMonth, getBillOccurrencesForMonth, monthlyBillEquivalent } from '../utils/bills';
+import { BillEditorDialog, type BillDialogSaveResult } from '../dialogs/BillEditorDialog';
 import type { Bill } from '../types';
 import sprig02 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-02.png';
 import sprig03 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-03.png';
@@ -20,6 +20,9 @@ const REFLECTIONS = [
   'Small consistent actions create lasting financial freedom.',
 ];
 
+const BILLS_PER_PAGE = 10;
+const SCHEDULES_PER_PAGE = 10;
+
 function fmtDate(iso: string, year = true) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
     month: 'short',
@@ -34,11 +37,27 @@ function dueLabel(daysUntil: number) {
   return `${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago`;
 }
 
+function scheduleSummary(bill: Bill): string {
+  const cadence = bill.cadence || 'Monthly';
+  if (cadence === 'Monthly') return `Monthly on day ${bill.dueDay}`;
+  if (!bill.startDate) return `${cadence} · Anchor not set`;
+  if (cadence === 'Weekly') return `Every 7 days from ${fmtDate(bill.startDate)}`;
+  if (cadence === 'Bi-weekly') return `Every 14 days from ${fmtDate(bill.startDate)}`;
+  return `Yearly on ${fmtDate(bill.startDate, false)}`;
+}
+
+function scheduleState(bill: Bill, todayIso: string): 'Active' | 'Paused' | 'Ended' {
+  if (bill.active === false) return 'Paused';
+  if (bill.endDate && bill.endDate < todayIso) return 'Ended';
+  return 'Active';
+}
+
 export function BillsPage() {
   const bills = useLedgerlyStore(s => s.bills);
   const categories = useLedgerlyStore(s => s.categories);
   const accounts = useLedgerlyStore(s => s.accounts);
   const deleteBill = useLedgerlyStore(s => s.deleteBill);
+  const updateBill = useLedgerlyStore(s => s.updateBill);
   const toggleAutopay = useLedgerlyStore(s => s.toggleAutopay);
   const recordBillPayment = useLedgerlyStore(s => s.recordBillPayment);
   const markBillPaid = useLedgerlyStore(s => s.markBillPaid);
@@ -51,6 +70,22 @@ export function BillsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
   const [autopayFilter, setAutopayFilter] = useState('all');
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false);
+  const [scheduleSearch, setScheduleSearch] = useState('');
+  const [schedulePage, setSchedulePage] = useState(1);
+  const [highlightedBillId, setHighlightedBillId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!saveMessage) return;
+    const timeout = window.setTimeout(() => {
+      setSaveMessage('');
+      setHighlightedBillId(null);
+    }, 4500);
+    return () => window.clearTimeout(timeout);
+  }, [saveMessage]);
 
   const categoryColor = useMemo(() => {
     const map = new Map(categories.map(category => [category.name, category.color]));
@@ -70,8 +105,27 @@ export function BillsPage() {
     const matchesCategory = categoryFilter === 'all' || b.category === categoryFilter;
     const matchesAccount = accountFilter === 'all' || (accountFilter === 'unlinked' ? !b.account : b.account === accountFilter);
     const matchesAutopay = autopayFilter === 'all' || (autopayFilter === 'on' ? b.autopay : !b.autopay);
-    return matchesTerm && matchesStatus && matchesCategory && matchesAccount && matchesAutopay;
+    const matchesDay = selectedDay === null || occ.dueDay === selectedDay;
+    return matchesTerm && matchesStatus && matchesCategory && matchesAccount && matchesAutopay && matchesDay;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredOccurrences.length / BILLS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const visibleOccurrences = filteredOccurrences.slice((safePage - 1) * BILLS_PER_PAGE, safePage * BILLS_PER_PAGE);
+  const pageStart = filteredOccurrences.length === 0 ? 0 : (safePage - 1) * BILLS_PER_PAGE + 1;
+  const pageEnd = Math.min(safePage * BILLS_PER_PAGE, filteredOccurrences.length);
+  const filteredSchedules = useMemo(() => {
+    const term = scheduleSearch.trim().toLowerCase();
+    return [...bills]
+      .filter(bill => !term
+        || bill.name.toLowerCase().includes(term)
+        || bill.category.toLowerCase().includes(term)
+        || (bill.account || '').toLowerCase().includes(term)
+        || (bill.notes || '').toLowerCase().includes(term))
+      .sort((a, b) => b.id - a.id);
+  }, [bills, scheduleSearch]);
+  const scheduleTotalPages = Math.max(1, Math.ceil(filteredSchedules.length / SCHEDULES_PER_PAGE));
+  const safeSchedulePage = Math.min(schedulePage, scheduleTotalPages);
+  const visibleSchedules = filteredSchedules.slice((safeSchedulePage - 1) * SCHEDULES_PER_PAGE, safeSchedulePage * SCHEDULES_PER_PAGE);
 
   const totalDue = occurrences.reduce((sum, occ) => sum + occ.bill.amount, 0);
   const autopayTotal = occurrences.filter(occ => occ.bill.autopay).reduce((sum, occ) => sum + occ.bill.amount, 0);
@@ -100,7 +154,13 @@ export function BillsPage() {
   const legendCats = Object.keys(catMap).slice(0, 5);
 
   const handleEdit = (b: Bill) => { setEditBill(b); setShowDialog(true); setMenuId(null); };
-  const handleDelete = (id: number) => { if (confirm('Delete this recurring bill?')) { deleteBill(id); setMenuId(null); } };
+  const handleDelete = (id: number) => {
+    if (confirm('Delete this recurring bill?')) {
+      deleteBill(id);
+      setMenuId(null);
+      if (highlightedBillId === id) setHighlightedBillId(null);
+    }
+  };
   const handleRecordPayment = (bill: Bill, date: string) => {
     const confirmed = confirm(`Record ${bill.name} as paid on ${fmtDate(date)}? This will create one transaction${bill.account ? ` and update ${bill.account}` : ''}.`);
     if (!confirmed) return;
@@ -111,8 +171,58 @@ export function BillsPage() {
     markBillPaid(bill.id, date);
     setMenuId(null);
   };
+  const handleCalendarDay = (day: number) => {
+    setSelectedDay(current => current === day ? null : day);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setCategoryFilter('all');
+    setAccountFilter('all');
+    setAutopayFilter('all');
+    setSelectedDay(null);
+    setPage(1);
+  };
+  const handleDialogSaved = ({ mode, bill }: BillDialogSaveResult) => {
+    setShowDialog(false);
+    setEditBill(null);
+    setHighlightedBillId(bill.id);
+    if (mode === 'created') {
+      clearFilters();
+      const savedBills = useLedgerlyStore.getState().bills;
+      const monthOccurrences = getAllBillOccurrencesForMonth(savedBills, currentMonth);
+      const firstOccurrenceIndex = monthOccurrences.findIndex(occurrence => occurrence.bill.id === bill.id);
+      const hasCurrentMonthOccurrence = getBillOccurrencesForMonth(bill, currentMonth).length > 0;
+      if (hasCurrentMonthOccurrence && firstOccurrenceIndex >= 0) {
+        setPage(Math.floor(firstOccurrenceIndex / BILLS_PER_PAGE) + 1);
+        setSaveMessage(`${bill.name} was saved and is visible in ${fmtYMFull(currentMonth)}.`);
+      } else {
+        setScheduleSearch('');
+        setSchedulePage(1);
+        setScheduleDrawerOpen(true);
+        setSaveMessage(`${bill.name} was saved, but it has no occurrence in ${fmtYMFull(currentMonth)}. It is highlighted in saved schedules.`);
+      }
+    } else {
+      setSaveMessage(`${bill.name} was updated successfully.`);
+    }
+  };
+  const handleToggleSchedule = (bill: Bill) => {
+    try {
+      const updated = updateBill(bill.id, { active: bill.active === false });
+      if (!updated) throw new Error('This saved schedule no longer exists.');
+      setHighlightedBillId(updated.id);
+      setSaveMessage(`${updated.name} is now ${updated.active === false ? 'paused' : 'active'}.`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Unable to update this schedule.');
+    }
+  };
 
   const reflection = REFLECTIONS[now.getDate() % REFLECTIONS.length];
+  const todayIso = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+  const selectedDate = selectedDay === null
+    ? ''
+    : `${currentMonth}-${String(selectedDay).padStart(2, '0')}`;
   const filterPillStyle = { border: '1px solid var(--border)', borderRadius: 999, padding: '8px 12px', background: 'var(--surface)', color: 'var(--text2)', fontWeight: 600, fontSize: '.78rem' } as const;
 
   return (
@@ -130,6 +240,12 @@ export function BillsPage() {
           <div className="ldg-privacy-badge">🔒 Local only · Nothing sent to any server</div>
         </div>
       </div>
+
+      {saveMessage && (
+        <div className="ldg-bills-save-message" role="status" aria-live="polite">
+          ✓ {saveMessage}
+        </div>
+      )}
 
       <div className="ldg-bills-stat-row">
         <div className="ldg-stat-card ldg-stat-cream">
@@ -177,34 +293,43 @@ export function BillsPage() {
               <div className="ldg-card-title">🌿 Recurring Bills</div>
               <div style={{ fontSize: '.76rem', color: 'var(--text3)', marginTop: 2 }}>Edit schedules freely. Transactions are created only when you record a payment.</div>
             </div>
-            <button className="ldg-bills-add-btn" onClick={() => { setEditBill(null); setShowDialog(true); }}>
-              + Add bill
-            </button>
+            <div className="ldg-bills-header-actions">
+              <button
+                type="button"
+                className="ldg-bills-manage-btn"
+                onClick={event => { event.stopPropagation(); setScheduleDrawerOpen(true); }}
+              >
+                Manage saved schedules ({bills.length})
+              </button>
+              <button className="ldg-bills-add-btn" onClick={() => { setEditBill(null); setShowDialog(true); }}>
+                + Add bill
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 16px 14px' }} onClick={e => e.stopPropagation()}>
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search bill, category, account, notes"
               style={{ ...filterPillStyle, minWidth: 220, flex: '1 1 220px' }}
             />
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={filterPillStyle}>
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} style={filterPillStyle}>
               <option value="all">All statuses</option>
               <option value="scheduled">Scheduled</option>
               <option value="paid">Paid</option>
               <option value="overdue">Overdue</option>
             </select>
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={filterPillStyle}>
+            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }} style={filterPillStyle}>
               <option value="all">All categories</option>
               {categories.filter(c => !c.archived).map(category => <option key={category.id} value={category.name}>{category.name}</option>)}
             </select>
-            <select value={accountFilter} onChange={e => setAccountFilter(e.target.value)} style={filterPillStyle}>
+            <select value={accountFilter} onChange={e => { setAccountFilter(e.target.value); setPage(1); }} style={filterPillStyle}>
               <option value="all">All accounts</option>
               <option value="unlinked">Unlinked</option>
               {accounts.map(account => <option key={account.id} value={account.name}>{account.name}</option>)}
             </select>
-            <select value={autopayFilter} onChange={e => setAutopayFilter(e.target.value)} style={filterPillStyle}>
+            <select value={autopayFilter} onChange={e => { setAutopayFilter(e.target.value); setPage(1); }} style={filterPillStyle}>
               <option value="all">Autopay: all</option>
               <option value="on">Autopay on</option>
               <option value="off">Autopay off</option>
@@ -217,29 +342,34 @@ export function BillsPage() {
             </div>
           ) : filteredOccurrences.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text2)', fontSize: '.85rem' }}>
-              No bills match those filters.
+              {selectedDay !== null
+                ? (calBills[selectedDay]?.length ?? 0) === 0
+                  ? `No bills are due on ${fmtDate(selectedDate)}.`
+                  : `No bills due on ${fmtDate(selectedDate)} match the other filters.`
+                : 'No bills match those filters.'}
             </div>
           ) : (
-            <table className="ldg-bills-table">
-              <thead>
-                <tr>
-                  <th className="ldg-bills-th">Bill</th>
-                  <th className="ldg-bills-th">Amount</th>
-                  <th className="ldg-bills-th">Cadence</th>
-                  <th className="ldg-bills-th">Next due</th>
-                  <th className="ldg-bills-th">Category</th>
-                  <th className="ldg-bills-th">Account</th>
-                  <th className="ldg-bills-th">Autopay</th>
-                  <th className="ldg-bills-th">Status</th>
-                  <th className="ldg-bills-th" style={{ width: 40 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOccurrences.map(occ => {
+            <>
+              <table className="ldg-bills-table">
+                <thead>
+                  <tr>
+                    <th className="ldg-bills-th">Bill</th>
+                    <th className="ldg-bills-th">Amount</th>
+                    <th className="ldg-bills-th">Cadence</th>
+                    <th className="ldg-bills-th">Next due</th>
+                    <th className="ldg-bills-th">Category</th>
+                    <th className="ldg-bills-th">Account</th>
+                    <th className="ldg-bills-th">Autopay</th>
+                    <th className="ldg-bills-th">Status</th>
+                    <th className="ldg-bills-th" style={{ width: 40 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                {visibleOccurrences.map(occ => {
                   const b = occ.bill;
                   const rowKey = `${b.id}-${occ.dueDate}`;
                   return (
-                    <tr key={rowKey} className="ldg-bills-tr">
+                    <tr key={rowKey} className={`ldg-bills-tr${b.id === highlightedBillId ? ' highlighted' : ''}`}>
                       <td className="ldg-bills-td">
                         <div className="ldg-bills-icon-cell">
                           <div className="ldg-bills-avatar">{b.icon}</div>
@@ -288,8 +418,32 @@ export function BillsPage() {
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+              <div className="ldg-bills-footer">
+                <span className="ldg-bills-page-count">
+                  Showing {pageStart}-{pageEnd} of {filteredOccurrences.length} occurrence{filteredOccurrences.length === 1 ? '' : 's'}
+                </span>
+                {totalPages > 1 && (
+                  <div className="ldg-bills-pagination" aria-label="Bill occurrence pages">
+                    <button className="ldg-bills-page-btn" type="button" disabled={safePage === 1} onClick={() => setPage(safePage - 1)} aria-label="Previous page">‹</button>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => (
+                      <button
+                        key={pageNumber}
+                        className={`ldg-bills-page-btn${pageNumber === safePage ? ' active' : ''}`}
+                        type="button"
+                        onClick={() => setPage(pageNumber)}
+                        aria-label={`Page ${pageNumber}`}
+                        aria-current={pageNumber === safePage ? 'page' : undefined}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                    <button className="ldg-bills-page-btn" type="button" disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)} aria-label="Next page">›</button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
           <img src={sprig02} alt="" className="ldg-bills-table-deco" />
         </div>
@@ -298,6 +452,15 @@ export function BillsPage() {
           <div className="ldg-card">
             <div className="ldg-bills-cal-header">
               <div className="ldg-card-title">📅 Monthly Bill Calendar</div>
+              {selectedDay !== null && (
+                <button
+                  type="button"
+                  className="ldg-bills-cal-clear"
+                  onClick={event => { event.stopPropagation(); setSelectedDay(null); setPage(1); }}
+                >
+                  Clear date
+                </button>
+              )}
             </div>
             <div style={{ padding: '0 12px 4px', fontSize: '.80rem', fontWeight: 600, color: 'var(--text2)' }}>
               {fmtYMFull(currentMonth)}
@@ -314,12 +477,13 @@ export function BillsPage() {
                   <button
                     key={day}
                     type="button"
-                    className="ldg-bills-cal-day"
-                    onClick={e => { e.stopPropagation(); if (dayBills.length) setSearch(dayBills[0].bill.name); }}
-                    title={dayBills.map(occ => occ.bill.name).join(', ')}
-                    style={{ border: 0, background: 'transparent', cursor: dayBills.length ? 'pointer' : 'default' }}
+                    className={`ldg-bills-cal-day${day === selectedDay ? ' selected' : ''}`}
+                    onClick={event => { event.stopPropagation(); handleCalendarDay(day); }}
+                    title={dayBills.length ? dayBills.map(occ => occ.bill.name).join(', ') : 'No bills due'}
+                    aria-label={`${fmtDate(`${currentMonth}-${String(day).padStart(2, '0')}`)}${dayBills.length ? `: ${dayBills.map(occ => occ.bill.name).join(', ')}` : ': no bills due'}`}
+                    aria-pressed={day === selectedDay}
                   >
-                    <div className={`ldg-bills-cal-num${day === todayD ? ' today' : ''}${dayBills.length > 0 && day !== todayD ? ' has-bill' : ''}`}>
+                    <div className={`ldg-bills-cal-num${day === todayD ? ' today' : ''}${dayBills.length > 0 ? ' has-bill' : ''}${day === selectedDay ? ' selected' : ''}`}>
                       {day}
                     </div>
                     {dayBills.length > 0 && (
@@ -384,8 +548,96 @@ export function BillsPage() {
         <img src={heart01} alt="" className="ldg-reflection-heart" />
       </div>
 
+      {scheduleDrawerOpen && (
+        <div className="ldg-bills-drawer-backdrop" onClick={() => setScheduleDrawerOpen(false)}>
+          <aside className="ldg-bills-drawer" role="dialog" aria-modal="true" aria-labelledby="saved-schedules-title" onClick={event => event.stopPropagation()}>
+            <div className="ldg-bills-drawer-header">
+              <div>
+                <span className="ldg-budget-section-kicker">Recurring bill library</span>
+                <h2 id="saved-schedules-title">Manage saved schedules</h2>
+                <p>Every saved bill stays available here, even when it has no occurrence this month.</p>
+              </div>
+              <button type="button" onClick={() => setScheduleDrawerOpen(false)} aria-label="Close saved schedules">×</button>
+            </div>
+
+            {saveMessage && (
+              <div className="ldg-bills-drawer-message" role="status" aria-live="polite">✓ {saveMessage}</div>
+            )}
+
+            <input
+              className="ldg-bills-drawer-search"
+              value={scheduleSearch}
+              onChange={event => { setScheduleSearch(event.target.value); setSchedulePage(1); }}
+              placeholder="Search saved schedules"
+              aria-label="Search saved schedules"
+            />
+
+            <div className="ldg-bills-schedule-list">
+              {visibleSchedules.map(bill => {
+                const state = scheduleState(bill, todayIso);
+                const lacksAnchor = bill.cadence !== 'Monthly' && !bill.startDate;
+                return (
+                  <article key={bill.id} className={`ldg-bills-schedule-card${bill.id === highlightedBillId ? ' highlighted' : ''}`}>
+                    <div className="ldg-bills-schedule-main">
+                      <div className="ldg-bills-avatar">{bill.icon || '💸'}</div>
+                      <div className="ldg-bills-schedule-copy">
+                        <div className="ldg-bills-schedule-title-row">
+                          <strong>{bill.name}</strong>
+                          <span className={`ldg-bills-schedule-state ${state.toLowerCase()}`}>{state}</span>
+                        </div>
+                        <div className="ldg-bills-schedule-summary">{scheduleSummary(bill)} · {fmt(bill.amount)} per occurrence</div>
+                        <div className="ldg-bills-schedule-meta">
+                          <span>{bill.category}</span>
+                          <span>{bill.account || 'Unlinked'}</span>
+                          <span>{bill.autopay ? 'Autopay label' : 'Manual'}</span>
+                        </div>
+                        <div className="ldg-bills-schedule-dates">
+                          {bill.startDate ? `Starts ${fmtDate(bill.startDate)}` : 'No start boundary'}
+                          {' · '}
+                          {bill.endDate ? `Ends ${fmtDate(bill.endDate)}` : 'No end date'}
+                        </div>
+                        {lacksAnchor && <div className="ldg-bills-schedule-warning">Anchor not set. Choose a first due date the next time you edit this legacy schedule.</div>}
+                      </div>
+                    </div>
+                    <div className="ldg-bills-schedule-actions">
+                      <button type="button" onClick={() => handleEdit(bill)}>Edit</button>
+                      <button type="button" onClick={() => handleToggleSchedule(bill)}>{bill.active === false ? 'Activate' : 'Pause'}</button>
+                      <button type="button" className="danger" onClick={() => handleDelete(bill.id)}>Delete</button>
+                    </div>
+                  </article>
+                );
+              })}
+              {filteredSchedules.length === 0 && (
+                <div className="ldg-bills-drawer-empty">{bills.length === 0 ? 'No saved schedules yet.' : 'No saved schedules match that search.'}</div>
+              )}
+            </div>
+
+            {filteredSchedules.length > 0 && (
+              <div className="ldg-bills-drawer-footer">
+                <span>
+                  Showing {(safeSchedulePage - 1) * SCHEDULES_PER_PAGE + 1}-{Math.min(safeSchedulePage * SCHEDULES_PER_PAGE, filteredSchedules.length)} of {filteredSchedules.length}
+                </span>
+                {scheduleTotalPages > 1 && (
+                  <div className="ldg-bills-pagination" aria-label="Saved schedule pages">
+                    <button className="ldg-bills-page-btn" type="button" disabled={safeSchedulePage === 1} onClick={() => setSchedulePage(safeSchedulePage - 1)} aria-label="Previous schedules page">‹</button>
+                    {Array.from({ length: scheduleTotalPages }, (_, index) => index + 1).map(pageNumber => (
+                      <button key={pageNumber} className={`ldg-bills-page-btn${pageNumber === safeSchedulePage ? ' active' : ''}`} type="button" onClick={() => setSchedulePage(pageNumber)} aria-current={pageNumber === safeSchedulePage ? 'page' : undefined}>{pageNumber}</button>
+                    ))}
+                    <button className="ldg-bills-page-btn" type="button" disabled={safeSchedulePage === scheduleTotalPages} onClick={() => setSchedulePage(safeSchedulePage + 1)} aria-label="Next schedules page">›</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
       {showDialog && (
-        <BillDialog bill={editBill} onClose={() => { setShowDialog(false); setEditBill(null); }} />
+        <BillEditorDialog
+          bill={editBill}
+          onClose={() => { setShowDialog(false); setEditBill(null); }}
+          onSaved={handleDialogSaved}
+        />
       )}
     </div>
   );

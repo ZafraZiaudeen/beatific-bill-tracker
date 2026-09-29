@@ -1,13 +1,17 @@
-import { useRef } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
 import type { Bill } from '../types';
 
 const C = { border: '#e5e2db', text: '#1a1a1a', text2: '#6b7280', accent: '#6f8f72' };
 const CADENCES = ['Monthly', 'Weekly', 'Bi-weekly', 'Yearly'];
 
-interface Props { bill: Bill | null; onClose: () => void; }
+interface Props {
+  bill: Bill | null;
+  onClose: () => void;
+  onSaved: (mode: 'created' | 'updated') => void;
+}
 
-export function BillDialog({ bill, onClose }: Props) {
+export function BillDialog({ bill, onClose, onSaved }: Props) {
   const addBill = useLedgerlyStore(s => s.addBill);
   const updateBill = useLedgerlyStore(s => s.updateBill);
   const categories = useLedgerlyStore(s => s.categories);
@@ -27,12 +31,15 @@ export function BillDialog({ bill, onClose }: Props) {
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const autopayRef = useRef<HTMLInputElement>(null);
   const activeRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState('');
 
-  const save = () => {
+  const save = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
     const name = nameRef.current?.value.trim() ?? '';
-    const amount = parseFloat(amountRef.current?.value ?? '0');
+    const amount = Number(amountRef.current?.value ?? '');
     const cadence = cadenceRef.current?.value ?? 'Monthly';
-    const dueDay = parseInt(dueDayRef.current?.value ?? '1', 10);
+    const dueDay = Number(dueDayRef.current?.value ?? '');
     const category = catRef.current?.value ?? 'Other';
     const account = accountRef.current?.value ?? '';
     const startDate = startRef.current?.value ?? '';
@@ -42,12 +49,24 @@ export function BillDialog({ bill, onClose }: Props) {
     const autopay = !!autopayRef.current?.checked;
     const active = !!activeRef.current?.checked;
 
-    if (!name || !amount || amount <= 0 || !dueDay || dueDay < 1 || dueDay > 31) {
-      alert('Please fill in name, amount, and due day (1-31).');
+    if (!name) {
+      setError('Enter a bill name.');
+      nameRef.current?.focus();
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Enter an amount greater than zero.');
+      amountRef.current?.focus();
+      return;
+    }
+    if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+      setError('Enter a whole-number due day from 1 to 31.');
+      dueDayRef.current?.focus();
       return;
     }
     if (endDate && startDate && endDate < startDate) {
-      alert('End date must be after the start date.');
+      setError('End date must be on or after the start date.');
+      endRef.current?.focus();
       return;
     }
 
@@ -68,9 +87,17 @@ export function BillDialog({ bill, onClose }: Props) {
       lastPaidDate: bill?.lastPaidDate ?? '',
       paymentTransactionId: bill?.paymentTransactionId,
     };
-    if (bill) updateBill(bill.id, data);
-    else addBill(data);
-    onClose();
+    try {
+      if (bill) {
+        updateBill(bill.id, data);
+        onSaved('updated');
+      } else {
+        addBill(data);
+        onSaved('created');
+      }
+    } catch {
+      setError('Unable to save this bill locally. Check your browser storage and try again.');
+    }
   };
 
   return (
@@ -78,10 +105,10 @@ export function BillDialog({ bill, onClose }: Props) {
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
     >
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 560, boxShadow: '0 8px 40px rgba(0,0,0,.18)', overflow: 'hidden' }}>
+      <form onSubmit={save} noValidate style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 560, boxShadow: '0 8px 40px rgba(0,0,0,.18)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
           <span style={{ fontWeight: 700, fontSize: 16, color: C.text }}>{bill ? 'Edit Bill' : 'Add Recurring Bill'}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.text2, lineHeight: 1 }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close bill dialog" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.text2, lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '72vh', overflowY: 'auto' }}>
@@ -160,13 +187,19 @@ export function BillDialog({ bill, onClose }: Props) {
               <span style={{ fontSize: 13, color: C.text }}>Active schedule</span>
             </label>
           </div>
+
+          {error && (
+            <div role="alert" style={{ padding: '10px 12px', borderRadius: 8, background: '#fdf0ee', border: '1px solid rgba(196,96,96,.28)', color: '#a33d3d', fontSize: 13 }}>
+              {error}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, padding: '14px 22px', borderTop: `1px solid ${C.border}`, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '9px 20px', border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: '#fff' }}>Cancel</button>
-          <button onClick={save} style={{ padding: '9px 20px', background: C.accent, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{bill ? 'Save Changes' : 'Add Bill'}</button>
+          <button type="button" onClick={onClose} style={{ padding: '9px 20px', border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: '#fff' }}>Cancel</button>
+          <button type="submit" style={{ padding: '9px 20px', background: C.accent, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{bill ? 'Save Changes' : 'Add Bill'}</button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
