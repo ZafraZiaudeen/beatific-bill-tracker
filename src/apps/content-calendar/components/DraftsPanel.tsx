@@ -41,8 +41,8 @@ export default function DraftsPanel({ drafts, mediaItems = [], mediaUrls = {} }:
         </span>
       </div>
 
-      {/* Draft list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Draft list — scrollable after 8 items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: drafts.length > 8 ? 400 : undefined, overflowY: drafts.length > 8 ? 'auto' : undefined }}>
         {drafts.length ? drafts.map((d) => {
           const badge = TYPE_BADGE[d.type] ?? TYPE_BADGE.Static;
           const media = (d.mediaIds ?? []).map(id => mediaItems.find(item => item.id === id)).find(Boolean);

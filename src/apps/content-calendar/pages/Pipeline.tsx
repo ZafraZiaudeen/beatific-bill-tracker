@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { DragEvent, FormEvent, KeyboardEvent } from 'react';
 import {
   CalendarDays, Check, CheckCircle2, ChevronDown,
-  Lightbulb, MapPin, MoreHorizontal, Music2, Plus, Search, Trash2,
+  Lightbulb, MoreHorizontal, Music2, Plus, Search, Trash2,
   Send, Sparkles,
 } from 'lucide-react';
 import { useContentCalendarStore } from '../store';
@@ -214,7 +214,7 @@ function DetailsModal({ item, onClose, onEdit }: { item: PipelineItem; onClose: 
           <dt>Publishing</dt><dd>{formatDate(item.scheduledDate, dateFormat)}{item.scheduledTime ? ` · ${item.scheduledTime}` : ''}</dd>
           <dt>Checklist</dt><dd>{item.checklistComplete} of {item.checklistTotal} complete</dd>
         </dl>
-        <div className="cc-modal-actions"><button className="cc-modal-secondary" onClick={onEdit}>Edit item</button><button className="cc-modal-secondary" onClick={() => { onClose(); openComposer({ pipelineId: item.id, returnView: 'pipeline' }); }}>Open Composer</button><button className="cc-modal-secondary" onClick={() => { if (window.confirm('Delete this pipeline item? Related drafts and calendar posts will remain.')) { deleteItem(item.id); onClose(); } }}><Trash2 size={12} />Delete</button><button className="cc-modal-primary" onClick={onClose}>Done</button></div>
+        <div className="cc-modal-actions"><button className="cc-modal-secondary" onClick={onEdit}>Edit item</button><button className="cc-modal-secondary" onClick={() => { onClose(); openComposer({ pipelineId: item.id, returnView: 'pipeline' }); }}>Open Composer</button><button className="cc-modal-secondary" onClick={() => { if (window.confirm('Delete this pipeline item? This will also remove the linked calendar post.')) { deleteItem(item.id); onClose(); } }}><Trash2 size={12} />Delete</button><button className="cc-modal-primary" onClick={onClose}>Done</button></div>
       </div>
     </div>
   );
@@ -285,7 +285,23 @@ export default function Pipeline() {
           <span className="cc-pipeline-swoop" />
         </div>
         <div className="cc-pipeline-header-right">
-          <div className="cc-pipeline-meta"><div className="cc-pipeline-date">{new Date(currentTime).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} <CalendarDays size={13} /></div><div className="cc-pipeline-local"><MapPin size={11} fill="currentColor" /> Local only</div></div>
+          <div className="cc-pipeline-meta">
+            <div className="cc-date-range">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              {new Date(currentTime).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+            </div>
+            <span className="cc-local-badge">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              Local only
+            </span>
+          </div>
           <div className="cc-pipeline-toolbar">
             <label className="cc-pipeline-search"><Search size={13} /><input aria-label="Search pipeline" value={pipelineFilters.search} onChange={event => setPipelineFilters({ search: event.target.value })} placeholder="Search posts, ideas, or hashtags..." /></label>
             <SelectFilter label="Platform" value={pipelineFilters.platform} onChange={value => setPipelineFilters({ platform: value as Platform | 'all' })}><option value="all">All platforms</option>{platformOptions.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</SelectFilter>

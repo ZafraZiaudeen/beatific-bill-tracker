@@ -8,13 +8,11 @@ import {
 } from "react"
 import {
   Archive,
-  CalendarDays,
   CheckCircle2,
   ChevronDown,
   Copy,
   Eye,
   ImagePlus,
-  MapPin,
   Pencil,
   Plus,
   Search,
@@ -35,7 +33,7 @@ import { useMediaAssets } from "../components/useMediaAssets"
 import { mediaUrl } from "../mediaStorage"
 
 const CSS = `
-.cc-template-page{min-height:100%;background:var(--cc-bg);color:#243136;padding:0 18px 24px;font-family:'Nunito',-apple-system,sans-serif}.cc-template-head{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 4px 12px}.cc-template-title-row{display:flex;align-items:center;gap:10px}.cc-template-title{font:400 31px/1 'DM Serif Display',Georgia,serif;margin:0;color:var(--cc-text)}.cc-template-star{color:#e8af45;transform:rotate(-8deg)}.cc-template-line{width:150px;border-top:3px solid #d87956;border-radius:50%;margin-top:10px;transform:rotate(-2deg)}.cc-template-meta{display:flex;align-items:center;gap:20px;font-size:12px;font-weight:650;color:var(--cc-text-2)}.cc-template-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px}.cc-template-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) repeat(4,auto);gap:8px;margin:0 0 14px}.cc-template-search{height:31px;display:flex;align-items:center;gap:8px;background:var(--cc-card);border:1px solid #ece5de;border-radius:10px;padding:0 10px}.cc-template-search input{width:100%;border:0;outline:0;background:transparent;font-size:10.5px}.cc-template-select-wrap{position:relative}.cc-template-select{height:31px;appearance:none;padding:0 28px 0 12px;border:1px solid #ece5de;border-radius:10px;background:var(--cc-card);font-size:10.5px;color:var(--cc-text);cursor:pointer;outline:0}.cc-template-select-wrap svg{position:absolute;right:9px;top:10px;pointer-events:none;color:var(--cc-text-3)}.cc-template-add{height:31px;width:35px;border:1px solid #f0d5c8;border-radius:9px;background:#f9ede6;color:#d97856;display:grid;place-items:center;cursor:pointer}.cc-template-section{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 0 14px}.cc-template-section-title{font:400 21px/1 'DM Serif Display',Georgia,serif;color:var(--cc-text);margin:0}.cc-template-section-sub{font-size:10px;color:var(--cc-text-3);margin:5px 0 0}.cc-template-count{display:flex;align-items:center;gap:10px;background:rgba(225,240,252,.6);border:1px solid #c8dff0;border-radius:10px;padding:9px 12px;color:#5a8a9f;font-size:9px}.cc-template-count strong{display:block;color:var(--cc-text);font-size:11px;margin-bottom:2px}.cc-template-count-icon{width:30px;height:30px;display:grid;place-items:center;background:#d3e8f5;border-radius:8px}.cc-template-platform-group{margin-bottom:18px}.cc-template-platform-heading{display:flex;align-items:center;gap:8px;margin-bottom:8px}.cc-template-platform-heading h3{font:400 18px/1 'DM Serif Display',Georgia,serif;margin:0;color:var(--cc-text)}.cc-template-platform-heading span{font-size:9px;color:var(--cc-text-3)}.cc-template-platform-rule{height:1px;background:#e9dfd7;flex:1}.cc-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.cc-template-card{min-height:286px;background:rgba(255,255,255,.76);border:1px solid #ece4dc;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s,transform .15s}.cc-template-card:hover{box-shadow:0 5px 16px rgba(60,40,30,.1);transform:translateY(-1px)}.cc-template-image{height:108px;min-height:108px;overflow:hidden;background:linear-gradient(135deg,#fce8e3,#ead7cc);position:relative;display:grid;place-items:center;color:var(--cc-accent)}.cc-template-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 40%}.cc-template-placeholder{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.55)}.cc-template-status{position:absolute;right:7px;top:7px;padding:3px 9px;border-radius:99px;background:#fff3dc;color:#97722f;font-size:8px}.cc-template-content{display:flex;flex-direction:column;flex:1;padding:10px 11px}.cc-template-name{font:400 16px/1.15 'DM Serif Display',Georgia,serif;margin:0 0 8px;color:var(--cc-text)}.cc-template-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}.cc-template-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:8px;background:#faeef0;color:#995067}.cc-template-badge.type{background:#edf2f4;color:#4f7d92}.cc-template-description{font-size:9.5px;line-height:1.4;color:#667074;min-height:28px;margin:0 0 7px}.cc-template-structure{display:grid;gap:4px;font-size:8.5px;color:var(--cc-text-2)}.cc-template-structure div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-template-structure b{color:var(--cc-text)}.cc-template-foot{margin-top:auto;padding-top:9px;display:flex;align-items:center;justify-content:space-between;gap:7px}.cc-template-check{display:flex;align-items:center;gap:4px;color:#8b9293;font-size:8px}.cc-template-actions{display:flex;align-items:center;gap:3px}.cc-template-icon-btn{width:24px;height:24px;border:1px solid #eadfd6;border-radius:7px;background:#fffaf6;color:#8a6b5d;display:grid;place-items:center;cursor:pointer}.cc-template-use{border:0;border-radius:99px;background:#ffe4cd;color:#b55335;padding:5px 9px;font-size:8px;font-weight:700;cursor:pointer}.cc-template-empty{background:rgba(255,255,255,.76);border:1px dashed #decfc4;border-radius:10px;padding:38px 18px;text-align:center;color:var(--cc-text-3);font-size:11px}.cc-template-empty strong{display:block;color:var(--cc-text);font:400 20px 'DM Serif Display',Georgia,serif;margin-bottom:7px}.cc-template-overlay{position:fixed;inset:0;background:rgba(35,31,29,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-template-dialog{width:min(620px,100%);max-height:92vh;overflow:auto;background:#fffaf6;border:1px solid #e9ddd3;border-radius:14px;padding:20px;box-shadow:0 18px 60px rgba(48,39,34,.2)}.cc-template-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.cc-template-dialog-title{font:400 24px/1 'DM Serif Display',Georgia,serif;margin:0;color:var(--cc-text)}.cc-template-dialog-sub{font-size:10px;color:var(--cc-text-3);margin:6px 0 0}.cc-template-close{width:28px;height:28px;border:1px solid #e0d6ce;border-radius:8px;background:var(--cc-card);color:#806f66;display:grid;place-items:center;cursor:pointer}.cc-template-form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.cc-template-field{display:flex;flex-direction:column;gap:5px}.cc-template-field.full{grid-column:1/-1}.cc-template-field label,.cc-template-detail-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#806f66}.cc-template-field label span{color:var(--cc-accent)}.cc-template-input,.cc-template-textarea{border:1px solid #e0d6ce;border-radius:8px;background:white;padding:9px;font-size:11px;outline:0;color:var(--cc-text);font-family:inherit}.cc-template-textarea{min-height:60px;resize:vertical}.cc-template-input:focus,.cc-template-textarea:focus{border-color:var(--cc-accent)}.cc-template-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.cc-template-dialog-actions button{padding:8px 14px;border-radius:8px;font-size:10px;border:1px solid #dfd5cd;background:var(--cc-card);color:#806f66;cursor:pointer}.cc-template-dialog-actions .primary{background:var(--cc-accent);color:#fff;border-color:var(--cc-accent)}.cc-template-error{color:#ad5144;font-size:10px;grid-column:1/-1}.cc-template-checklist{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;color:#806f66}.cc-template-checklist label{display:flex;align-items:center;gap:5px}.cc-template-detail{display:grid;gap:12px}.cc-template-detail-value{font-size:11px;color:#4f5b5d;line-height:1.45;white-space:pre-wrap}.cc-template-detail-media{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.cc-template-detail-media img,.cc-template-detail-placeholder{width:100%;height:76px;object-fit:cover;border-radius:7px;background:#f0e8e0}.cc-template-detail-placeholder{display:grid;place-items:center;color:#bca99d}.cc-template-detail-actions{display:flex;flex-wrap:wrap;gap:6px}.cc-template-detail-actions button{padding:7px 10px;border:1px solid #dfd5cd;border-radius:7px;background:var(--cc-card);color:#806f66;font-size:10px;cursor:pointer}.cc-template-detail-actions .primary{background:var(--cc-accent);color:#fff;border-color:var(--cc-accent)}.cc-template-note{margin-top:14px;background:rgba(255,255,255,.7);border:1px solid var(--cc-border);border-radius:10px;padding:14px;text-align:center}.cc-template-note-title{font:600 15px/1.3 'Caveat',cursive;color:var(--cc-text)}.cc-template-note-copy{font-size:9px;line-height:1.4;color:var(--cc-text-3);margin-top:4px}@media(max-width:900px){.cc-template-page{min-width:0}.cc-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-template-toolbar{grid-template-columns:1fr 1fr}.cc-template-search{grid-column:1/-1}.cc-template-count{display:none}}@media(max-width:520px){.cc-template-grid{grid-template-columns:1fr}.cc-template-head{gap:10px}.cc-template-meta{display:none}.cc-template-form{grid-template-columns:1fr}.cc-template-field.full{grid-column:auto}.cc-template-detail-media{grid-template-columns:repeat(2,1fr)}}
+.cc-template-page{min-height:100%;background:var(--cc-bg);color:#243136;padding:0 18px 24px;font-family:'Nunito',-apple-system,sans-serif}.cc-template-head{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 22px 14px;margin:0 -18px;border-bottom:1px solid var(--cc-border)}.cc-template-title-row{display:flex;align-items:center;gap:9px}.cc-template-title{font:400 29px/1 'DM Serif Display',Georgia,serif;letter-spacing:-.02em;margin:0;color:var(--cc-text);white-space:nowrap}.cc-template-line{display:block;width:115px;height:11px;margin-top:8px;border-top:3px solid var(--cc-accent);border-radius:50%;transform:rotate(-3deg)}.cc-template-header-right{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:10px}.cc-template-meta{display:flex;align-items:center;gap:18px;font-size:12px;font-weight:650}.cc-template-date{display:flex;align-items:center;gap:7px;color:var(--cc-text)}.cc-template-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px;color:#7a5a2a}.cc-template-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:10px 22px 12px;margin:0 -18px 14px;border-bottom:1px solid var(--cc-border)}.cc-template-search{height:31px;min-width:220px;display:flex;align-items:center;gap:8px;background:var(--cc-card);border:1px solid var(--cc-border);border-radius:11px;padding:0 11px}.cc-template-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:10.5px;color:var(--cc-text)}.cc-template-select-wrap{position:relative}.cc-template-select{height:31px;appearance:none;padding:0 28px 0 12px;border:1px solid #ece5de;border-radius:10px;background:var(--cc-card);font-size:10.5px;color:var(--cc-text);cursor:pointer;outline:0}.cc-template-select-wrap svg{position:absolute;right:9px;top:10px;pointer-events:none;color:var(--cc-text-3)}.cc-template-add{height:31px;width:35px;border:1px solid #f0d5c8;border-radius:9px;background:#f9ede6;color:#d97856;display:grid;place-items:center;cursor:pointer}.cc-template-section{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 0 14px}.cc-template-section-title{font:400 21px/1 'DM Serif Display',Georgia,serif;color:var(--cc-text);margin:0}.cc-template-section-sub{font-size:10px;color:var(--cc-text-3);margin:5px 0 0}.cc-template-count{display:flex;align-items:center;gap:10px;background:rgba(225,240,252,.6);border:1px solid #c8dff0;border-radius:10px;padding:9px 12px;color:#5a8a9f;font-size:9px}.cc-template-count strong{display:block;color:var(--cc-text);font-size:11px;margin-bottom:2px}.cc-template-count-icon{width:30px;height:30px;display:grid;place-items:center;background:#d3e8f5;border-radius:8px}.cc-template-platform-group{margin-bottom:18px}.cc-template-platform-heading{display:flex;align-items:center;gap:8px;margin-bottom:8px}.cc-template-platform-heading h3{font:400 18px/1 'DM Serif Display',Georgia,serif;margin:0;color:var(--cc-text)}.cc-template-platform-heading span{font-size:9px;color:var(--cc-text-3)}.cc-template-platform-rule{height:1px;background:#e9dfd7;flex:1}.cc-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.cc-template-card{min-height:286px;background:rgba(255,255,255,.76);border:1px solid #ece4dc;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s,transform .15s}.cc-template-card:hover{box-shadow:0 5px 16px rgba(60,40,30,.1);transform:translateY(-1px)}.cc-template-image{height:108px;min-height:108px;overflow:hidden;background:linear-gradient(135deg,#fce8e3,#ead7cc);position:relative;display:grid;place-items:center;color:var(--cc-accent)}.cc-template-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 40%}.cc-template-placeholder{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.55)}.cc-template-status{position:absolute;right:7px;top:7px;padding:3px 9px;border-radius:99px;background:#fff3dc;color:#97722f;font-size:8px}.cc-template-content{display:flex;flex-direction:column;flex:1;padding:10px 11px}.cc-template-name{font:400 16px/1.15 'DM Serif Display',Georgia,serif;margin:0 0 8px;color:var(--cc-text)}.cc-template-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}.cc-template-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:8px;background:#faeef0;color:#995067}.cc-template-badge.type{background:#edf2f4;color:#4f7d92}.cc-template-description{font-size:9.5px;line-height:1.4;color:#667074;min-height:28px;margin:0 0 7px}.cc-template-structure{display:grid;gap:4px;font-size:8.5px;color:var(--cc-text-2)}.cc-template-structure div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-template-structure b{color:var(--cc-text)}.cc-template-foot{margin-top:auto;padding-top:9px;display:flex;align-items:center;justify-content:space-between;gap:7px}.cc-template-check{display:flex;align-items:center;gap:4px;color:#8b9293;font-size:8px}.cc-template-actions{display:flex;align-items:center;gap:3px}.cc-template-icon-btn{width:24px;height:24px;border:1px solid #eadfd6;border-radius:7px;background:#fffaf6;color:#8a6b5d;display:grid;place-items:center;cursor:pointer}.cc-template-use{border:0;border-radius:99px;background:#ffe4cd;color:#b55335;padding:5px 9px;font-size:8px;font-weight:700;cursor:pointer}.cc-template-empty{background:rgba(255,255,255,.76);border:1px dashed #decfc4;border-radius:10px;padding:38px 18px;text-align:center;color:var(--cc-text-3);font-size:11px}.cc-template-empty strong{display:block;color:var(--cc-text);font:400 20px 'DM Serif Display',Georgia,serif;margin-bottom:7px}.cc-template-overlay{position:fixed;inset:0;background:rgba(35,31,29,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-template-dialog{width:min(620px,100%);max-height:92vh;overflow:auto;background:#fffaf6;border:1px solid #e9ddd3;border-radius:14px;padding:20px;box-shadow:0 18px 60px rgba(48,39,34,.2)}.cc-template-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.cc-template-dialog-title{font:400 24px/1 'DM Serif Display',Georgia,serif;margin:0;color:var(--cc-text)}.cc-template-dialog-sub{font-size:10px;color:var(--cc-text-3);margin:6px 0 0}.cc-template-close{width:28px;height:28px;border:1px solid #e0d6ce;border-radius:8px;background:var(--cc-card);color:#806f66;display:grid;place-items:center;cursor:pointer}.cc-template-form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.cc-template-field{display:flex;flex-direction:column;gap:5px}.cc-template-field.full{grid-column:1/-1}.cc-template-field label,.cc-template-detail-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#806f66}.cc-template-field label span{color:var(--cc-accent)}.cc-template-input,.cc-template-textarea{border:1px solid #e0d6ce;border-radius:8px;background:white;padding:9px;font-size:11px;outline:0;color:var(--cc-text);font-family:inherit}.cc-template-textarea{min-height:60px;resize:vertical}.cc-template-input:focus,.cc-template-textarea:focus{border-color:var(--cc-accent)}.cc-template-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.cc-template-dialog-actions button{padding:8px 14px;border-radius:8px;font-size:10px;border:1px solid #dfd5cd;background:var(--cc-card);color:#806f66;cursor:pointer}.cc-template-dialog-actions .primary{background:var(--cc-accent);color:#fff;border-color:var(--cc-accent)}.cc-template-error{color:#ad5144;font-size:10px;grid-column:1/-1}.cc-template-checklist{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;color:#806f66}.cc-template-checklist label{display:flex;align-items:center;gap:5px}.cc-template-detail{display:grid;gap:12px}.cc-template-detail-value{font-size:11px;color:#4f5b5d;line-height:1.45;white-space:pre-wrap}.cc-template-detail-media{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.cc-template-detail-media img,.cc-template-detail-placeholder{width:100%;height:76px;object-fit:cover;border-radius:7px;background:#f0e8e0}.cc-template-detail-placeholder{display:grid;place-items:center;color:#bca99d}.cc-template-detail-actions{display:flex;flex-wrap:wrap;gap:6px}.cc-template-detail-actions button{padding:7px 10px;border:1px solid #dfd5cd;border-radius:7px;background:var(--cc-card);color:#806f66;font-size:10px;cursor:pointer}.cc-template-detail-actions .primary{background:var(--cc-accent);color:#fff;border-color:var(--cc-accent)}.cc-template-note{margin-top:14px;background:rgba(255,255,255,.7);border:1px solid var(--cc-border);border-radius:10px;padding:14px;text-align:center}.cc-template-note-title{font:600 15px/1.3 'Caveat',cursive;color:var(--cc-text)}.cc-template-note-copy{font-size:9px;line-height:1.4;color:var(--cc-text-3);margin-top:4px}@media(max-width:900px){.cc-template-page{min-width:0}.cc-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-template-toolbar{grid-template-columns:1fr 1fr}.cc-template-search{grid-column:1/-1}.cc-template-count{display:none}}@media(max-width:520px){.cc-template-grid{grid-template-columns:1fr}.cc-template-head{gap:10px}.cc-template-meta{display:none}.cc-template-form{grid-template-columns:1fr}.cc-template-field.full{grid-column:auto}.cc-template-detail-media{grid-template-columns:repeat(2,1fr)}}.cc-template-view-more{background:none;border:none;cursor:pointer;font-size:11px;color:var(--cc-accent);font-weight:700;padding:6px 0 14px;display:block}.cc-template-view-more:hover{text-decoration:underline}
 `
 
 const EMPTY_CHECKLIST: ComposerChecklist = {
@@ -636,6 +634,73 @@ function TemplateDialog({
   )
 }
 
+function PlatformDetailView({
+  platform,
+  templates,
+  items,
+  urls,
+  onBack,
+  onView,
+  onEdit,
+  onUse,
+  onDuplicate,
+  onArchive,
+  onDelete,
+}: {
+  platform: Platform
+  templates: ContentTemplate[]
+  items: ReturnType<typeof useMediaAssets>["items"]
+  urls: Record<string, string>
+  onBack: () => void
+  onView: (id: string) => void
+  onEdit: (id: string) => void
+  onUse: (id: string) => void
+  onDuplicate: (id: string) => void
+  onArchive: (id: string) => void
+  onDelete: (template: ContentTemplate) => void
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+        <button
+          onClick={onBack}
+          style={{
+            background: 'none', border: '1px solid #dfd5cd', borderRadius: 8,
+            padding: '6px 12px', cursor: 'pointer', fontSize: 11,
+            color: 'var(--cc-text-2)', display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: 'inherit',
+          }}
+        >
+          ← Back
+        </button>
+        <h2 style={{ font: '400 24px/1 "DM Serif Display", Georgia, serif', margin: 0, color: 'var(--cc-text)' }}>
+          {platformLabel(platform)}
+        </h2>
+        <span style={{ fontSize: 9, color: 'var(--cc-text-3)' }}>
+          {templates.length} {templates.length === 1 ? 'template' : 'templates'}
+        </span>
+      </div>
+      <div className="cc-template-platform-rule" style={{ marginBottom: 16 }} />
+      <div className="cc-template-grid">
+        {templates.map((template) => (
+          <TemplateCard
+            key={template.id}
+            template={template}
+            items={items}
+            urls={urls}
+            onView={() => onView(template.id)}
+            onEdit={() => onEdit(template.id)}
+            onUse={() => onUse(template.id)}
+            onDuplicate={() => onDuplicate(template.id)}
+            onArchive={() => onArchive(template.id)}
+            onDelete={() => onDelete(template)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function TemplatesModalPage() {
   const {
     templates,
@@ -655,6 +720,7 @@ export default function TemplatesModalPage() {
   const [sort, setSort] = useState("newest")
   const [today] = useState(() => new Date())
   const [dialog, setDialog] = useState<{ mode: DialogMode; id?: string }>()
+  const [focusedPlatform, setFocusedPlatform] = useState<Platform | null>(null)
   const allPostTypes = useMemo(() => getActivePostTypes(), [])
   const visible = useMemo(
     () =>
@@ -725,19 +791,28 @@ export default function TemplatesModalPage() {
             <h1 className="cc-template-title">
               Start with a shape that works.
             </h1>
-            <Sparkles className="cc-template-star" size={29} />
+            <Sparkles size={22} style={{ color: '#e6ad3f', transform: 'rotate(-10deg)', flexShrink: 0 }} />
           </div>
-          <div className="cc-template-line" />
+          <span className="cc-template-line" />
         </div>
-        <div className="cc-template-meta">
-          <span>
-            <CalendarDays size={13} style={{ verticalAlign: "middle" }} />{" "}
-            {formatContentDate(today, settings.dateFormat)}
-          </span>
-          <span className="cc-template-local">
-            <MapPin size={11} fill="currentColor" />
-            Local only
-          </span>
+        <div className="cc-template-header-right">
+          <div className="cc-template-meta">
+            <div className="cc-date-range">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              {formatContentDate(today, settings.dateFormat)}
+            </div>
+            <span className="cc-local-badge">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              Local only
+            </span>
+          </div>
         </div>
       </header>
       <div className="cc-template-toolbar">
@@ -832,7 +907,27 @@ export default function TemplatesModalPage() {
           </span>
         </div>
       </div>
-      {groups.length ? (
+      {focusedPlatform ? (
+        <PlatformDetailView
+          platform={focusedPlatform}
+          templates={visible.filter((t) => t.platform === focusedPlatform)}
+          items={items}
+          urls={urls}
+          onBack={() => setFocusedPlatform(null)}
+          onView={(id) => setDialog({ mode: "view", id })}
+          onEdit={(id) => setDialog({ mode: "edit", id })}
+          onUse={(id) => applyTemplate(id)}
+          onDuplicate={(id) => {
+            const copy = duplicateTemplate(id)
+            if (copy) setDialog({ mode: "edit", id: copy.id })
+          }}
+          onArchive={(id) => {
+            const t = visible.find((x) => x.id === id)
+            if (t) updateTemplate(id, { archived: !t.archived })
+          }}
+          onDelete={remove}
+        />
+      ) : groups.length ? (
         groups.map((group) => (
           <section className="cc-template-platform-group" key={group.platform}>
             <div className="cc-template-platform-heading">
@@ -844,7 +939,7 @@ export default function TemplatesModalPage() {
               <span className="cc-template-platform-rule" />
             </div>
             <div className="cc-template-grid">
-              {group.templates.map((template) => (
+              {group.templates.slice(0, 3).map((template) => (
                 <TemplateCard
                   key={template.id}
                   template={template}
@@ -866,6 +961,14 @@ export default function TemplatesModalPage() {
                 />
               ))}
             </div>
+            {group.templates.length > 3 && (
+              <button
+                className="cc-template-view-more"
+                onClick={() => setFocusedPlatform(group.platform)}
+              >
+                View all {group.templates.length} {platformLabel(group.platform)} templates →
+              </button>
+            )}
           </section>
         ))
       ) : (

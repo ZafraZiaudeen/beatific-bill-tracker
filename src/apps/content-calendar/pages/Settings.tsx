@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
-  CalendarDays, MapPin, Sparkles, Sun, Moon, Download, Upload,
+  CalendarDays, Sparkles, Sun, Moon, Download, Upload,
   Printer, Clock, Lock, ShieldCheck, HardDrive, FileCheck,
   ChevronRight, Target, Share2, AlertTriangle, RotateCw,
 } from 'lucide-react';
@@ -21,25 +21,26 @@ const PAGE_CSS = `
 .cc-st-page{background:radial-gradient(circle at 70% 6%,rgba(255,255,255,.08),transparent 30%),var(--cc-bg);color:var(--cc-text);min-height:100%;padding-bottom:40px}
 
 /* Header */
-.cc-st-header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:18px 24px 16px;border-bottom:1px solid var(--cc-border)}
+.cc-st-header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:18px clamp(18px,2.3vw,32px) 16px;border-bottom:1px solid var(--cc-border)}
 .cc-st-heading-row{display:flex;align-items:center;gap:10px}
 .cc-st-heading{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:32px;line-height:1;letter-spacing:-.02em;margin:0;color:var(--cc-text)}
 .cc-st-swoop{display:block;width:162px;height:11px;margin-top:9px;border-top:3px solid var(--cc-accent);border-radius:50%;transform:rotate(-2deg)}
 .cc-st-header-right{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .cc-st-meta{display:flex;align-items:center;gap:18px;font-size:12px;font-weight:650;color:var(--cc-text)}
-.cc-st-date{display:flex;align-items:center;gap:7px;font-size:0}
-.cc-st-date>span{font-size:12px}
-.cc-st-local{display:flex;align-items:center;gap:6px;padding:5px 13px;background:#fae7c5;border-radius:99px;font-size:11px;color:#7a5a2a}
-
 /* Grid layout */
-.cc-st-body{padding:18px 24px 0;display:flex;flex-direction:column;gap:16px}
-.cc-st-row1{display:grid;grid-template-columns:2fr 1.15fr 1.15fr;gap:14px;align-items:start}
-.cc-st-row2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
+.cc-st-body{width:100%;max-width:1680px;margin:0 auto;padding:18px clamp(18px,2.3vw,32px) 0;box-sizing:border-box;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:18px;align-items:start}
+.cc-st-row1{display:contents}
+.cc-st-row2{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.95fr);gap:18px;align-items:start}
+.cc-st-card-appearance{grid-column:span 6}
+.cc-st-card-backup,.cc-st-card-privacy{grid-column:span 3}
+.cc-st-card-hints{grid-column:2;grid-row:1}
+.cc-st-card-loc{grid-column:1;grid-row:1 / span 2}
+.cc-st-card-danger{grid-column:2;grid-row:2}
 
 /* Cards */
-.cc-st-card{background:var(--cc-card);border:1px solid var(--cc-border);border-radius:14px;padding:20px}
+.cc-st-card{background:var(--cc-card);border:1px solid var(--cc-border);border-radius:12px;padding:20px;box-sizing:border-box;min-width:0;box-shadow:0 10px 26px rgba(48,39,34,.035)}
 .cc-st-card-title{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:20px;color:var(--cc-text);margin:0 0 6px;display:flex;align-items:center;gap:8px}
-.cc-st-swoop-sm{display:block;height:10px;border-top:2.5px solid var(--cc-accent);border-radius:50%;transform:rotate(-2deg);margin-bottom:16px}
+.cc-st-swoop-sm{display:block;max-width:100%;height:10px;border-top:2.5px solid var(--cc-accent);border-radius:50%;transform:rotate(-2deg);margin-bottom:16px}
 
 /* Labels */
 .cc-st-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--cc-text-3);margin-bottom:8px}
@@ -50,6 +51,8 @@ const PAGE_CSS = `
 .cc-st-theme-btn.active{border-color:var(--cc-accent);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .cc-st-theme-light{background:#f5ede5;color:#c27b6a}
 .cc-st-theme-dark{background:#2a2020;color:#fff}
+.cc-st-hint-toggle .cc-st-theme-btn{width:64px;height:52px;background:var(--cc-bg-2);color:var(--cc-text-2);font-weight:700}
+.cc-st-hint-toggle .cc-st-theme-btn.active{background:var(--cc-accent-light);color:var(--cc-text)}
 
 /* Accent circles */
 .cc-st-accents{display:flex;gap:10px;margin-bottom:18px}
@@ -60,15 +63,15 @@ const PAGE_CSS = `
 .cc-st-caveat{font-family:'Caveat',cursive;font-size:18px;color:var(--cc-accent);display:flex;align-items:center;gap:6px;margin-top:10px}
 
 /* Action rows (data & backup) */
-.cc-st-action-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--cc-border);cursor:pointer;color:var(--cc-text);font-size:12.5px;font-weight:500;transition:color .12s}
+.cc-st-action-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--cc-border);cursor:pointer;color:var(--cc-text);font-size:12.5px;font-weight:500;transition:color .12s}
 .cc-st-action-row{width:100%;background:none;border-left:0;border-right:0;border-top:0;font-family:inherit;text-align:left}
 .cc-st-action-row:hover{color:var(--cc-accent)}
 .cc-st-action-row:disabled{cursor:wait;opacity:.55}
 .cc-st-action-row:last-child{border-bottom:none}
 .cc-st-action-left{display:flex;align-items:center;gap:9px;color:inherit}
-.cc-st-backup-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:14px}
+.cc-st-backup-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px}
 .cc-st-backup-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--cc-text)}
-.cc-st-backup-sub{font-size:11px;color:var(--cc-text-3);display:flex;align-items:center;gap:8px}
+.cc-st-backup-sub{font-size:11px;color:var(--cc-text-3);display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}
 
 /* Select inputs */
 .cc-st-select{appearance:none;border:1px solid var(--cc-border);border-radius:9px;padding:6px 28px 6px 10px;font-size:12px;color:var(--cc-text);background:var(--cc-card);outline:0;cursor:pointer;font-family:inherit}
@@ -85,7 +88,7 @@ const PAGE_CSS = `
 .cc-st-priv-sub{font-size:11px;color:var(--cc-text-3)}
 
 /* Localisation */
-.cc-st-loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cc-st-loc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .cc-st-loc-field{display:flex;flex-direction:column;gap:6px}
 .cc-st-field-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--cc-text-2)}
 .cc-st-input{border:1px solid var(--cc-border);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--cc-text);background:var(--cc-card);outline:0;font-family:inherit;width:100%;box-sizing:border-box}
@@ -110,8 +113,8 @@ const PAGE_CSS = `
 .cc-st-reset-desc{font-size:11px;color:var(--cc-text-3);line-height:1.5;margin-bottom:16px}
 .cc-st-reset-btn{width:100%;height:38px;display:flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(90deg,#d96d49,#dc815f);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(201,99,65,.22)}
 .cc-st-reset-btn:hover{opacity:.92}
-@media(max-width:960px){.cc-st-row1{grid-template-columns:1fr 1fr}.cc-st-row2{grid-template-columns:1fr}.cc-st-row1>.cc-st-card:first-child{grid-column:1/-1}}
-@media(max-width:620px){.cc-st-row1{grid-template-columns:1fr}.cc-st-row1>.cc-st-card:first-child{grid-column:auto}.cc-st-loc-grid{grid-template-columns:1fr}}
+@media(max-width:1320px){.cc-st-card-appearance{grid-column:span 12}.cc-st-card-backup,.cc-st-card-privacy{grid-column:span 6}.cc-st-row2{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-st-card-loc{grid-column:1/-1;grid-row:auto}.cc-st-card-hints,.cc-st-card-danger{grid-column:auto;grid-row:auto}}
+@media(max-width:760px){.cc-st-header{flex-direction:column}.cc-st-header-right{align-items:flex-start}.cc-st-meta{flex-wrap:wrap;gap:10px}.cc-st-body{grid-template-columns:1fr}.cc-st-card-appearance,.cc-st-card-backup,.cc-st-card-privacy{grid-column:1/-1;max-width:none}.cc-st-row2{grid-template-columns:1fr}.cc-st-card-loc,.cc-st-card-hints,.cc-st-card-danger{grid-column:1/-1;grid-row:auto}.cc-st-loc-grid{grid-template-columns:1fr}.cc-st-backup-row{align-items:flex-start;flex-direction:column}.cc-st-backup-sub{justify-content:flex-start;white-space:normal}.cc-st-heading{font-size:28px}}
 @media print{body *{visibility:hidden!important}.cc-st-print-report,.cc-st-print-report *{visibility:visible!important}.cc-st-print-report{display:block!important;position:absolute;inset:0;background:#fff;color:#222;padding:30px;font-family:Arial,sans-serif}.cc-st-print-report table{width:100%;border-collapse:collapse;margin-top:18px}.cc-st-print-report th,.cc-st-print-report td{border-bottom:1px solid #ddd;padding:7px;text-align:left;font-size:11px}.cc-st-print-report h1,.cc-st-print-report h2{font-family:Georgia,serif}}
 `;
 
@@ -140,7 +143,7 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [hintsEnabled, setHintsEnabled] = useState(() => localStorage.getItem(CONTENT_CALENDAR_HINTS_KEY) !== 'false');
   const [now] = useState(() => new Date());
-  const [displayName, setDisplayName] = useState(userName);
+  const [displayNameDraft, setDisplayNameDraft] = useState(() => ({ source: userName, value: userName }));
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const activePlatforms = getActivePlatformOptions();
@@ -148,6 +151,7 @@ export default function Settings() {
   const accents: ContentCalendarAccent[] = ['#d97856', '#9e6080', '#7a9db5', '#d4a843'];
   const currentDateLabel = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const displayName = displayNameDraft.source === userName ? displayNameDraft.value : userName;
   const reportRows = useMemo(() => {
     const rows = new Map<string, { id: string; composerId?: string; pipelineId?: string; title: string; status: string; date: string; platforms: string[]; type: string; campaignId?: string }>();
     posts.forEach(post => rows.set(post.pipelineId ? `pipeline:${post.pipelineId}` : `post:${post.id}`, { id: post.id, composerId: post.composerId, pipelineId: post.pipelineId, title: post.title, status: post.status, date: post.date, platforms: post.platforms, type: post.type, campaignId: post.campaignId }));
@@ -177,10 +181,10 @@ export default function Settings() {
     row: reportRows.find(row => [row.id, row.composerId, row.pipelineId].includes(record.postId)),
   })).filter(entry => entry.row);
 
-  useEffect(() => setDisplayName(userName), [userName]);
-
   function saveDisplayName() {
-    setUserName(displayName.trim());
+    const trimmedName = displayName.trim();
+    setUserName(trimmedName);
+    setDisplayNameDraft({ source: trimmedName, value: trimmedName });
   }
 
   function toggleHints(enabled: boolean) {
@@ -252,12 +256,19 @@ export default function Settings() {
           </div>
           <div className="cc-st-header-right">
             <div className="cc-st-meta">
-              <span className="cc-st-date">
-                <CalendarDays size={14} color="var(--cc-accent)" />
-                <span>{currentDateLabel}</span>
-              </span>
-              <span className="cc-st-local">
-                <MapPin size={11} />
+              <div className="cc-date-range">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {currentDateLabel}
+              </div>
+              <span className="cc-local-badge">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
                 Local only
               </span>
             </div>
@@ -271,7 +282,7 @@ export default function Settings() {
           <div className="cc-st-row1">
 
             {/* 1. Appearance */}
-            <div className="cc-st-card">
+            <div className="cc-st-card cc-st-card-appearance">
               <h2 className="cc-st-card-title">Appearance</h2>
               <Swoop />
 
@@ -315,7 +326,7 @@ export default function Settings() {
               <input
                 className="cc-st-input"
                 value={displayName}
-                onChange={event => setDisplayName(event.target.value)}
+                onChange={event => setDisplayNameDraft({ source: userName, value: event.target.value })}
                 onBlur={saveDisplayName}
                 onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); saveDisplayName(); event.currentTarget.blur(); } }}
                 placeholder="Your name"
@@ -330,7 +341,7 @@ export default function Settings() {
             </div>
 
             {/* 2. Data & backup */}
-            <div className="cc-st-card">
+            <div className="cc-st-card cc-st-card-backup">
               <h2 className="cc-st-card-title">Data &amp; backup</h2>
               <Swoop />
 
@@ -369,7 +380,7 @@ export default function Settings() {
             </div>
 
             {/* 3. Privacy */}
-            <div className="cc-st-card">
+            <div className="cc-st-card cc-st-card-privacy">
               <h2 className="cc-st-card-title">Privacy</h2>
               <Swoop />
 
@@ -407,21 +418,21 @@ export default function Settings() {
           <div className="cc-st-row2">
 
             {/* 5. Page hints */}
-            <div className="cc-st-card">
+            <div className="cc-st-card cc-st-card-hints">
               <h2 className="cc-st-card-title">Page hints</h2>
               <Swoop />
               <p className="cc-st-priv-sub" style={{ lineHeight: 1.5, marginBottom: 14 }}>
                 Show a tips dialog on first visit to each page.
               </p>
-              <div className="cc-st-theme-btns" style={{ marginBottom: 0 }}>
-                <button type="button" className={`cc-st-theme-btn${hintsEnabled ? ' active' : ''}`} style={{ background: 'var(--cc-accent-light)', color: 'var(--cc-text)' }} onClick={() => toggleHints(true)}>On</button>
-                <button type="button" className={`cc-st-theme-btn${!hintsEnabled ? ' active' : ''}`} style={{ background: 'var(--cc-bg-2)', color: 'var(--cc-text-2)' }} onClick={() => toggleHints(false)}>Off</button>
+              <div className="cc-st-theme-btns cc-st-hint-toggle" style={{ marginBottom: 0 }}>
+                <button type="button" className={`cc-st-theme-btn${hintsEnabled ? ' active' : ''}`} onClick={() => toggleHints(true)}>On</button>
+                <button type="button" className={`cc-st-theme-btn${!hintsEnabled ? ' active' : ''}`} onClick={() => toggleHints(false)}>Off</button>
               </div>
               {hintsEnabled && <div className="cc-st-message">Turning hints on resets the page explanations so you can review them again.</div>}
             </div>
 
             {/* 6. Localisation */}
-            <div className="cc-st-card">
+            <div className="cc-st-card cc-st-card-loc">
               <h2 className="cc-st-card-title">Localisation</h2>
               <Swoop />
 
@@ -504,7 +515,7 @@ export default function Settings() {
             </div>
 
             {/* 7. Danger zone */}
-            <div className="cc-st-card">
+            <div className="cc-st-card cc-st-card-danger">
               <h2 className="cc-st-card-title cc-st-danger-title">
                 <AlertTriangle size={18} color="#d97856" />
                 Danger zone

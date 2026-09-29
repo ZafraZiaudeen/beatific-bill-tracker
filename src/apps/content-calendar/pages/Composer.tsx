@@ -41,6 +41,7 @@ import type { ComposerDraft, ComposerChecklist, PlatformSlot, PreviewDesign, Pre
 import { loadMedia, mediaUrl } from "../mediaStorage"
 import type { StoredMediaItem } from "../mediaStorage"
 import { LocalImageUpload } from "../components/LocalImageUpload"
+import type { LocalImageUploadHandle } from "../components/LocalImageUpload"
 import placeholderMedia from "../../../assets/content-calendar/placeholder-media.svg"
 import {
   getAllPlatforms,
@@ -211,14 +212,7 @@ function CtaSelect({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
-// ─── Media Picker ─────────────────────────────────────────────────────────────
 // ─── Platform Strip ────────────────────────────────────────────────────────────
-function MediaAttachmentUpload({ selected, onChange, onClose, max = 10 }: {
-  selected: string[]; onChange: (ids: string[]) => void; onClose: () => void; max?: number;
-}) {
-  return <div className="cc-media-box"><LocalImageUpload value={selected} multiple={max > 1} label={selected.length ? "Add or replace image" : "Upload image"} onChange={ids => onChange(ids.slice(0, max))} /><button type="button" className="cc-modal-secondary" onClick={onClose}>Done</button></div>;
-}
-
 export function PlatformStrip({ draft, onPlatformsChange, previewPlatform, onPreviewChange }: {
   draft: ComposerDraft
   onPlatformsChange: (platforms: string[]) => void
@@ -261,7 +255,7 @@ export function PlatformStrip({ draft, onPlatformsChange, previewPlatform, onPre
 // ─── Form Fields ──────────────────────────────────────────────────────────────
 function ComposerFields({
   fields, draft, extra, updateDraft, updateExtra,
-  media, urls, hashtag, setHashtag, addHashtag, setPicker,
+  media, urls, hashtag, setHashtag, addHashtag, openFilePicker,
 }: {
   fields: PlatformFieldSet
   draft: ComposerDraft
@@ -273,7 +267,7 @@ function ComposerFields({
   hashtag: string
   setHashtag: (v: string) => void
   addHashtag: (e: KeyboardEvent<HTMLInputElement>) => void
-  setPicker: (open: boolean) => void
+  openFilePicker: () => void
 }) {
   const attached = draft.mediaIds.map(id => media.find(i => i.id === id)).filter(Boolean) as StoredMediaItem[]
   const slides = (extra.slides as { mediaId: string; caption: string }[] | undefined) ?? []
@@ -404,7 +398,7 @@ function ComposerFields({
                 )
               })}
               {draft.mediaIds.length < 10 && (
-                <button className="cc-add-media" style={{ width: 52, height: 46 }} onClick={() => setPicker(true)}>
+                <button className="cc-add-media" style={{ width: 52, height: 46 }} onClick={openFilePicker}>
                   <Plus size={18} />
                 </button>
               )}
@@ -603,7 +597,7 @@ function ComposerFields({
                   </div>
                 ))}
                 {draft.mediaIds.length < (fields.mediaMax ?? 10) && (
-                  <button className="cc-add-media" onClick={() => setPicker(true)}><Plus size={21} /></button>
+                  <button className="cc-add-media" onClick={openFilePicker}><Plus size={21} /></button>
                 )}
               </div>
               <div className="cc-media-note">Add media (up to {fields.mediaMax ?? 10})</div>
@@ -1375,11 +1369,11 @@ export default function Composer() {
   const [slotHashtag, setSlotHashtag] = useState("")
   const [media, setMedia] = useState<StoredMediaItem[]>([])
   const [urls, setUrls] = useState<Record<string, string>>({})
-  const [picker, setPicker] = useState(false)
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null)
   const [previewPlatform, setPreviewPlatform] = useState<string>(stored?.platforms[0] ?? "instagram")
   const previewRef = useRef<HTMLElement>(null)
   const urlRef = useRef<string[]>([])
+  const addMediaRef = useRef<LocalImageUploadHandle>(null)
 
   useEffect(() => {
     let active = true
@@ -1639,8 +1633,14 @@ export default function Composer() {
           <div className="cc-composer-line" />
         </div>
         <div className="cc-composer-actions">
-          <button className="cc-composer-action" onClick={save}><Save size={13} />Save draft</button>
-          <button className="cc-composer-action primary" onClick={schedule}><CalendarDays size={13} />Add to calendar</button>
+          {currentDraft.calendarPostId ? (
+            <button className="cc-composer-action primary" onClick={save}><Save size={13} />Save</button>
+          ) : (
+            <>
+              <button className="cc-composer-action" onClick={save}><Save size={13} />Save draft</button>
+              <button className="cc-composer-action primary" onClick={schedule}><CalendarDays size={13} />Add to calendar</button>
+            </>
+          )}
           <button className="cc-composer-action preview"
             onClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
             <Eye size={14} />Preview
@@ -1694,7 +1694,7 @@ export default function Composer() {
                     hashtag={slotHashtag}
                     setHashtag={setSlotHashtag}
                     addHashtag={addSlotHashtag}
-                    setPicker={setPicker}
+                    openFilePicker={() => addMediaRef.current?.open()}
                   />
                 </section>
               )}
@@ -1751,7 +1751,7 @@ export default function Composer() {
                       hashtag={hashtag}
                       setHashtag={setHashtag}
                       addHashtag={addHashtag}
-                      setPicker={setPicker}
+                      openFilePicker={() => addMediaRef.current?.open()}
                     />
                   )
                 })()}
@@ -1783,19 +1783,19 @@ export default function Composer() {
           previewPlatform={previewPlatform} onDesignChange={updatePreviewDesign} userName={userName} />
       </div>
 
-      {picker && (
-        <MediaAttachmentUpload
-          selected={usesPlatformSlots && activeSlot ? activeSlot.mediaIds : currentDraft.mediaIds}
+      <div style={{ display: 'none' }}>
+        <LocalImageUpload
+          ref={addMediaRef}
+          value={usesPlatformSlots && activeSlot ? activeSlot.mediaIds : currentDraft.mediaIds}
+          multiple={(usesPlatformSlots ? (slotPtConfig.fields.mediaMax ?? 10) : (activeFields.mediaMax ?? 10)) > 1}
           onChange={ids => {
             if (usesPlatformSlots && activePlatformTab)
               updateSlot(activePlatformTab, "mediaIds", ids)
             else
               updateDraft("mediaIds", ids)
           }}
-          onClose={() => setPicker(false)}
-          max={usesPlatformSlots ? (slotPtConfig.fields.mediaMax ?? 10) : (activeFields.mediaMax ?? 10)}
         />
-      )}
+      </div>
     </div>
   )
 }

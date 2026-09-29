@@ -71,7 +71,7 @@ export default function PostRow({ post, mediaItems = [], mediaUrls = {} }: PostR
       display: 'flex',
       alignItems: 'center',
       gap: 12,
-      padding: '10px 0',
+      padding: '7px 0',
       borderBottom: '1px solid var(--cc-border)',
     }}>
       {/* Thumbnail */}
@@ -142,21 +142,6 @@ export default function PostRow({ post, mediaItems = [], mediaUrls = {} }: PostR
         {post.status}
       </span>
 
-      {/* More */}
-      <button style={{
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        color: 'var(--cc-text-3)',
-        padding: 4,
-        borderRadius: 4,
-        display: 'flex',
-        alignItems: 'center',
-      }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-        </svg>
-      </button>
     </div>
   );
 }

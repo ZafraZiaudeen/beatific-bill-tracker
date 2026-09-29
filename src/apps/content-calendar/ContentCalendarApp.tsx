@@ -120,7 +120,9 @@ const CC_CSS = `
 
 .cc-app {
   display: flex;
+  width: 100%;
   min-height: 100%;
+  overflow: hidden;
   background: var(--cc-bg);
   font-family: 'Nunito', -apple-system, sans-serif;
   color: var(--cc-text);
@@ -240,6 +242,7 @@ const CC_CSS = `
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: auto;
 }
 
 .cc-header {

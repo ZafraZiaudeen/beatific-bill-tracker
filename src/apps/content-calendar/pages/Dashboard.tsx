@@ -55,8 +55,8 @@ function buildDashboardPosts(posts: ContentPost[], pipelineItems: PipelineItem[]
     result.push({ ...post, mediaIds: post.mediaIds ?? [], searchText: `${post.title} ${post.category} ${post.type} ${post.platforms.join(' ')}` });
   });
   pipelineItems.forEach(item => {
-    if (keys.has(dashboardKey(item))) return;
-    keys.add(dashboardKey(item));
+    if (keys.has(`pipeline:${item.id}`) || (item.composerId && keys.has(`composer:${item.composerId}`))) return;
+    keys.add(`pipeline:${item.id}`);
     result.push({
       id: item.id,
       title: item.title,
