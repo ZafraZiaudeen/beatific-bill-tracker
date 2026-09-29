@@ -71,7 +71,7 @@ const COMPOSER_CSS = `
 .cc-strip-btn{height:29px;padding:0 10px;border:1.5px solid #e3ddd7;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:9px;background:var(--cc-input);color:var(--cc-text-2);cursor:pointer;transition:background .12s,border-color .12s}
 .cc-strip-btn.selected{background:#fff7f2;border-color:#ead6c8;color:#3d2010}
 .cc-strip-btn.active{background:#fff0e8;border-color:#DA7652;color:#3d2010;font-weight:700}
-.cc-input-wrap{position:relative}.cc-composer textarea,.cc-composer input,.cc-composer select{font:inherit;color:inherit}.cc-textarea,.cc-text-input,.cc-select{width:100%;border:1px solid #e6dfd8;border-radius:7px;background:var(--cc-card);outline:none;font-size:9px;padding:9px}.cc-textarea{height:93px;resize:none;line-height:1.45}.cc-text-input{height:30px}.cc-select{height:30px;appearance:none}.cc-counter{position:absolute;right:8px;bottom:5px;font-size:7.5px;color:#6f7b7e}.cc-hashtags{min-height:72px;border:1px solid #e5ded7;border-radius:7px;padding:7px}.cc-hashtag-list{display:flex;flex-wrap:wrap;gap:6px}.cc-hashtag{padding:4px 8px;border-radius:99px;background:#e8f0f4;color:#52748a;font-size:8px}.cc-hashtag button{margin-left:5px}.cc-hashtag-entry{border:0!important;background:transparent!important;height:25px!important;padding:3px!important;width:120px!important;font-size:8px!important;outline:0}.cc-hash-count{float:right;font-size:8px;color:#7c8587}
+.cc-input-wrap{position:relative}.cc-composer textarea,.cc-composer input,.cc-composer select{font:inherit;color:inherit}.cc-textarea,.cc-text-input,.cc-select{width:100%;border:1px solid #e6dfd8;border-radius:7px;background:var(--cc-card);outline:none;font-size:9px;padding:9px}.cc-textarea{height:93px;resize:none;line-height:1.45}.cc-text-input{height:30px}.cc-select{height:30px;appearance:none}.cc-counter{position:absolute;right:8px;bottom:5px;font-size:7.5px;color:#6f7b7e}.cc-hashtags{min-height:72px;border:1px solid #e5ded7;border-radius:7px;padding:7px}.cc-hashtag-list{display:flex;flex-wrap:wrap;gap:6px}.cc-hashtag{padding:4px 8px;border-radius:99px;background:#e8f0f4;color:#52748a;font-size:10px}.cc-hashtag button{margin-left:5px}.cc-hashtag-entry{border:0!important;background:transparent!important;height:25px!important;padding:3px!important;width:120px!important;font-size:8px!important;outline:0}.cc-hash-count{float:right;font-size:8px;color:#7c8587}
 .cc-publish-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-select-arrow{position:absolute;right:8px;top:9px;pointer-events:none}.cc-publish-help{font-size:7.5px;color:#869092;margin-top:5px}
 .cc-media-box{border:1px dashed #d6dee0;border-radius:7px;padding:8px}.cc-media-items{display:flex;gap:6px}.cc-media-attachment{width:60px;height:54px;border-radius:5px;background-size:cover;background-position:center;position:relative}.cc-media-attachment.reference{background-size:1280px 720px}.cc-remove-media{position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.65);display:grid;place-items:center}.cc-add-media{width:58px;height:54px;border-radius:5px;background:var(--cc-bg-2);display:grid;place-items:center;color:#74909d}.cc-media-note{text-align:center;font-size:7.5px;color:#859093;margin-top:7px}
 .cc-frames-list{display:flex;gap:6px;flex-wrap:wrap}.cc-frame-thumb{width:52px;height:46px;border-radius:5px;background-size:cover;background-position:center;position:relative;border:1px solid #e2dcd6}.cc-frame-num{position:absolute;top:2px;left:4px;font-size:7px;color:white;background:rgba(0,0,0,.45);padding:1px 4px;border-radius:3px}
@@ -272,6 +272,7 @@ function ComposerFields({
   const attached = draft.mediaIds.map(id => media.find(i => i.id === id)).filter(Boolean) as StoredMediaItem[]
   const slides = (extra.slides as { mediaId: string; caption: string }[] | undefined) ?? []
   const sticker = (extra.sticker as string | undefined) ?? "None"
+  const hashtagInputRef = useRef<HTMLInputElement>(null)
 
   return (
     <div className="cc-form-columns">
@@ -335,14 +336,14 @@ function ComposerFields({
         {fields.hashtags && (
           <div className="cc-field-block">
             <div className="cc-field-title"><Hash size={15} />Hashtags</div>
-            <div className="cc-hashtags">
+            <div className="cc-hashtags" onClick={() => hashtagInputRef.current?.focus()}>
               <div className="cc-hashtag-list">
                 {draft.hashtags.map(tag => (
                   <span key={tag} className="cc-hashtag">#{tag}
                     <button onClick={() => updateDraft("hashtags", draft.hashtags.filter(h => h !== tag))}>×</button>
                   </span>
                 ))}
-                <input className="cc-hashtag-entry" value={hashtag}
+                <input ref={hashtagInputRef} className="cc-hashtag-entry" value={hashtag}
                   onChange={e => setHashtag(e.target.value)}
                   onKeyDown={addHashtag} placeholder="Add hashtag…" />
               </div>
