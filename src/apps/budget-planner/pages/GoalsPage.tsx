@@ -4,7 +4,7 @@ import { useLedgerlyStore } from '../store/useLedgerlyStore';
 import { fmt, addMonthsToYM, fmtYM, fmtYMFull } from '../utils/formatters';
 import { simulateDebtPayoff, payoffDateLabel } from '../utils/debtSimulator';
 import { GoalDialog } from '../dialogs/GoalDialog';
-import { DebtDialog } from '../dialogs/DebtDialog';
+import { DebtEditorDialog as DebtDialog } from '../dialogs/DebtEditorDialog';
 import type { Debt, Goal, GoalKind } from '../types';
 import flower01 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-01.png';
 import flower03 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-03.png';
@@ -128,8 +128,8 @@ function DebtCard({ debt, index, result, totalBalance, onEdit, onDelete }: {
         <div className="ldg-long-progress-fill" style={{ width: `${share}%`, background: debt.color || '#c48a8a' }} />
       </div>
       <div className="ldg-long-foot">
-        <span>{fmt(monthly)} monthly · {share}% of debt</span>
-        <strong>{payoff?.payoffDate ? fmtYM(payoff.payoffDate) : result.status === 'stalled' ? 'Needs payment' : 'Planning'}</strong>
+        <span>{debt.balance <= 0 ? 'No balance remaining' : `${fmt(monthly)} monthly · ${share}% of debt`}</span>
+        <strong>{debt.balance <= 0 ? 'Paid off' : payoff?.payoffDate ? fmtYM(payoff.payoffDate) : result.status === 'stalled' ? 'Needs payment' : 'Planning'}</strong>
       </div>
     </article>
   );
@@ -160,7 +160,7 @@ export function GoalsPage() {
   const totalTarget = goals.reduce((sum, goal) => sum + goal.targetAmount, 0);
   const monthlyGoalContrib = goals.reduce((sum, goal) => sum + goal.monthlyContribution, 0);
   const totalDebt = debts.reduce((sum, debt) => sum + debt.balance, 0);
-  const debtMinimums = debts.reduce((sum, debt) => sum + debt.minimumPayment + debt.extraPayment, 0);
+  const debtMinimums = debts.filter(debt => debt.balance > 0).reduce((sum, debt) => sum + debt.minimumPayment + debt.extraPayment, 0);
   const monthlyPressure = monthlyGoalContrib + debtMinimums + debtPlan.extraPayment;
   const pressurePct = income > 0 ? Math.min(100, Math.round((monthlyPressure / income) * 100)) : 0;
 

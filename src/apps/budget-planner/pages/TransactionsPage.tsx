@@ -231,6 +231,9 @@ export function TransactionsPage() {
   const addTransaction = useLedgerlyStore(s => s.addTransaction);
   const updateTransaction = useLedgerlyStore(s => s.updateTransaction);
   const deleteTransaction = useLedgerlyStore(s => s.deleteTransaction);
+  const debts = useLedgerlyStore(s => s.debts);
+  const setView = useLedgerlyStore(s => s.setView);
+  const setSelectedDebtId = useLedgerlyStore(s => s.setSelectedDebtId);
   const addCategory = useLedgerlyStore(s => s.addCategory);
   const accounts = useLedgerlyStore(s => s.accounts);
   const categories = useLedgerlyStore(s => s.categories);
@@ -574,8 +577,16 @@ export function TransactionsPage() {
                   <td className={`ldg-txn-td ${transaction.amount >= 0 ? 'ldg-txn-amt-income' : 'ldg-txn-amt-expense'}`} data-label="Amount">{fmtAmt(transaction.amount)}</td>
                   <td className="ldg-txn-td" data-label="Notes"><span className="ldg-txn-notes">{transaction.notes}</span></td>
                   <td className="ldg-txn-td ldg-txn-row-actions">
-                    <button className="ldg-txn-row-btn" onClick={() => openEdit(transaction)}>Edit</button>
-                    <button className="ldg-txn-row-btn danger" onClick={() => window.confirm('Delete this transaction?') && deleteTransaction(transaction.id)}>Delete</button>
+                    {transaction.debtPaymentId ? (
+                      transaction.debtId && debts.some(debt => debt.id === transaction.debtId) ? (
+                        <button className="ldg-txn-row-btn" onClick={() => { setSelectedDebtId(transaction.debtId ?? null); setView('debt-planner'); }}>Manage in Debt Planner</button>
+                      ) : <span className="ldg-txn-managed-label">Historical debt payment</span>
+                    ) : (
+                      <>
+                        <button className="ldg-txn-row-btn" onClick={() => openEdit(transaction)}>Edit</button>
+                        <button className="ldg-txn-row-btn danger" onClick={() => window.confirm('Delete this transaction?') && deleteTransaction(transaction.id)}>Delete</button>
+                      </>
+                    )}
                   </td>
                 </tr>
               );

@@ -52,7 +52,7 @@ function monthlyCashflow(transactions: { date: string; amount: number }[], curre
 }
 
 function CashFlowSvg({ data }: { data: { label: string; income: number; spending: number }[] }) {
-  const W = 420, H = 160, padL = 40, padR = 12, padT = 10, padB = 32;
+  const W = 460, H = 170, padL = 68, padR = 16, padT = 12, padB = 34;
   const cW = W - padL - padR, cH = H - padT - padB;
   const n = data.length || 1;
   const groupW = cW / n;
@@ -75,7 +75,7 @@ function CashFlowSvg({ data }: { data: { label: string; income: number; spending
   yLabels.forEach(v => {
     const y = padT + cH - (v / yMax) * cH;
     els.push(<line key={`gl${v}`} x1={padL} y1={y} x2={W - padR} y2={y} stroke="#d5ddd0" strokeWidth={1} />);
-    els.push(<text key={`gt${v}`} x={padL - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#8a9e8b">{formatAxisValue(v)}</text>);
+    els.push(<text key={`gt${v}`} x={padL - 10} y={y + 4} textAnchor="end" fontSize={10} fontWeight={600} fill="#6f8372">{formatAxisValue(v)}</text>);
   });
   data.forEach((d, i) => {
     const cx = padL + i * groupW + groupW / 2;
@@ -89,7 +89,13 @@ function CashFlowSvg({ data }: { data: { label: string; income: number; spending
   });
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 155 }} preserveAspectRatio="xMidYMid meet">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: 165, overflow: 'visible' }}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label="Cash flow chart with income and spending amounts by date range"
+    >
       {els}
     </svg>
   );

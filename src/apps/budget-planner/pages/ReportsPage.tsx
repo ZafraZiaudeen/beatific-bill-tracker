@@ -258,7 +258,7 @@ export function ReportsPage() {
         value,
         total: expenses,
         color: categories.find(item => item.name === name)?.color ?? ['#7a9e7e', '#c48a8a', '#c4a35a', '#9e8abe'][index % 4],
-        detail: signed(value - (prevByCategory.get(name) ?? 0)),
+        detail: `${signed(value - (prevByCategory.get(name) ?? 0))} vs prev.`,
       }))
       .sort((a, b) => b.value - a.value);
     const biggest = categoryRows.reduce<{ name: string; delta: number; value: number } | null>((best, row) => {
@@ -478,18 +478,6 @@ export function ReportsPage() {
 
           <div className="ldg-rpt-print-quote">Small steps. Big progress.</div>
           <img src={sprig03} alt="" className="ldg-rpt-print-deco" />
-        </div>
-      </div>
-
-      <div className="ldg-card" style={{ marginTop: 16, position: 'relative', overflow: 'hidden' }}>
-        <div className="ldg-rpt-chart-hdr">
-          <div>
-            <div className="ldg-card-title">Supporting rows</div>
-            <div className="ldg-rpt-range-line">The table below changes with the selected report.</div>
-          </div>
-        </div>
-        <div style={{ padding: '0 18px 16px' }}>
-          <MiniRows rows={printRows.length ? printRows : [{ name: 'No data', value: '$0', meta: rangeLabel, color: '#d1d5db' }]} />
         </div>
       </div>
 

@@ -30,6 +30,7 @@ interface SimDebt {
   remaining: number;
   apr: number;
   min: number;
+  extra: number;
   interestPaid: number;
   payoffMonth: number | null;
 }
@@ -62,6 +63,7 @@ export function simulateDebtPayoff(
       remaining: debt.balance,
       apr: Math.max(0, debt.apr),
       min: Math.max(0, debt.minimumPayment),
+      extra: Math.max(0, debt.extraPayment),
       interestPaid: 0,
       payoffMonth: null,
     }))
@@ -93,7 +95,7 @@ export function simulateDebtPayoff(
 
     for (const debt of activeDebts) {
       if (debt.remaining <= 0.01) continue;
-      const payment = Math.min(debt.min, debt.remaining);
+      const payment = Math.min(debt.min + debt.extra, debt.remaining);
       debt.remaining -= payment;
       totalPaid += payment;
       if (debt.remaining <= 0.01 && debt.payoffMonth === null) debt.payoffMonth = months;
@@ -110,7 +112,7 @@ export function simulateDebtPayoff(
     for (const debt of activeDebts) {
       if (debt.remaining <= 0.01) {
         debt.remaining = 0;
-        if (debt.payoffMonth === months) freedMinimums += debt.min;
+        if (debt.payoffMonth === months) freedMinimums += debt.min + debt.extra;
       }
     }
 

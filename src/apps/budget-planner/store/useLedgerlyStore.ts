@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type {
-  Goal, Debt, Bill, Account, Transaction, DebtPlan, LedgerlyView,
+  Goal, Debt, DebtPayment, Bill, Account, Transaction, DebtPlan, LedgerlyView,
   BudgetCategory, CashflowEntry, SinkingFund, NetWorthData, SecuritySettings,
   BudgetMethod, BudgetSettings, AccountVisibilityScope, GoalKind,
 } from '../types';
@@ -187,6 +187,20 @@ function normalizeDebt(debt: Debt, fallbackId: number): Debt {
   };
 }
 
+function normalizeDebtPayment(payment: DebtPayment, fallbackId: number): DebtPayment {
+  return {
+    ...payment,
+    id: Number.isFinite(payment.id) ? payment.id : fallbackId,
+    debtId: Number(payment.debtId) || 0,
+    amount: Math.max(0, Number(payment.amount) || 0),
+    date: payment.date || new Date().toISOString().slice(0, 10),
+    account: payment.account?.trim() || '',
+    accountId: Number(payment.accountId) || undefined,
+    notes: payment.notes?.trim() || '',
+    transactionId: Number(payment.transactionId) || 0,
+  };
+}
+
 function normalizeBill(bill: Bill, fallbackId: number): Bill {
   const dueDay = Math.min(31, Math.max(1, Number(bill.dueDay) || 1));
   return {
@@ -252,6 +266,14 @@ function nextAvailableBillId(bills: Bill[], preferred?: number): number {
     : afterExisting;
 }
 
+function nextAvailableId(items: Array<{ id: number }>, preferred?: number): number {
+  const afterExisting = items.reduce((highest, item) => Math.max(highest, item.id), 0) + 1;
+  const preferredId = Number(preferred);
+  return Number.isInteger(preferredId) && preferredId > 0
+    ? Math.max(preferredId, afterExisting)
+    : afterExisting;
+}
+
 function normalizeAccounts(accounts?: Account[]): Account[] {
   return (accounts ?? []).map((account, index) => normalizeAccount(account, index + 1));
 }
@@ -262,6 +284,10 @@ function normalizeGoals(goals?: Goal[]): Goal[] {
 
 function normalizeDebts(debts?: Debt[]): Debt[] {
   return (debts ?? []).map((debt, index) => normalizeDebt(debt, index + 1));
+}
+
+function normalizeDebtPayments(payments?: DebtPayment[]): DebtPayment[] {
+  return (payments ?? []).map((payment, index) => normalizeDebtPayment(payment, index + 1));
 }
 
 function normalizeDebtPlan(plan?: DebtPlan): DebtPlan {
@@ -363,6 +389,8 @@ const DEFAULTS = {
 
   debts: [] as Debt[],
   nextDebtId: 1,
+  debtPayments: [] as DebtPayment[],
+  nextDebtPaymentId: 1,
   debtPlan: { strategy: 'snowball', extraPayment: 0, startMonth: new Date().toISOString().slice(0, 7) } as DebtPlan,
 
   bills: [] as Bill[],
@@ -383,13 +411,18 @@ function load(): typeof DEFAULTS {
     const categories = normalizeCategories(s.categories);
     const accounts = normalizeAccounts(s.accounts);
     const bills = normalizeBills(s.bills);
+    const debts = normalizeDebts(s.debts);
+    const debtPayments = normalizeDebtPayments(s.debtPayments);
     const next = {
       ...DEFAULTS,
       ...s,
       userName: s.userName ?? DEFAULTS.userName,
       currentMonth: s.currentMonth || new Date().toISOString().slice(0, 7),
       goals:        normalizeGoals(s.goals),
-      debts:        normalizeDebts(s.debts),
+      debts,
+      nextDebtId:   nextAvailableId(debts, s.nextDebtId),
+      debtPayments,
+      nextDebtPaymentId: nextAvailableId(debtPayments, s.nextDebtPaymentId),
       bills,
       nextBillId:   nextAvailableBillId(bills, s.nextBillId),
       accounts,
@@ -413,16 +446,16 @@ function load(): typeof DEFAULTS {
 
 function save(state: Partial<typeof DEFAULTS>) {
   const {
-    goals, debts, debtPlan, bills, accounts, transactions,
+    goals, debts, debtPayments, debtPlan, bills, accounts, transactions,
     categories, sinkingFunds, netWorth, cashflow, income, budgetMethod, budgetSettings,
-    nextGoalId, nextContribId, nextDebtId, nextBillId,
+    nextGoalId, nextContribId, nextDebtId, nextDebtPaymentId, nextBillId,
     nextAccountId, nextTransactionId, currentMonth, securitySettings,
     budgetConfigured, userName,
   } = state;
   localStorage.setItem(LS_KEY, JSON.stringify({
-    goals, debts, debtPlan, bills, accounts, transactions,
+    goals, debts, debtPayments, debtPlan, bills, accounts, transactions,
     categories, sinkingFunds, netWorth, cashflow, income, budgetMethod, budgetSettings,
-    nextGoalId, nextContribId, nextDebtId, nextBillId,
+    nextGoalId, nextContribId, nextDebtId, nextDebtPaymentId, nextBillId,
     nextAccountId, nextTransactionId, currentMonth, securitySettings,
     budgetConfigured, userName,
   }));
@@ -432,7 +465,7 @@ function backupFromState(state: Partial<typeof DEFAULTS>) {
   const {
     userName, currentMonth, income, budgetMethod, budgetSettings, budgetConfigured,
     categories, cashflow, sinkingFunds, netWorth,
-    goals, nextGoalId, nextContribId, debts, nextDebtId, debtPlan,
+    goals, nextGoalId, nextContribId, debts, nextDebtId, debtPayments, nextDebtPaymentId, debtPlan,
     bills, nextBillId, accounts, nextAccountId, transactions,
     nextTransactionId, securitySettings,
   } = state;
@@ -441,7 +474,7 @@ function backupFromState(state: Partial<typeof DEFAULTS>) {
     exportedAt: new Date().toISOString(),
     userName, currentMonth, income, budgetMethod, budgetSettings, budgetConfigured,
     categories, cashflow, sinkingFunds, netWorth,
-    goals, nextGoalId, nextContribId, debts, nextDebtId, debtPlan,
+    goals, nextGoalId, nextContribId, debts, nextDebtId, debtPayments, nextDebtPaymentId, debtPlan,
     bills, nextBillId, accounts, nextAccountId, transactions,
     nextTransactionId, securitySettings,
   };
@@ -449,12 +482,17 @@ function backupFromState(state: Partial<typeof DEFAULTS>) {
 
 function mergeImportedData(raw: Partial<typeof DEFAULTS>) {
   const bills = normalizeBills(raw.bills);
+  const debts = normalizeDebts(raw.debts);
+  const debtPayments = normalizeDebtPayments(raw.debtPayments);
   return {
     ...DEFAULTS,
     ...raw,
     userName: raw.userName ?? DEFAULTS.userName,
     goals: normalizeGoals(raw.goals),
-    debts: normalizeDebts(raw.debts),
+    debts,
+    nextDebtId: nextAvailableId(debts, raw.nextDebtId),
+    debtPayments,
+    nextDebtPaymentId: nextAvailableId(debtPayments, raw.nextDebtPaymentId),
     bills,
     nextBillId: nextAvailableBillId(bills, raw.nextBillId),
     accounts: normalizeAccounts(raw.accounts),
@@ -487,9 +525,11 @@ interface LedgerlyStore extends ReturnType<typeof load> {
   addContribution(goalId: number, amount: number, date: string, source: string): void;
 
   // Debts
-  addDebt(d: Omit<Debt, 'id'>): void;
-  updateDebt(id: number, changes: Partial<Debt>): void;
+  addDebt(d: Omit<Debt, 'id'>): Debt;
+  updateDebt(id: number, changes: Partial<Debt>): Debt | null;
   deleteDebt(id: number): void;
+  recordDebtPayment(input: Omit<DebtPayment, 'id' | 'transactionId'>): DebtPayment;
+  removeDebtPayment(paymentId: number): boolean;
   setDebtPlan(plan: DebtPlan): void;
 
   // Bills
@@ -588,26 +628,162 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
     },
 
     addDebt(d) {
+      let created: Debt | null = null;
       set(s => {
-        const next = [...s.debts, normalizeDebt({ ...d, id: s.nextDebtId }, s.nextDebtId)];
-        const upd = { debts: next, nextDebtId: s.nextDebtId + 1 };
+        const debtId = nextAvailableId(s.debts, s.nextDebtId);
+        created = normalizeDebt({ ...d, id: debtId }, debtId);
+        const next = [...s.debts, created];
+        const upd = { debts: next, nextDebtId: debtId + 1 };
         save({ ...s, ...upd });
         return upd;
       });
+      if (!created) throw new Error('Debt could not be created.');
+      return created;
     },
     updateDebt(id, changes) {
+      const existing = get().debts.find(debt => debt.id === id);
+      if (!existing) return null;
+      let updated: Debt | null = null;
       set(s => {
-        const next = s.debts.map(d => d.id === id ? normalizeDebt({ ...d, ...changes, id }, id) : d);
+        updated = normalizeDebt({ ...existing, ...changes, id }, id);
+        const next = s.debts.map(d => d.id === id ? updated as Debt : d);
         save({ ...s, debts: next });
         return { debts: next };
       });
+      return updated;
     },
     deleteDebt(id) {
       set(s => {
         const next = s.debts.filter(d => d.id !== id);
-        save({ ...s, debts: next });
-        return { debts: next, selectedDebtId: s.selectedDebtId === id ? null : s.selectedDebtId };
+        const debtPayments = s.debtPayments.filter(payment => payment.debtId !== id);
+        const transactions = s.transactions.map(transaction => transaction.debtId === id
+          ? { ...transaction, debtId: undefined, debtPaymentId: undefined }
+          : transaction
+        );
+        const upd = {
+          debts: next,
+          debtPayments,
+          transactions,
+          selectedDebtId: s.selectedDebtId === id ? null : s.selectedDebtId,
+        };
+        save({ ...s, ...upd });
+        return upd;
       });
+    },
+    recordDebtPayment(input) {
+      const requestedAmount = Number(input.amount);
+      const today = new Date().toISOString().slice(0, 10);
+      const existing = get().debts.find(debt => debt.id === input.debtId);
+      if (!existing) throw new Error('This debt no longer exists.');
+      if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) throw new Error('Enter a positive payment amount.');
+      if (requestedAmount > existing.balance) throw new Error('Payment cannot be greater than the remaining balance.');
+      if (!input.date || Number.isNaN(Date.parse(`${input.date}T00:00:00`))) throw new Error('Choose a valid payment date.');
+      if (input.date > today) throw new Error('Payment date cannot be in the future.');
+
+      let created: DebtPayment | null = null;
+      set(s => {
+        const debt = s.debts.find(item => item.id === input.debtId);
+        if (!debt) throw new Error('This debt no longer exists.');
+        if (requestedAmount > debt.balance) throw new Error('Payment cannot be greater than the remaining balance.');
+
+        const requestedAccountName = input.account?.trim() || '';
+        const account = input.accountId
+          ? s.accounts.find(item => item.id === input.accountId)
+          : requestedAccountName ? s.accounts.find(item => item.name === requestedAccountName) : null;
+        if ((input.accountId || requestedAccountName) && !account) throw new Error('The selected payment account is no longer available.');
+        if (account && !['Checking', 'Savings', 'Cash'].includes(account.type)) {
+          throw new Error('Choose a checking, savings, or cash account for this payment.');
+        }
+        const accountName = account?.name || '';
+
+        const paymentId = nextAvailableId(s.debtPayments, s.nextDebtPaymentId);
+        const transactionId = nextAvailableId(s.transactions, s.nextTransactionId);
+        created = normalizeDebtPayment({
+          id: paymentId,
+          debtId: debt.id,
+          amount: requestedAmount,
+          date: input.date,
+          account: accountName,
+          accountId: account?.id,
+          notes: input.notes,
+          transactionId,
+        }, paymentId);
+        const transaction = normalizeTransaction({
+          id: transactionId,
+          merchant: debt.name,
+          icon: debt.icon || '💳',
+          date: created.date,
+          category: 'Debt',
+          account: accountName || 'Unlinked',
+          amount: -requestedAmount,
+          notes: created.notes ? `Debt payment · ${created.notes}` : 'Debt payment',
+          debtId: debt.id,
+          debtPaymentId: paymentId,
+        });
+        const debts = s.debts.map(item => item.id === debt.id
+          ? normalizeDebt({ ...item, balance: Math.max(0, item.balance - requestedAmount) }, item.id)
+          : item
+        );
+        const accounts = s.accounts.map(item => item.id === account?.id
+          ? normalizeAccount({
+              ...item,
+              balance: item.balance - requestedAmount,
+              lastUpdated: new Date().toISOString(),
+              reconciled: false,
+              lastReconciledAt: '',
+            }, item.id)
+          : item
+        );
+        const netWorth = syncNetWorthTotals(s.netWorth, accounts);
+        const upd = {
+          debts,
+          debtPayments: [created, ...s.debtPayments],
+          transactions: [transaction, ...s.transactions],
+          accounts,
+          netWorth,
+          nextDebtPaymentId: paymentId + 1,
+          nextTransactionId: transactionId + 1,
+        };
+        save({ ...s, ...upd });
+        return upd;
+      });
+      if (!created) throw new Error('Payment could not be recorded.');
+      return created;
+    },
+    removeDebtPayment(paymentId) {
+      const existing = get().debtPayments.find(payment => payment.id === paymentId);
+      if (!existing || !get().debts.some(debt => debt.id === existing.debtId)) return false;
+      set(s => {
+        const payment = s.debtPayments.find(item => item.id === paymentId);
+        if (!payment) throw new Error('This payment no longer exists.');
+        const debt = s.debts.find(item => item.id === payment.debtId);
+        if (!debt) throw new Error('The related debt no longer exists.');
+        const debts = s.debts.map(item => item.id === debt.id
+          ? normalizeDebt({ ...item, balance: item.balance + payment.amount }, item.id)
+          : item
+        );
+        const accounts = s.accounts.map(item => (payment.accountId ? item.id === payment.accountId : Boolean(payment.account) && item.name === payment.account)
+          ? normalizeAccount({
+              ...item,
+              balance: item.balance + payment.amount,
+              lastUpdated: new Date().toISOString(),
+              reconciled: false,
+              lastReconciledAt: '',
+            }, item.id)
+          : item
+        );
+        const netWorth = syncNetWorthTotals(s.netWorth, accounts);
+        const upd = {
+          debts,
+          debtPayments: s.debtPayments.filter(item => item.id !== paymentId),
+          transactions: s.transactions.filter(transaction => transaction.id !== payment.transactionId),
+          accounts,
+          netWorth,
+        };
+        save({ ...s, ...upd });
+        return upd;
+      });
+      return true;
     },
     setDebtPlan(plan) {
       set(s => {
@@ -845,6 +1021,7 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
       });
     },
     updateTransaction(id, changes) {
+      if (get().transactions.find(transaction => transaction.id === id)?.debtPaymentId) return;
       set(s => {
         const next = s.transactions.map(t => (
           t.id === id ? normalizeTransaction({ ...t, ...changes, id }) : t
@@ -854,6 +1031,7 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
       });
     },
     deleteTransaction(id) {
+      if (get().transactions.find(transaction => transaction.id === id)?.debtPaymentId) return;
       set(s => {
         const next = s.transactions.filter(t => t.id !== id);
         save({ ...s, transactions: next });

@@ -40,6 +40,17 @@ export interface Debt {
   notes?: string;
 }
 
+export interface DebtPayment {
+  id: number;
+  debtId: number;
+  amount: number;
+  date: string;
+  account?: string;
+  accountId?: number;
+  notes?: string;
+  transactionId: number;
+}
+
 export interface DebtPlan {
   strategy: 'snowball' | 'avalanche';
   extraPayment: number;
@@ -106,6 +117,8 @@ export interface Transaction {
   amount: number;
   notes?: string;
   billId?: number;
+  debtId?: number;
+  debtPaymentId?: number;
 }
 
 export interface BudgetCategory {
@@ -174,4 +187,3 @@ export type LedgerlyView =
   | 'security'
   | 'management'
   | 'help';
-

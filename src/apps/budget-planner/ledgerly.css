@@ -1777,6 +1777,45 @@ svg{display:block;flex-shrink:0}
 .ldg-debt-list-actions{display:flex;gap:6px}
 .ldg-debt-list-actions button{border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:99px;padding:6px 10px;font-weight:700;font-size:.72rem;cursor:pointer}
 .ldg-debt-list-actions button.danger{border-color:rgba(196,96,96,.35);background:rgba(196,96,96,.08);color:#a05050}
+.ldg-debt-list-card.is-focused{border-color:#7a9e7e;background:rgba(122,158,126,.06)}
+.ldg-debt-forecast-help,.ldg-goal-detail-field small{font-size:.69rem;line-height:1.45;color:var(--text3);font-weight:500;text-transform:none;letter-spacing:normal}
+.ldg-debt-focus-card{margin-bottom:18px;overflow:hidden}
+.ldg-debt-focus-summary{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid var(--border)}
+.ldg-debt-focus-summary h2{font-family:'Playfair Display',serif;font-style:italic;font-size:1.25rem;color:var(--text);margin:3px 0}
+.ldg-debt-focus-summary p{font-size:.76rem;color:var(--text2)}
+.ldg-debt-state{display:inline-flex;padding:3px 9px;border-radius:99px;background:rgba(196,163,90,.14);color:#8b6f30;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.ldg-debt-state.is-paid{background:rgba(122,158,126,.14);color:#4a7060}
+.ldg-debt-focus-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.ldg-debt-focus-metrics>div{background:var(--surface);padding:15px 18px;display:flex;flex-direction:column;gap:3px}
+.ldg-debt-focus-metrics span{font-size:.67rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.ldg-debt-focus-metrics strong{font-size:1.02rem;color:var(--text)}
+.ldg-debt-focus-metrics small{font-size:.67rem;color:var(--text2)}
+.ldg-debt-payment-history{padding-bottom:16px}
+.ldg-debt-payment-list{display:flex;flex-direction:column;padding:0 20px}
+.ldg-debt-payment-row{display:grid;grid-template-columns:130px 100px minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--border);font-size:.78rem}
+.ldg-debt-payment-row span,.ldg-debt-payment-row em{color:var(--text2);font-style:normal}
+.ldg-debt-payment-row strong{color:#4a7060}
+.ldg-debt-payment-row button{border:none;background:none;color:#a05050;font-size:.72rem;font-weight:700;cursor:pointer}
+.ldg-debt-dialog-backdrop{position:fixed;inset:0;background:rgba(15,22,35,.58);z-index:900;display:flex;align-items:center;justify-content:center;padding:18px}
+.ldg-debt-dialog{width:min(620px,100%);max-height:90vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.ldg-debt-payment-dialog{width:min(500px,100%)}
+.ldg-debt-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 22px;border-bottom:1px solid var(--border)}
+.ldg-debt-dialog-header>span,.ldg-debt-dialog-header>div>span{display:block;font-family:'Playfair Display',serif;font-style:italic;font-size:1.15rem;font-weight:800;color:var(--text)}
+.ldg-debt-dialog-header small{display:block;margin-top:2px;font-size:.72rem;color:var(--text2)}
+.ldg-debt-dialog-header>button{border:none;background:none;color:var(--text2);font-size:1.3rem;cursor:pointer}
+.ldg-debt-dialog-body{overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.ldg-debt-dialog-body label{display:flex;flex-direction:column;gap:5px;font-size:.74rem;font-weight:700;color:var(--text2)}
+.ldg-debt-dialog-body label b{color:#a05050}
+.ldg-debt-dialog-body input,.ldg-debt-dialog-body select,.ldg-debt-dialog-body textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);padding:9px 11px;font:inherit;font-size:.85rem;font-weight:500;outline:none}
+.ldg-debt-dialog-body input:focus,.ldg-debt-dialog-body select:focus,.ldg-debt-dialog-body textarea:focus{border-color:#7a9e7e;box-shadow:0 0 0 3px rgba(122,158,126,.12)}
+.ldg-debt-dialog-body textarea{resize:vertical}
+.ldg-debt-dialog-body label small{font-size:.67rem;line-height:1.4;font-weight:500;color:var(--text3)}
+.ldg-debt-dialog-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.ldg-debt-dialog-footer{padding:12px 22px 15px;border-top:1px solid var(--border);background:var(--surface)}
+.ldg-debt-dialog-footer>div:last-child{display:flex;justify-content:flex-end;gap:9px}
+.ldg-debt-dialog-error{padding:9px 11px;margin-bottom:10px;border:1px solid rgba(196,96,96,.32);border-radius:9px;background:rgba(196,96,96,.09);color:#a05050;font-size:.76rem;font-weight:700}
+.ldg-debt-payment-explainer{padding:11px 12px;border:1px solid rgba(122,158,126,.25);border-radius:10px;background:rgba(122,158,126,.09);color:#4a7060;font-size:.76rem;line-height:1.5}
+.ldg-txn-managed-label{display:inline-flex;max-width:150px;color:var(--text3);font-size:.69rem;line-height:1.3}
 
 @media(max-width:1000px){
   .ldg-long-two-col,.ldg-goal-detail-grid,.ldg-debt-planner-grid{grid-template-columns:1fr}
@@ -1787,6 +1826,14 @@ svg{display:block;flex-shrink:0}
   .ldg-long-metric-row{grid-template-columns:1fr}
   .ldg-goal-history-row,.ldg-debt-list-card{grid-template-columns:1fr}
   .ldg-goal-history-row em{text-align:left}
+  .ldg-debt-focus-summary{grid-template-columns:44px 1fr}
+  .ldg-debt-focus-summary>button{grid-column:1 / -1}
+  .ldg-debt-focus-metrics{grid-template-columns:1fr 1fr}
+  .ldg-debt-payment-row{grid-template-columns:1fr auto}
+  .ldg-debt-payment-row em{grid-column:1 / -1}
+  .ldg-debt-dialog-grid{grid-template-columns:1fr}
+  .ldg-debt-dialog-footer>div:last-child{flex-direction:column-reverse}
+  .ldg-debt-dialog-footer button{width:100%}
 }
 
 /* ── Dark theme: budget wizard ── */
