@@ -1,32 +1,35 @@
 import type { ContentPost } from '../types';
+import type { StoredMediaItem } from '../mediaStorage';
+import { mediaUrl } from '../mediaStorage';
 
 interface FeedPreviewProps {
   posts: ContentPost[];
+  mediaItems?: StoredMediaItem[];
+  mediaUrls?: Record<string, string>;
+  onViewAll?: () => void;
 }
 
-const EXTRA_COLORS = ['#d8c8b8', '#c8b8a0', '#e0d0c0', '#b8a888', '#d0c0b0'];
-
-export default function FeedPreview({ posts }: FeedPreviewProps) {
-  const cells = [
-    ...posts.slice(0, 9).map((p) => p.thumbnailBg),
-    ...EXTRA_COLORS,
-  ].slice(0, 9);
+export default function FeedPreview({ posts, mediaItems = [], mediaUrls = {}, onViewAll }: FeedPreviewProps) {
+  const cells = posts.slice(0, 9).map(post => {
+    const media = (post.mediaIds ?? []).map(id => mediaItems.find(item => item.id === id)).find(Boolean);
+    return { post, src: media ? mediaUrl(media, mediaUrls) : '' };
+  });
 
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #ece4da',
+      background: 'var(--cc-card)',
+      border: '1px solid var(--cc-border)',
       borderRadius: 14,
       padding: '16px 18px',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#3d2f2f' }}>Feed Preview</span>
-        <button style={{
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cc-text)' }}>Feed Preview</span>
+        <button onClick={onViewAll} style={{
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          color: '#8a7a72',
+          color: 'var(--cc-text-3)',
           display: 'flex',
           alignItems: 'center',
         }}>
@@ -39,21 +42,22 @@ export default function FeedPreview({ posts }: FeedPreviewProps) {
       </div>
 
       {/* 3×3 grid */}
-      <div style={{
+      {cells.length ? <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 3,
         borderRadius: 6,
         overflow: 'hidden',
       }}>
-        {cells.map((color, i) => (
-          <div key={i} style={{
+        {cells.map(({ post, src }) => (
+          <div key={post.id} style={{
             aspectRatio: '1',
-            background: color,
+            background: post.thumbnailBg || 'var(--cc-bg-2)',
             borderRadius: 3,
-          }} />
+            overflow: 'hidden',
+          }}>{src ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--cc-text-3)', fontSize: 9 }}>IMG</span>}</div>
         ))}
-      </div>
+      </div> : <div style={{ padding: '28px 10px', border: '1px dashed var(--cc-border)', borderRadius: 6, textAlign: 'center', fontSize: 11, color: 'var(--cc-text-3)' }}>No content to preview.</div>}
     </div>
   );
 }

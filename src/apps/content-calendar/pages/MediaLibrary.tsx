@@ -12,30 +12,29 @@ import {
   Search,
   Tag,
   Upload,
-  X,
+  X, Trash2,
 } from "lucide-react"
 import { useContentCalendarStore } from "../store"
 import type { MediaFolder, MediaItem, PipelineItem } from "../types"
-import { loadMedia, MEDIA_SEED, saveMedia, storeUpload } from "../mediaStorage"
+import { deleteMedia, loadMedia, mediaUrl, saveMedia, storeUpload } from "../mediaStorage"
 import type { StoredMediaItem } from "../mediaStorage"
-import placeholderMedia from "../../../assets/content-calendar/placeholder-media.svg"
 
 const MEDIA_CSS = `
-.cc-media{min-width:1035px;background:#faf7f2;color:#263338;min-height:100%;padding:16px 18px 24px}.cc-media-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}.cc-media-title{font:400 29px/.98 'DM Serif Display',Georgia,serif;margin:0}.cc-media-title-row{display:flex;align-items:flex-end;gap:10px}.cc-media-star{color:#e7ae42;transform:rotate(-8deg)}.cc-media-line{width:101px;border-top:3px solid #d97855;border-radius:50%;margin-top:10px;transform:rotate(-3deg)}.cc-media-meta{display:flex;align-items:center;gap:20px;font-size:12px;font-weight:650}.cc-media-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px}
-.cc-folders{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:16px}.cc-folder{height:71px;border-radius:7px;padding:14px 16px;display:flex;gap:13px;text-align:left;border:1px solid transparent;position:relative}.cc-folder:nth-child(1){background:#fbe1d5;color:#b94f2f}.cc-folder:nth-child(2){background:#f4e7eb;color:#a85675}.cc-folder:nth-child(3){background:#e4eef4;color:#3d6b83}.cc-folder:nth-child(4){background:#fff0d8;color:#cb7d10}.cc-folder:nth-child(5){background:#f7e6e8;color:#d13f62}.cc-folder.active:after{content:'';position:absolute;bottom:0;left:0;right:0;border-bottom:2px solid #dd7956;border-radius:50%}.cc-folder strong{display:block;font-size:12px;font-weight:500;color:#303b3f}.cc-folder em{display:block;font:400 17px 'DM Serif Display',Georgia,serif;color:#596266;margin-top:3px}.cc-media-toolbar{display:grid;grid-template-columns:minmax(320px,1fr) auto auto auto auto;gap:8px;margin-bottom:14px}.cc-media-search{height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #ebe3dc;background:rgba(255,255,255,.8);border-radius:10px}.cc-media-search input{border:0;outline:0;background:transparent;width:100%;font-size:10.5px}.cc-media-select-wrap{position:relative}.cc-media-select{height:32px;appearance:none;padding:0 29px 0 11px;border:1px solid #ebe3dc;background:rgba(255,255,255,.8);border-radius:10px;font-size:10px;color:#263338;min-width:112px}.cc-media-select-wrap svg{position:absolute;right:9px;top:10px;pointer-events:none}.cc-upload-button{height:32px;border-radius:18px;background:linear-gradient(90deg,#d56b48,#d77855);color:white;padding:0 17px;display:flex;align-items:center;gap:8px;font-size:10.5px}
+.cc-media{min-width:1035px;background:var(--cc-bg);color:#263338;min-height:100%;padding:16px 18px 24px}.cc-media-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}.cc-media-title{font:400 29px/.98 'DM Serif Display',Georgia,serif;margin:0}.cc-media-title-row{display:flex;align-items:flex-end;gap:10px}.cc-media-star{color:#e7ae42;transform:rotate(-8deg)}.cc-media-line{width:101px;border-top:3px solid #d97855;border-radius:50%;margin-top:10px;transform:rotate(-3deg)}.cc-media-meta{display:flex;align-items:center;gap:20px;font-size:12px;font-weight:650}.cc-media-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px}
+.cc-folders{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:16px}.cc-folder{height:71px;border-radius:7px;padding:14px 16px;display:flex;gap:13px;text-align:left;border:1px solid transparent;position:relative}.cc-folder:nth-child(1){background:#fbe1d5;color:#b94f2f}.cc-folder:nth-child(2){background:#f4e7eb;color:#a85675}.cc-folder:nth-child(3){background:#e4eef4;color:#3d6b83}.cc-folder:nth-child(4){background:#fff0d8;color:#cb7d10}.cc-folder:nth-child(5){background:#f7e6e8;color:#d13f62}.cc-folder.active:after{content:'';position:absolute;bottom:0;left:0;right:0;border-bottom:2px solid #dd7956;border-radius:50%}.cc-folder strong{display:block;font-size:12px;font-weight:500;color:#303b3f}.cc-folder em{display:block;font:400 17px 'DM Serif Display',Georgia,serif;color:#596266;margin-top:3px}.cc-media-toolbar{display:grid;grid-template-columns:minmax(320px,1fr) auto auto auto auto;gap:8px;margin-bottom:14px}.cc-media-search{height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid #ebe3dc;background:var(--cc-card);border-radius:10px}.cc-media-search input{border:0;outline:0;background:transparent;width:100%;font-size:10.5px}.cc-media-select-wrap{position:relative}.cc-media-select{height:32px;appearance:none;padding:0 29px 0 11px;border:1px solid #ebe3dc;background:var(--cc-card);border-radius:10px;font-size:10px;color:#263338;min-width:112px}.cc-media-select-wrap svg{position:absolute;right:9px;top:10px;pointer-events:none}.cc-upload-button{height:32px;border-radius:18px;background:linear-gradient(90deg,#d56b48,#d77855);color:white;padding:0 17px;display:flex;align-items:center;gap:8px;font-size:10.5px}
 .cc-media-body{display:flex;gap:14px}.cc-media-left{flex:1;min-width:0;background:rgba(255,255,255,.55);border-radius:8px;padding:7px}.cc-dropzone{height:77px;border:1px dashed #ded6cf;border-radius:7px;display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:16px;transition:.15s}.cc-dropzone.over{background:#fff1e7;border-color:#d77855}.cc-drop-center{text-align:center}.cc-drop-center strong{display:block;font-size:11px;margin:4px 0 0}.cc-drop-center small{font-size:8.5px;color:#8a9092}.cc-drop-local{position:absolute;right:14px;top:11px;background:#fae7c5;border-radius:99px;padding:4px 10px;font-size:8px;display:flex;gap:5px;align-items:center}.cc-upload-error{font-size:9px;color:#b34e44;text-align:center;margin:-10px 0 8px}.cc-media-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px}.cc-media-tile{aspect-ratio:1.2;border-radius:6px;overflow:hidden;position:relative;background:#e2d8ce;outline:none}.cc-media-tile.selected{box-shadow:0 0 0 2px #c75c3c}.cc-media-image{position:absolute;inset:0;background-size:1280px 720px;background-repeat:no-repeat;background-position:center;background-size:cover}.cc-media-image.reference{background-size:1280px 720px}.cc-media-check{position:absolute;left:6px;top:6px;width:14px;height:14px;border:1px solid #9da5a5;border-radius:3px;background:rgba(255,255,255,.88);display:grid;place-items:center;font-size:9px}.cc-media-tile.selected .cc-media-check{background:#c85b3b;border-color:#70301f;color:white}
 .cc-media-detail{width:365px;flex:0 0 365px;border-radius:8px;background:#edf4f6;padding:16px;min-height:442px}.cc-detail-top{display:flex;justify-content:space-between;align-items:flex-start}.cc-detail-preview{width:154px;height:101px;border-radius:6px;background-repeat:no-repeat;background-size:cover}.cc-detail-preview.reference{background-size:1280px 720px}.cc-detail-close{color:#6f7a7e}.cc-detail-badge{margin-left:auto;margin-right:12px;background:#fae7c5;border-radius:99px;padding:4px 10px;font-size:8px;display:flex;align-items:center;gap:5px}.cc-detail-name{font:400 15px 'DM Serif Display',Georgia,serif;margin:10px 0 3px}.cc-detail-meta{font-size:9px;color:#838c8f}.cc-detail-section{border-top:1px solid #dce5e7;margin-top:12px;padding-top:10px}.cc-detail-heading{display:flex;align-items:center;gap:8px;font-size:10px;margin-bottom:8px}.cc-detail-tags{display:flex;flex-wrap:wrap;gap:6px}.cc-detail-tag{padding:4px 12px;border-radius:99px;background:#f6dfdf;color:#9c5365;font-size:8px}.cc-detail-tag:nth-child(2n){background:#e4edf3;color:#52758a}.cc-detail-tag:nth-child(3n){background:#f9e8c9;color:#876b38}.cc-add-tag{font-size:8px;color:#8a9193}.cc-tag-input{width:90px;border:1px solid #d3dfe1;border-radius:99px;padding:4px 8px;font-size:8px;outline:0}.cc-used-count{background:#f0dede;border-radius:99px;padding:2px 8px;color:#9b6464}.cc-used-list{background:rgba(255,255,255,.56);border-radius:6px;padding:2px 10px}.cc-used-row{height:25px;display:flex;align-items:center;gap:8px;color:#7d878a;font-size:8.5px}.cc-used-row span{flex:1}.cc-add-post{width:100%;height:37px;margin-top:14px;border-radius:7px;background:linear-gradient(90deg,#d66b48,#d77855);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;gap:8px}.cc-device-note{border-top:1px solid #dce5e7;margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;color:#7e888b;font-size:8px}.cc-local-script{font:600 13px 'Caveat',cursive;color:#dc7656;transform:rotate(-3deg)}
 .cc-media-overlay{position:fixed;inset:0;background:rgba(29,34,35,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-media-modal{width:min(440px,100%);max-height:85vh;overflow:auto;background:#fffaf6;border:1px solid #e6dbd2;border-radius:14px;padding:21px}.cc-media-modal h2{font:400 23px 'DM Serif Display',Georgia,serif;margin:0 0 13px}.cc-post-choice{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #eee5de;text-align:left;font-size:10px}.cc-post-choice small{color:#899092}.cc-media-modal-actions{display:flex;justify-content:flex-end;margin-top:14px}.cc-media-modal-actions button{padding:8px 13px;border:1px solid #ddd3cb;border-radius:8px;background:white;font-size:10px}
-@media(max-width:1120px){.cc-media{min-width:1020px}.cc-media-detail{width:330px;flex-basis:330px}.cc-media-grid{gap:7px}}
+@media(max-width:1120px){.cc-media-detail{width:330px;flex-basis:330px}.cc-media-grid{gap:7px}}.cc-detail-name-input{width:100%;box-sizing:border-box;border:1px solid #d3dfe1;border-radius:7px;padding:7px;font:400 15px 'DM Serif Display',Georgia,serif;background:rgba(255,255,255,.55)}.cc-detail-edit-fields{display:grid;gap:8px}.cc-detail-edit-fields label{display:flex;flex-direction:column;gap:4px;font-size:9px;color:#6f7a7e}.cc-detail-edit-fields textarea,.cc-detail-edit-fields select{border:1px solid #d3dfe1;border-radius:6px;padding:6px;font:inherit;background:white}.cc-delete-media{width:100%;height:32px;margin-top:8px;border:1px solid #e4b6ae;border-radius:7px;background:#fff0ed;color:#ad5144;display:flex;align-items:center;justify-content:center;gap:6px;font-size:10px;cursor:pointer}@media(max-width:760px){.cc-media{min-width:0}.cc-media-body{display:block}.cc-media-detail{width:auto;min-height:0;margin-top:14px}.cc-media-toolbar{grid-template-columns:1fr 1fr}.cc-media-search{grid-column:1/-1}.cc-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-folders{grid-template-columns:repeat(2,1fr)}}
 `
 
-const FOLDER_CARDS: { id: "all" | MediaFolder; label: string; base: number }[] =
+const FOLDER_CARDS: { id: "all" | MediaFolder; label: string }[] =
   [
-    { id: "all", label: "All media", base: 248 },
-    { id: "brand", label: "Brand", base: 72 },
-    { id: "campaigns", label: "Campaigns", base: 46 },
-    { id: "reels", label: "Reels", base: 58 },
-    { id: "carousels", label: "Carousels", base: 32 },
+    { id: "all", label: "All media" },
+    { id: "brand", label: "Brand" },
+    { id: "campaigns", label: "Campaigns" },
+    { id: "reels", label: "Reels" },
+    { id: "carousels", label: "Carousels" },
   ]
 
 function bytes(value: number) {
@@ -44,12 +43,8 @@ function bytes(value: number) {
     : `${Math.round(value / 1000)} KB`
 }
 function thumbStyle(item: StoredMediaItem, urls: Record<string, string>) {
-  if (item.source.kind === "reference")
-    return {
-      backgroundImage: `url(${placeholderMedia})`,
-      backgroundPosition: `-${item.source.crop.x}px -${item.source.crop.y}px`,
-    }
-  return { backgroundImage: `url(${urls[item.id] ?? ""})` }
+  const url = mediaUrl(item, urls)
+  return url ? { backgroundImage: `url(${url})` } : { background: "#e8e0d8" }
 }
 function FilterSelect({
   label,
@@ -78,21 +73,16 @@ function FilterSelect({
 }
 
 function PostPicker({
-  item,
-  posts,
-  assign,
-  close,
+  item, posts, assign, unassign, close,
 }: {
   item: StoredMediaItem
   posts: PipelineItem[]
   assign: (post: PipelineItem) => void
+  unassign: (post: PipelineItem) => void
   close: () => void
 }) {
   return (
-    <div
-      className="cc-media-overlay"
-      onMouseDown={(event) => event.target === event.currentTarget && close()}
-    >
+    <div className="cc-media-inline-picker">
       <div className="cc-media-modal" role="dialog" aria-modal="true">
         <h2>Add media to a post</h2>
         {posts
@@ -101,13 +91,12 @@ function PostPicker({
             <button
               key={post.id}
               className="cc-post-choice"
-              disabled={item.usedInIds.includes(post.id)}
-              onClick={() => assign(post)}
+              onClick={() => item.usedInIds.includes(post.id) ? unassign(post) : assign(post)}
             >
               <span>{post.title}</span>
               <small>
                 {item.usedInIds.includes(post.id)
-                  ? "Already added"
+                  ? "Remove from post"
                   : post.stage}
               </small>
             </button>
@@ -121,12 +110,12 @@ function PostPicker({
 }
 
 export default function MediaLibrary() {
-  const { pipelineItems, updatePipelineItem } = useContentCalendarStore()
+  const { pipelineItems, updatePipelineItem, removeMediaReferences } = useContentCalendarStore()
   const inputRef = useRef<HTMLInputElement>(null)
   const objectUrlsRef = useRef<string[]>([])
   const [items, setItems] = useState<StoredMediaItem[]>([])
   const [urls, setUrls] = useState<Record<string, string>>({})
-  const [selectedId, setSelectedId] = useState("seed-media-1")
+  const [selectedId, setSelectedId] = useState("")
   const [folder, setFolder] = useState<"all" | MediaFolder>("all")
   const [search, setSearch] = useState("")
   const [type, setType] = useState("all")
@@ -138,7 +127,7 @@ export default function MediaLibrary() {
   const [showPicker, setShowPicker] = useState(false)
   useEffect(() => {
     let active = true
-    loadMedia(MEDIA_SEED)
+    loadMedia()
       .then((records) => {
         if (!active) return
         const nextUrls: Record<string, string> = {}
@@ -180,10 +169,13 @@ export default function MediaLibrary() {
         const mediaType =
           type === "all" ||
           (type === "images" && item.mimeType.startsWith("image/"))
+        const now = new Date()
+        const weekStart = new Date(now)
+        weekStart.setDate(now.getDate() - now.getDay())
         const dateOk =
           date === "all" ||
-          (date === "week" && item.createdAt >= "2025-04-21") ||
-          (date === "month" && item.createdAt.startsWith("2025-04"))
+          (date === "week" && item.createdAt >= weekStart.toISOString()) ||
+          (date === "month" && item.createdAt.startsWith(now.toISOString().slice(0, 7)))
         return (
           (folder === "all" || item.folder === folder) &&
           (!search || hay.includes(search.toLowerCase())) &&
@@ -245,18 +237,36 @@ export default function MediaLibrary() {
   }
   async function assign(post: PipelineItem) {
     if (!selected) return
-    await patchSelected({ usedInIds: [...selected.usedInIds, post.id] })
+    await patchSelected({ usedInIds: Array.from(new Set([...selected.usedInIds, post.id])) })
     updatePipelineItem(post.id, {
       mediaIds: Array.from(new Set([...(post.mediaIds ?? []), selected.id])),
     })
     setShowPicker(false)
   }
-  const uploadCount = items.filter(
-    (item) => item.source.kind === "upload"
-  ).length
+  async function unassign(post: PipelineItem) {
+    if (!selected) return
+    await patchSelected({ usedInIds: selected.usedInIds.filter(id => id !== post.id) })
+    updatePipelineItem(post.id, { mediaIds: (post.mediaIds ?? []).filter(id => id !== selected.id) })
+    setShowPicker(false)
+  }
+  async function removeSelected() {
+    if (!selected) return
+    const message = selected.usedInIds.length
+      ? `${selected.filename} is used in ${selected.usedInIds.length} post(s). Delete it and unlink it everywhere?`
+      : `Delete ${selected.filename}?`
+    if (!window.confirm(message)) return
+    removeMediaReferences(selected.id)
+    const url = urls[selected.id]
+    if (url) { URL.revokeObjectURL(url); objectUrlsRef.current = objectUrlsRef.current.filter(value => value !== url) }
+    await deleteMedia(selected.id)
+    setItems(current => current.filter(item => item.id !== selected.id))
+    setUrls(current => { const next = { ...current }; delete next[selected.id]; return next })
+    setSelectedId("")
+  }
   return (
     <div className="cc-media">
       <style>{MEDIA_CSS}</style>
+      <style>{`.cc-media-inline-picker{margin-top:12px;padding:10px;border:1px solid #e6dbd2;border-radius:9px;background:#fffaf6}.cc-media-inline-picker .cc-media-modal{width:auto;max-height:none;box-shadow:none;padding:10px}.cc-media-inline-picker .cc-media-modal h2{font-size:18px}.cc-media-inline-picker .cc-media-modal-actions{margin-top:8px}.cc-media-image{display:block;width:100%;height:100%;object-fit:cover}`}</style>
       <header className="cc-media-head">
         <div>
           <div className="cc-media-title-row">
@@ -282,13 +292,7 @@ export default function MediaLibrary() {
       </header>
       <div className="cc-folders">
         {FOLDER_CARDS.map((card) => {
-          const extra =
-            card.id === "all"
-              ? uploadCount
-              : items.filter(
-                  (item) =>
-                    item.source.kind === "upload" && item.folder === card.id
-                ).length
+          const count = card.id === "all" ? items.length : items.filter(item => item.folder === card.id).length
           return (
             <button
               key={card.id}
@@ -298,7 +302,7 @@ export default function MediaLibrary() {
               <Folder size={23} />
               <span>
                 <strong>{card.label}</strong>
-                <em>{card.base + extra}</em>
+                <em>{count}</em>
               </span>
             </button>
           )
@@ -374,10 +378,7 @@ export default function MediaLibrary() {
                 className={`cc-media-tile${selected?.id === item.id ? "selected" : ""}`}
                 onClick={() => setSelectedId(item.id)}
               >
-                <span
-                  className={`cc-media-image${item.source.kind === "reference" ? "reference" : ""}`}
-                  style={thumbStyle(item, urls)}
-                />
+                {mediaUrl(item, urls) ? <img className="cc-media-image" src={mediaUrl(item, urls)} alt={item.description || item.filename} /> : <span className="cc-media-image" style={thumbStyle(item, urls)} aria-label="Preview unavailable" />}
                 <span className="cc-media-check">
                   {selected?.id === item.id ? "✓" : ""}
                 </span>
@@ -388,10 +389,19 @@ export default function MediaLibrary() {
         {selected && (
           <aside className="cc-media-detail">
             <div className="cc-detail-top">
-              <div
-                className={`cc-detail-preview${selected.source.kind === "reference" ? "reference" : ""}`}
-                style={thumbStyle(selected, urls)}
-              />
+              {mediaUrl(selected, urls) ? (
+                <img
+                  className={`cc-detail-preview${selected.source.kind === "reference" ? " reference" : ""}`}
+                  src={mediaUrl(selected, urls)}
+                  alt={selected.description || selected.filename}
+                />
+              ) : (
+                <div
+                  className={`cc-detail-preview${selected.source.kind === "reference" ? " reference" : ""}`}
+                  style={thumbStyle(selected, urls)}
+                  aria-label="Preview unavailable"
+                />
+              )}
               <span className="cc-detail-badge">
                 <MapPin size={9} fill="currentColor" />
                 Local only
@@ -403,11 +413,15 @@ export default function MediaLibrary() {
                 <X size={14} />
               </button>
             </div>
-            <h2 className="cc-detail-name">{selected.filename}</h2>
+            <input className="cc-detail-name-input" value={selected.filename} onChange={event => void patchSelected({ filename: event.target.value })} aria-label="Filename" />
             <div className="cc-detail-meta">
               {selected.extension} &nbsp;·&nbsp; {selected.width} ×{" "}
               {selected.height} &nbsp;·&nbsp; {bytes(selected.size)}
             </div>
+            <section className="cc-detail-section cc-detail-edit-fields">
+              <label>Description<textarea value={selected.description} onChange={event => void patchSelected({ description: event.target.value })} /></label>
+              <label>Folder<select value={selected.folder} onChange={event => void patchSelected({ folder: event.target.value as MediaFolder })}>{FOLDER_CARDS.filter(card => card.id !== "all").map(card => <option key={card.id} value={card.id}>{card.label}</option>)}</select></label>
+            </section>
             <section className="cc-detail-section">
               <div className="cc-detail-heading">
                 <Tag size={13} />
@@ -471,6 +485,7 @@ export default function MediaLibrary() {
               <Plus size={14} />
               Add to post
             </button>
+            <button className="cc-delete-media" onClick={() => void removeSelected()}><Trash2 size={13} /> Delete media</button>
             <div className="cc-device-note">
               <span>
                 <Lightbulb size={11} style={{ display: "inline" }} /> Stored on
@@ -486,6 +501,7 @@ export default function MediaLibrary() {
           item={selected}
           posts={pipelineItems}
           assign={(post) => void assign(post)}
+          unassign={(post) => void unassign(post)}
           close={() => setShowPicker(false)}
         />
       )}

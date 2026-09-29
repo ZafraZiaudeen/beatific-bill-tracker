@@ -1,19 +1,103 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { addDays, parseISO, startOfWeek } from 'date-fns';
 import { useContentCalendarStore } from '../store';
 import StatCard from '../components/StatCard';
 import WeekSchedule from '../components/WeekSchedule';
-import ContentRhythm from '../components/ContentRhythm';
 import DraftsPanel from '../components/DraftsPanel';
 import FeedPreview from '../components/FeedPreview';
 import SavedIdeas from '../components/SavedIdeas';
-import HashtagSets from '../components/HashtagSets';
 import sparkleImg from '../../../assets/budget-assets/sun-sparkles/sun-sparkles-02.png';
 import underlineImg from '../../../assets/budget-assets/stationery-accents/stationery-accents-02.png';
-import type { PostType } from '../types';
+import type { ComposerDraft, ContentPost, PipelineItem, PostType } from '../types';
+import { getActivePlatformOptions, getActivePostTypes, getPlatformConfig } from '../platformConfig';
+import { useMediaAssets } from '../components/useMediaAssets';
+import { backupReminderIsDue } from '../settings';
 
 const POST_TYPE_ICONS: Record<string, string> = {
   Reel: '🎬', Carousel: '📸', Story: '◷', Static: '🖼',
 };
+
+type DashboardPeriod = 'week' | 'month' | '30days';
+type DashboardPost = ContentPost & { searchText: string };
+
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function periodBounds(period: DashboardPeriod, weekStart?: string) {
+  if (period === 'week' && weekStart) {
+    return { from: weekStart, to: localDateKey(addDays(parseISO(weekStart), 6)) };
+  }
+  const end = new Date();
+  const start = new Date(end);
+  if (period === 'month') start.setDate(1);
+  else if (period === '30days') start.setDate(end.getDate() - 29);
+  else {
+    const day = start.getDay() || 7;
+    start.setDate(start.getDate() - day + 1);
+  }
+  return { from: localDateKey(start), to: localDateKey(end) };
+}
+
+function dashboardKey(item: { id: string; composerId?: string; pipelineId?: string }) {
+  return item.composerId ? `composer:${item.composerId}` : item.pipelineId ? `pipeline:${item.pipelineId}` : `id:${item.id}`;
+}
+
+function pipelineStatus(stage: PipelineItem['stage']): ContentPost['status'] {
+  return stage === 'published' ? 'Published' : stage === 'ready' ? 'Scheduled' : stage === 'drafting' ? 'Draft' : 'Planned';
+}
+
+function buildDashboardPosts(posts: ContentPost[], pipelineItems: PipelineItem[], composerDrafts: ComposerDraft[]): DashboardPost[] {
+  const keys = new Set<string>();
+  const result: DashboardPost[] = [];
+  posts.forEach(post => {
+    keys.add(dashboardKey(post));
+    result.push({ ...post, mediaIds: post.mediaIds ?? [], searchText: `${post.title} ${post.category} ${post.type} ${post.platforms.join(' ')}` });
+  });
+  pipelineItems.forEach(item => {
+    if (keys.has(dashboardKey(item))) return;
+    keys.add(dashboardKey(item));
+    result.push({
+      id: item.id,
+      title: item.title,
+      status: pipelineStatus(item.stage),
+      date: item.scheduledDate,
+      time: item.scheduledTime,
+      platforms: item.platforms,
+      type: item.contentType,
+      category: item.badgeLabel ?? item.campaign ?? '',
+      mediaIds: item.mediaIds ?? [],
+      imageCount: item.mediaIds?.length ?? 0,
+      composerId: item.composerId,
+      pipelineId: item.id,
+      campaignId: item.campaignId,
+      searchText: `${item.title} ${item.notes ?? ''} ${item.contentType} ${item.platforms.join(' ')} ${item.campaign ?? ''}`,
+    });
+  });
+  composerDrafts.forEach(draft => {
+    if (draft.status !== 'scheduled' || !draft.publishDate) return;
+    const key = dashboardKey(draft);
+    if (keys.has(key)) return;
+    keys.add(key);
+    result.push({
+      id: draft.id,
+      title: draft.caption.split('\n')[0] || 'Untitled scheduled post',
+      status: 'Scheduled',
+      date: draft.publishDate,
+      time: draft.publishTime,
+      platforms: draft.platforms,
+      type: draft.postType,
+      category: '',
+      mediaIds: draft.mediaIds ?? [],
+      imageCount: draft.mediaIds?.length ?? 0,
+      composerId: draft.id,
+      pipelineId: draft.pipelineId,
+      campaignId: draft.campaignId,
+      searchText: `${draft.caption} ${draft.hashtags.join(' ')} ${draft.postType} ${draft.platforms.join(' ')}`,
+    });
+  });
+  return result;
+}
 
 function CalendarIcon() {
   return (
@@ -52,8 +136,52 @@ function BulbIcon() {
 }
 
 export default function Dashboard() {
-  const { posts, weekOf, drafts, ideas, hashtagSets, contentRhythm, stats, setActiveView, openComposer } = useContentCalendarStore();
+  const { posts, drafts, composerDrafts, pipelineItems, ideas, settings, userName, dismissBackupReminder, setActiveView, openComposer } = useContentCalendarStore();
+  const { items: mediaItems, urls: mediaUrls } = useMediaAssets();
+  const [now] = useState(() => new Date());
+  const platformOptions = getActivePlatformOptions();
+  const [query, setQuery] = useState('');
+  const [platform, setPlatform] = useState('all');
+  const [type, setType] = useState('all');
+  const [period, setPeriod] = useState<DashboardPeriod>('week');
   const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const availableTypes = platform === 'all' ? getActivePostTypes() : getPlatformConfig(platform).postTypes;
+  const preferredWeekStart = localDateKey(startOfWeek(now, { weekStartsOn: settings.weekStartsOn }));
+  const bounds = periodBounds(period, preferredWeekStart);
+  const allDashboardPosts = useMemo(() => buildDashboardPosts(posts, pipelineItems, composerDrafts), [posts, pipelineItems, composerDrafts]);
+  const backupDue = backupReminderIsDue(settings, now);
+  const filteredPosts = useMemo(() => allDashboardPosts.filter(post => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return (!normalizedQuery || post.searchText.toLowerCase().includes(normalizedQuery))
+      && (platform === 'all' || post.platforms.includes(platform))
+      && (type === 'all' || post.type === type)
+      && post.date >= bounds.from && post.date <= bounds.to;
+  }), [allDashboardPosts, query, platform, type, bounds.from, bounds.to]);
+  const filteredIdeas = useMemo(() => ideas.filter(idea => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return (!normalizedQuery || `${idea.title} ${idea.description} ${idea.notes} ${idea.type} ${idea.platform}`.toLowerCase().includes(normalizedQuery))
+      && (platform === 'all' || idea.platform === platform)
+      && (type === 'all' || idea.type === type);
+  }), [ideas, query, platform, type]);
+  const stats = {
+    planned: filteredPosts.filter(post => post.status === 'Planned').length,
+    scheduled: filteredPosts.filter(post => post.status === 'Scheduled').length,
+    published: filteredPosts.filter(post => post.status === 'Published').length,
+    ideas: filteredIdeas.length,
+  };
+  const schedulePosts = filteredPosts.filter(post => post.date >= preferredWeekStart && post.date <= localDateKey(addDays(parseISO(preferredWeekStart), 6)));
+  const draftRows = useMemo(() => drafts.map(draft => {
+    const source = composerDrafts.find(item => item.id === draft.id);
+    return { ...draft, mediaIds: source?.mediaIds ?? [], source };
+  }).filter(draft => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const source = draft.source;
+    return (!normalizedQuery || `${draft.title} ${draft.type} ${source?.caption ?? ''} ${source?.hashtags.join(' ') ?? ''}`.toLowerCase().includes(normalizedQuery))
+      && (platform === 'all' || Boolean(source?.platforms.includes(platform)))
+      && (type === 'all' || draft.type === type)
+      && (!source?.publishDate || (source.publishDate >= bounds.from && source.publishDate <= bounds.to));
+  }), [drafts, composerDrafts, query, platform, type, bounds.from, bounds.to]);
+  const currentDateLabel = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -61,6 +189,7 @@ export default function Dashboard() {
       {/* Page header */}
       <div className="cc-header">
         <div className="cc-header-left">
+          <div style={{ fontSize: 12, color: 'var(--cc-text-3)', marginBottom: 4 }}>Welcome back, <strong style={{ color: 'var(--cc-text-2)' }}>{userName || 'creator'}</strong>.</div>
           <h1 className="cc-header-title">Plan beautifully.</h1>
           <div className="cc-header-title-row2">
             <span className="cc-header-title" style={{ display: 'inline' }}>Publish intentionally.</span>
@@ -81,7 +210,7 @@ export default function Dashboard() {
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
-              Apr 21 – Apr 27, 2025
+              {currentDateLabel}
             </div>
             <span className="cc-local-badge">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -93,24 +222,34 @@ export default function Dashboard() {
           </div>
 
           <div className="cc-toolbar">
-            <div className="cc-search">
+            <label className="cc-search">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <span style={{ fontSize: 11.5, color: '#b0a098' }}>Search posts, ideas, or hashtags...</span>
-            </div>
-            <button className="cc-filter-btn">
-              All platforms
+              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search posts, ideas, or hashtags..." aria-label="Search posts, ideas, or hashtags" />
+            </label>
+            <label className="cc-filter-btn">
+              <select value={platform} onChange={event => { setPlatform(event.target.value); setType('all'); }} aria-label="Filter by platform">
+                <option value="all">All platforms</option>
+                {platformOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <button className="cc-filter-btn">
-              All content types
+            </label>
+            <label className="cc-filter-btn">
+              <select value={type} onChange={event => setType(event.target.value)} aria-label="Filter by content type">
+                <option value="all">All content types</option>
+                {availableTypes.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <button className="cc-filter-btn">
-              This week
+            </label>
+            <label className="cc-filter-btn">
+              <select value={period} onChange={event => setPeriod(event.target.value as DashboardPeriod)} aria-label="Filter by period">
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="30days">Last 30 days</option>
+              </select>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+            </label>
             <div style={{ position: 'relative' }}>
               <button className="cc-create-btn" onClick={() => setShowCreateMenu((v) => !v)}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -121,11 +260,11 @@ export default function Dashboard() {
               </button>
               {showCreateMenu && (
                 <div className="cc-create-dropdown">
-                  {Object.entries(POST_TYPE_ICONS).map(([type, icon]) => (
-                    <button key={type} className="cc-create-dropdown-item" onClick={() => { setShowCreateMenu(false); openComposer({ postType: type as PostType, returnView: 'dashboard' }); }}>
-                      <span>{icon}</span>{type}
+                  {platformOptions.flatMap(option => option.config.postTypes.map(type => (
+                    <button key={`${option.id}-${type.id}`} className="cc-create-dropdown-item" onClick={() => { setShowCreateMenu(false); openComposer({ platforms: [option.id], postType: type.id as PostType, returnView: 'dashboard' }); }}>
+                      <span>{POST_TYPE_ICONS[type.id] ?? '•'}</span>{type.label}
                     </button>
-                  ))}
+                  )))}
                 </div>
               )}
             </div>
@@ -133,8 +272,13 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {backupDue && <div style={{ margin: '10px 22px 0', padding: '9px 12px', border: '1px solid var(--cc-border)', borderRadius: 9, background: 'var(--cc-accent-light)', color: 'var(--cc-text-2)', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span>Your local workspace backup is due.</span>
+        <span style={{ display: 'flex', gap: 10 }}><button style={{ border: 0, background: 'none', color: 'var(--cc-accent)', font: 'inherit', fontWeight: 700, cursor: 'pointer' }} onClick={() => setActiveView('settings')}>Open Settings</button><button style={{ border: 0, background: 'none', color: 'var(--cc-text-3)', font: 'inherit', cursor: 'pointer' }} onClick={dismissBackupReminder}>Tomorrow</button></span>
+      </div>}
+
       {/* Stat cards row */}
-      <div style={{ display: 'flex', gap: 12, padding: '14px 22px', borderBottom: '1px solid #ece4da' }}>
+      <div style={{ display: 'flex', gap: 12, padding: '14px 22px', borderBottom: '1px solid var(--cc-border)' }}>
         <StatCard label="Planned" value={stats.planned} iconBg="#f9d5cc" underlineColor="#e0906e" icon={<CalendarIcon />} />
         <StatCard label="Scheduled" value={stats.scheduled} iconBg="#ddd6f8" underlineColor="#7b5ea8" icon={<SendIcon />} />
         <StatCard label="Published" value={stats.published} iconBg="#d3e9fb" underlineColor="#3a80b0" icon={<CheckIcon />} />
@@ -145,21 +289,19 @@ export default function Dashboard() {
       <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start' }}>
 
         {/* Column 1 — This Week's Schedule (~44%) */}
-        <div style={{ flex: '0 0 44%', padding: '16px 14px 24px 22px', borderRight: '1px solid #ece4da' }}>
-          <WeekSchedule posts={posts} weekOf={weekOf} onViewMonth={() => setActiveView('calendar')} />
+        <div style={{ flex: '0 0 44%', padding: '16px 14px 24px 22px', borderRight: '1px solid var(--cc-border)' }}>
+          <WeekSchedule posts={schedulePosts} weekOf={preferredWeekStart} onViewMonth={() => setActiveView('calendar')} mediaItems={mediaItems} mediaUrls={mediaUrls} />
         </div>
 
         {/* Column 2 — Content Rhythm + Drafts + Saved Ideas (~30%) */}
-        <div style={{ flex: '0 0 30%', padding: '16px 12px 24px', borderRight: '1px solid #ece4da', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <ContentRhythm items={contentRhythm as unknown as { type: string; targetPerWeek: number; color: string }[]} />
-          <DraftsPanel drafts={drafts} />
-          <SavedIdeas ideas={ideas.slice(0, 3)} onViewAll={() => setActiveView('ideas')} />
+        <div style={{ flex: '0 0 30%', padding: '16px 12px 24px', borderRight: '1px solid var(--cc-border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <DraftsPanel drafts={draftRows} mediaItems={mediaItems} mediaUrls={mediaUrls} />
+          <SavedIdeas ideas={filteredIdeas.slice(0, 3)} onViewAll={() => setActiveView('ideas')} />
         </div>
 
-        {/* Column 3 — Feed Preview + Hashtag Sets (~26%) */}
+        {/* Column 3 — Feed Preview (~26%) */}
         <div style={{ flex: '0 0 26%', padding: '16px 22px 24px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <FeedPreview posts={posts} />
-          <HashtagSets sets={hashtagSets} onViewAll={() => setActiveView('hashtags')} />
+          <FeedPreview posts={filteredPosts} mediaItems={mediaItems} mediaUrls={mediaUrls} onViewAll={() => setActiveView('calendar')} />
         </div>
       </div>
     </div>

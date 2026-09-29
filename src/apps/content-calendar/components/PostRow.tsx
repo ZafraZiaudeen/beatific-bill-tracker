@@ -1,4 +1,6 @@
 import type { ContentPost, Platform } from '../types';
+import type { StoredMediaItem } from '../mediaStorage';
+import { mediaUrl } from '../mediaStorage';
 
 const IgIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,17 +45,22 @@ const TYPE_BADGE: Record<string, { bg: string; color: string }> = {
 const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
   Scheduled: { bg: '#ede8f8', color: '#6b52a8' },
   Planned:   { bg: '#fdf0e5', color: '#b56e2f' },
+  Draft:     { bg: '#f3ede6', color: '#806f66' },
   Published: { bg: '#e3f0e8', color: '#4a7c5f' },
   Idea:      { bg: '#fdf3c0', color: '#8a6a00' },
 };
 
 interface PostRowProps {
   post: ContentPost;
+  mediaItems?: StoredMediaItem[];
+  mediaUrls?: Record<string, string>;
 }
 
-export default function PostRow({ post }: PostRowProps) {
+export default function PostRow({ post, mediaItems = [], mediaUrls = {} }: PostRowProps) {
   const typeBadge = TYPE_BADGE[post.type] ?? TYPE_BADGE.Static;
   const statusBadge = STATUS_BADGE[post.status] ?? STATUS_BADGE.Planned;
+  const media = (post.mediaIds ?? []).map(id => mediaItems.find(item => item.id === id)).find(Boolean);
+  const imageSrc = media ? mediaUrl(media, mediaUrls) : '';
 
   const meta = post.imageCount
     ? `${post.imageCount} image${post.imageCount > 1 ? 's' : ''}`
@@ -65,16 +72,12 @@ export default function PostRow({ post }: PostRowProps) {
       alignItems: 'center',
       gap: 12,
       padding: '10px 0',
-      borderBottom: '1px solid #f3ede6',
+      borderBottom: '1px solid var(--cc-border)',
     }}>
       {/* Thumbnail */}
-      <div style={{
-        width: 44,
-        height: 44,
-        borderRadius: 8,
-        background: post.thumbnailBg,
-        flexShrink: 0,
-      }} />
+      <div style={{ width: 44, height: 44, borderRadius: 8, background: post.thumbnailBg || 'var(--cc-bg-2)', flexShrink: 0, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+        {imageSrc ? <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 9, color: 'var(--cc-text-3)' }}>IMG</span>}
+      </div>
 
       {/* Type badge + title */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -93,14 +96,14 @@ export default function PostRow({ post }: PostRowProps) {
         <div style={{
           fontSize: 13,
           fontWeight: 600,
-          color: '#3d2f2f',
+          color: 'var(--cc-text)',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
         }}>
           {post.title}
         </div>
-        <div style={{ fontSize: 11, color: '#8a7a72', marginTop: 1 }}>
+        <div style={{ fontSize: 11, color: 'var(--cc-text-3)', marginTop: 1 }}>
           {meta}{meta && post.category ? ' • ' : ''}{post.category}
         </div>
       </div>
@@ -108,7 +111,7 @@ export default function PostRow({ post }: PostRowProps) {
       {/* Platform icons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
         {post.platforms.map((p) => {
-          const cfg = PLATFORM_CONFIG[p];
+          const cfg = PLATFORM_CONFIG[p] ?? { icon: <span style={{ fontSize: 9 }}>{p.slice(0, 2).toUpperCase()}</span>, bg: '#f0e8e0', color: '#806f66' };
           return (
             <div key={p} style={{
               width: 24,
@@ -144,7 +147,7 @@ export default function PostRow({ post }: PostRowProps) {
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        color: '#8a7a72',
+        color: 'var(--cc-text-3)',
         padding: 4,
         borderRadius: 4,
         display: 'flex',

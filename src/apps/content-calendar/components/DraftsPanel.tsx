@@ -1,4 +1,7 @@
 import type { Draft } from '../types';
+import { format, parseISO } from 'date-fns';
+import type { StoredMediaItem } from '../mediaStorage';
+import { mediaUrl } from '../mediaStorage';
 
 const TYPE_BADGE: Record<string, { bg: string; color: string }> = {
   Carousel: { bg: '#fce8e3', color: '#c27b6a' },
@@ -8,20 +11,22 @@ const TYPE_BADGE: Record<string, { bg: string; color: string }> = {
 };
 
 interface DraftsPanelProps {
-  drafts: Draft[];
+  drafts: (Draft & { mediaIds?: string[] })[];
+  mediaItems?: StoredMediaItem[];
+  mediaUrls?: Record<string, string>;
 }
 
-export default function DraftsPanel({ drafts }: DraftsPanelProps) {
+export default function DraftsPanel({ drafts, mediaItems = [], mediaUrls = {} }: DraftsPanelProps) {
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #ece4da',
+      background: 'var(--cc-card)',
+      border: '1px solid var(--cc-border)',
       borderRadius: 14,
       padding: '16px 18px',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#3d2f2f' }}>Drafts Needing Attention</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cc-text)' }}>Drafts Needing Attention</span>
         <span style={{
           background: '#f97316',
           color: '#fff',
@@ -38,23 +43,20 @@ export default function DraftsPanel({ drafts }: DraftsPanelProps) {
 
       {/* Draft list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {drafts.map((d) => {
+        {drafts.length ? drafts.map((d) => {
           const badge = TYPE_BADGE[d.type] ?? TYPE_BADGE.Static;
+          const media = (d.mediaIds ?? []).map(id => mediaItems.find(item => item.id === id)).find(Boolean);
+          const imageSrc = media ? mediaUrl(media, mediaUrls) : '';
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Thumbnail placeholder */}
-              <div style={{
-                width: 38,
-                height: 38,
-                borderRadius: 6,
-                background: '#f3ede6',
-                flexShrink: 0,
-              }} />
+              <div style={{ width: 38, height: 38, borderRadius: 6, background: 'var(--cc-bg-2)', flexShrink: 0, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                {imageSrc ? <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 8, color: 'var(--cc-text-3)' }}>IMG</span>}
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: '#3d2f2f',
+                  color: 'var(--cc-text)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -72,14 +74,14 @@ export default function DraftsPanel({ drafts }: DraftsPanelProps) {
                   }}>
                     {d.type}
                   </span>
-                  <span style={{ fontSize: 10.5, color: '#8a7a72' }}>{d.updatedAt}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--cc-text-3)' }}>{format(parseISO(d.updatedAt), 'MMM d')}</span>
                 </div>
               </div>
               <button style={{
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: '#8a7a72',
+                color: 'var(--cc-text-3)',
                 padding: 2,
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -88,7 +90,7 @@ export default function DraftsPanel({ drafts }: DraftsPanelProps) {
               </button>
             </div>
           );
-        })}
+        }) : <div style={{ padding: '12px 0', fontSize: 11, color: 'var(--cc-text-3)' }}>No drafts need attention.</div>}
       </div>
     </div>
   );

@@ -1,165 +1,121 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays, MapPin, Sparkles, Sun, Moon, Download, Upload,
-  Printer, Clock, Lock, ShieldCheck, Cloud, Copy, CheckCircle2,
-  ChevronRight, Target, Share2, LayoutTemplate, AlertTriangle, RotateCw,
+  Printer, Clock, Lock, ShieldCheck, HardDrive, FileCheck,
+  ChevronRight, Target, Share2, AlertTriangle, RotateCw,
 } from 'lucide-react';
+import { useContentCalendarStore } from '../store';
+import { getActivePlatformOptions, getPlatformConfig } from '../platformConfig';
+import { backupReminderIsDue, formatContentDate } from '../settings';
+import {
+  createScheduleCsv,
+  createWorkspaceBackup,
+  downloadTextFile,
+  parseScheduleCsv,
+  restoreWorkspaceBackup,
+} from '../workspaceTransfer';
+import type { ContentCalendarAccent, DateFormatPreference, WeekStartPreference } from '../types';
+import { CONTENT_CALENDAR_HINTS_KEY, CONTENT_CALENDAR_PAGE_INTROS_KEY } from '../components/ContentCalendarPageIntro';
 
 const PAGE_CSS = `
-.cc-st-page{background:radial-gradient(circle at 70% 6%,rgba(255,255,255,.65),transparent 30%),#faf7f2;color:#1f2c31;min-height:100%;padding-bottom:40px}
+.cc-st-page{background:radial-gradient(circle at 70% 6%,rgba(255,255,255,.08),transparent 30%),var(--cc-bg);color:var(--cc-text);min-height:100%;padding-bottom:40px}
 
 /* Header */
-.cc-st-header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:18px 24px 16px;border-bottom:1px solid #ece4da}
+.cc-st-header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:18px 24px 16px;border-bottom:1px solid var(--cc-border)}
 .cc-st-heading-row{display:flex;align-items:center;gap:10px}
-.cc-st-heading{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:32px;line-height:1;letter-spacing:-.02em;margin:0;color:#202e33}
-.cc-st-swoop{display:block;width:162px;height:11px;margin-top:9px;border-top:3px solid #d97957;border-radius:50%;transform:rotate(-2deg)}
+.cc-st-heading{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:32px;line-height:1;letter-spacing:-.02em;margin:0;color:var(--cc-text)}
+.cc-st-swoop{display:block;width:162px;height:11px;margin-top:9px;border-top:3px solid var(--cc-accent);border-radius:50%;transform:rotate(-2deg)}
 .cc-st-header-right{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
-.cc-st-meta{display:flex;align-items:center;gap:18px;font-size:12px;font-weight:650;color:#3d2f2f}
-.cc-st-date{display:flex;align-items:center;gap:7px}
+.cc-st-meta{display:flex;align-items:center;gap:18px;font-size:12px;font-weight:650;color:var(--cc-text)}
+.cc-st-date{display:flex;align-items:center;gap:7px;font-size:0}
+.cc-st-date>span{font-size:12px}
 .cc-st-local{display:flex;align-items:center;gap:6px;padding:5px 13px;background:#fae7c5;border-radius:99px;font-size:11px;color:#7a5a2a}
 
 /* Grid layout */
 .cc-st-body{padding:18px 24px 0;display:flex;flex-direction:column;gap:16px}
-.cc-st-row1{display:grid;grid-template-columns:2fr 1.15fr 1.15fr 0.9fr;gap:14px;align-items:start}
-.cc-st-row2{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px;align-items:start}
+.cc-st-row1{display:grid;grid-template-columns:2fr 1.15fr 1.15fr;gap:14px;align-items:start}
+.cc-st-row2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
 
 /* Cards */
-.cc-st-card{background:rgba(255,255,255,.9);border:1px solid #ece4da;border-radius:14px;padding:20px}
-.cc-st-card-title{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:20px;color:#202e33;margin:0 0 6px;display:flex;align-items:center;gap:8px}
-.cc-st-swoop-sm{display:block;height:10px;border-top:2.5px solid #d97957;border-radius:50%;transform:rotate(-2deg);margin-bottom:16px}
+.cc-st-card{background:var(--cc-card);border:1px solid var(--cc-border);border-radius:14px;padding:20px}
+.cc-st-card-title{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:20px;color:var(--cc-text);margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.cc-st-swoop-sm{display:block;height:10px;border-top:2.5px solid var(--cc-accent);border-radius:50%;transform:rotate(-2deg);margin-bottom:16px}
 
 /* Labels */
-.cc-st-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#9a8a82;margin-bottom:8px}
+.cc-st-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--cc-text-3);margin-bottom:8px}
 
 /* Theme toggles */
 .cc-st-theme-btns{display:flex;gap:10px;margin-bottom:10px}
 .cc-st-theme-btn{width:64px;height:52px;border-radius:10px;border:2px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
-.cc-st-theme-btn.active{border-color:#d97856;box-shadow:0 2px 8px rgba(201,99,65,.18)}
+.cc-st-theme-btn.active{border-color:var(--cc-accent);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .cc-st-theme-light{background:#f5ede5;color:#c27b6a}
 .cc-st-theme-dark{background:#2a2020;color:#fff}
-.cc-st-radio-row{display:flex;align-items:center;gap:18px;font-size:12px;color:#4a3a35;margin-bottom:18px}
-.cc-st-radio-row label{display:flex;align-items:center;gap:5px;cursor:pointer}
 
 /* Accent circles */
 .cc-st-accents{display:flex;gap:10px;margin-bottom:18px}
 .cc-st-accent-btn{width:28px;height:28px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .12s,border-color .12s;display:flex;align-items:center;justify-content:center}
-.cc-st-accent-btn.active{border-color:#fff;box-shadow:0 0 0 2.5px #d97856;transform:scale(1.12)}
+.cc-st-accent-btn.active{border-color:#fff;box-shadow:0 0 0 2.5px var(--cc-accent);transform:scale(1.12)}
 
 /* Caveat decorative text */
-.cc-st-caveat{font-family:'Caveat',cursive;font-size:18px;color:#c27b6a;display:flex;align-items:center;gap:6px;margin-top:10px}
+.cc-st-caveat{font-family:'Caveat',cursive;font-size:18px;color:var(--cc-accent);display:flex;align-items:center;gap:6px;margin-top:10px}
 
 /* Action rows (data & backup) */
-.cc-st-action-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f2ece5;cursor:pointer;color:#3d2f2f;font-size:12.5px;font-weight:500;transition:color .12s}
-.cc-st-action-row:hover{color:#d97856}
+.cc-st-action-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--cc-border);cursor:pointer;color:var(--cc-text);font-size:12.5px;font-weight:500;transition:color .12s}
+.cc-st-action-row{width:100%;background:none;border-left:0;border-right:0;border-top:0;font-family:inherit;text-align:left}
+.cc-st-action-row:hover{color:var(--cc-accent)}
+.cc-st-action-row:disabled{cursor:wait;opacity:.55}
 .cc-st-action-row:last-child{border-bottom:none}
 .cc-st-action-left{display:flex;align-items:center;gap:9px;color:inherit}
 .cc-st-backup-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:14px}
-.cc-st-backup-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#3d2f2f}
-.cc-st-backup-sub{font-size:11px;color:#9a8a82;display:flex;align-items:center;gap:8px}
+.cc-st-backup-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--cc-text)}
+.cc-st-backup-sub{font-size:11px;color:var(--cc-text-3);display:flex;align-items:center;gap:8px}
 
 /* Select inputs */
-.cc-st-select{appearance:none;border:1px solid #ece4da;border-radius:9px;padding:6px 28px 6px 10px;font-size:12px;color:#3d2f2f;background:rgba(255,255,255,.9);outline:0;cursor:pointer;font-family:inherit}
+.cc-st-select{appearance:none;border:1px solid var(--cc-border);border-radius:9px;padding:6px 28px 6px 10px;font-size:12px;color:var(--cc-text);background:var(--cc-card);outline:0;cursor:pointer;font-family:inherit}
 .cc-st-select-wrap{position:relative;display:inline-flex}
 .cc-st-select-wrap .cc-st-select{width:100%}
-.cc-st-select-arrow{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9a8a82}
+.cc-st-select-arrow{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--cc-text-3)}
 
 /* Privacy rows */
-.cc-st-priv-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #f2ece5}
+.cc-st-priv-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--cc-border)}
 .cc-st-priv-row:last-child{border-bottom:none}
 .cc-st-priv-left{display:flex;align-items:flex-start;gap:10px}
-.cc-st-priv-icon-wrap{width:30px;height:30px;border-radius:50%;background:#f0ede8;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.cc-st-priv-title{font-size:12.5px;font-weight:700;color:#202e33;margin-bottom:2px}
-.cc-st-priv-sub{font-size:11px;color:#9a8a82}
-
-/* Toggle switch */
-.cc-st-toggle{width:38px;height:22px;border-radius:11px;border:none;cursor:pointer;position:relative;flex-shrink:0;margin-top:4px;transition:background .2s}
-.cc-st-toggle.on{background:#3bb8a0}
-.cc-st-toggle.off{background:#c8bdb5}
-.cc-st-toggle::after{content:'';position:absolute;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.18)}
-.cc-st-toggle.on::after{left:19px}
-.cc-st-toggle.off::after{left:3px}
-
-/* PIN dots */
-.cc-st-pin-dots{display:flex;gap:7px;margin-top:10px}
-.cc-st-pin-dot{width:10px;height:10px;border-radius:50%;background:#2a2020}
-
-/* Cross-device sync */
-.cc-st-sync-code{display:flex;align-items:center;justify-content:space-between;background:#f5ede5;border-radius:9px;padding:9px 13px;margin:12px 0 10px;font-size:14px;font-weight:700;letter-spacing:.12em;color:#3d2f2f}
-.cc-st-sync-status{display:flex;align-items:center;gap:6px;font-size:11px;color:#9a8a82}
-.cc-st-sync-curl{display:flex;align-items:flex-end;justify-content:flex-end;margin-top:14px}
+.cc-st-priv-icon-wrap{width:30px;height:30px;border-radius:50%;background:var(--cc-bg-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.cc-st-priv-title{font-size:12.5px;font-weight:700;color:var(--cc-text);margin-bottom:2px}
+.cc-st-priv-sub{font-size:11px;color:var(--cc-text-3)}
 
 /* Localisation */
 .cc-st-loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .cc-st-loc-field{display:flex;flex-direction:column;gap:6px}
-.cc-st-field-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#4a3a35}
-.cc-st-input{border:1px solid #ece4da;border-radius:9px;padding:7px 11px;font-size:12px;color:#3d2f2f;background:rgba(255,255,255,.9);outline:0;font-family:inherit;width:100%;box-sizing:border-box}
+.cc-st-field-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--cc-text-2)}
+.cc-st-input{border:1px solid var(--cc-border);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--cc-text);background:var(--cc-card);outline:0;font-family:inherit;width:100%;box-sizing:border-box}
 .cc-st-goal-row{display:flex;align-items:center;gap:8px}
-.cc-st-goal-input{border:1px solid #ece4da;border-radius:9px;padding:7px 11px;font-size:12px;color:#3d2f2f;background:rgba(255,255,255,.9);outline:0;font-family:inherit;width:72px;text-align:right}
-.cc-st-goal-unit{font-size:12px;color:#9a8a82}
+.cc-st-goal-input{border:1px solid var(--cc-border);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--cc-text);background:var(--cc-card);outline:0;font-family:inherit;width:72px;text-align:right}
+.cc-st-goal-unit{font-size:12px;color:var(--cc-text-3)}
 .cc-st-plat-list{display:flex;flex-direction:column;gap:9px;margin-top:4px}
-.cc-st-plat-row{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#3d2f2f}
+.cc-st-plat-row{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--cc-text)}
 .cc-st-plat-name{flex:1}
-.cc-st-plat-count{font-weight:700;color:#1a2428}
-
-/* Template defaults */
-.cc-st-tmpl-field{margin-bottom:13px}
-.cc-st-tmpl-field:last-of-type{margin-bottom:0}
-.cc-st-tmpl-label{font-size:11px;font-weight:700;color:#4a3a35;margin-bottom:5px}
-.cc-st-tmpl-select-wrap{position:relative}
-.cc-st-tmpl-select{appearance:none;border:1px solid #ece4da;border-radius:9px;padding:8px 28px 8px 11px;font-size:12px;color:#3d2f2f;background:rgba(255,255,255,.9);outline:0;cursor:pointer;font-family:inherit;width:100%}
-.cc-st-tmpl-arrow{position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9a8a82}
+.cc-st-plat-count{font-weight:700;color:var(--cc-text)}
+.cc-st-target-input{width:54px;border:1px solid var(--cc-border);border-radius:7px;background:var(--cc-card);color:var(--cc-text);font:inherit;font-size:11px;padding:5px 7px;text-align:right}
+.cc-st-message{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--cc-accent-light);color:var(--cc-text-2);font-size:10.5px;line-height:1.4}
+.cc-st-message.error{background:#fbe5e2;color:#a3493e}
+.cc-st-reminder{margin-top:12px;padding:10px;border:1px solid var(--cc-border);border-radius:9px;background:var(--cc-bg-2);font-size:10.5px;color:var(--cc-text-2)}
+.cc-st-reminder button{border:0;background:none;color:var(--cc-accent);font:inherit;font-weight:700;cursor:pointer;padding:4px 0 0}
+.cc-st-print-report{display:none}
 
 /* Danger zone */
 .cc-st-danger-title{color:#c05040}
 .cc-st-danger-swoop{border-top-color:#e07060}
-.cc-st-reset-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#3d2f2f;margin-bottom:8px}
-.cc-st-reset-desc{font-size:11px;color:#7a6a62;line-height:1.5;margin-bottom:16px}
+.cc-st-reset-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--cc-text);margin-bottom:8px}
+.cc-st-reset-desc{font-size:11px;color:var(--cc-text-3);line-height:1.5;margin-bottom:16px}
 .cc-st-reset-btn{width:100%;height:38px;display:flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(90deg,#d96d49,#dc815f);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(201,99,65,.22)}
 .cc-st-reset-btn:hover{opacity:.92}
+@media(max-width:960px){.cc-st-row1{grid-template-columns:1fr 1fr}.cc-st-row2{grid-template-columns:1fr}.cc-st-row1>.cc-st-card:first-child{grid-column:1/-1}}
+@media(max-width:620px){.cc-st-row1{grid-template-columns:1fr}.cc-st-row1>.cc-st-card:first-child{grid-column:auto}.cc-st-loc-grid{grid-template-columns:1fr}}
+@media print{body *{visibility:hidden!important}.cc-st-print-report,.cc-st-print-report *{visibility:visible!important}.cc-st-print-report{display:block!important;position:absolute;inset:0;background:#fff;color:#222;padding:30px;font-family:Arial,sans-serif}.cc-st-print-report table{width:100%;border-collapse:collapse;margin-top:18px}.cc-st-print-report th,.cc-st-print-report td{border-bottom:1px solid #ddd;padding:7px;text-align:left;font-size:11px}.cc-st-print-report h1,.cc-st-print-report h2{font-family:Georgia,serif}}
 `;
 
 /* ── Platform icons (inline SVG) ── */
-function IgIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <defs>
-        <linearGradient id="ig-g" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#f09433"/><stop offset=".25" stopColor="#e6683c"/>
-          <stop offset=".5" stopColor="#dc2743"/><stop offset=".75" stopColor="#cc2366"/>
-          <stop offset="1" stopColor="#bc1888"/>
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#ig-g)"/>
-      <circle cx="12" cy="12" r="5" fill="none" stroke="#fff" strokeWidth="2"/>
-      <circle cx="17.5" cy="6.5" r="1.3" fill="#fff"/>
-    </svg>
-  );
-}
-function TikTokIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24">
-      <rect width="24" height="24" rx="5" fill="#010101"/>
-      <text x="12" y="17.5" textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Arial,sans-serif">T</text>
-    </svg>
-  );
-}
-function YoutubeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24">
-      <rect width="24" height="24" rx="5" fill="#ff0000"/>
-      <polygon points="9.5,7.5 18,12 9.5,16.5" fill="#fff"/>
-    </svg>
-  );
-}
-function XIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24">
-      <rect width="24" height="24" rx="5" fill="#0f1419"/>
-      <text x="12" y="17" textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff" fontFamily="Arial,sans-serif">X</text>
-    </svg>
-  );
-}
-
 /* ── Reusable card swoop underline ── */
 function Swoop({ className = '' }: { className?: string }) {
   return <span className={`cc-st-swoop-sm ${className}`} style={{ width: '78%' }} />;
@@ -175,19 +131,110 @@ function ChevDown() {
 }
 
 export default function Settings() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [accent, setAccent] = useState('#d97856');
-  const [pinEnabled, setPinEnabled] = useState(true);
-  const [backupInterval, setBackupInterval] = useState('7 days');
-  const [autoLock, setAutoLock] = useState('10 minutes');
-  const [dateFormat, setDateFormat] = useState('Apr 21, 2025');
-  const [firstDay, setFirstDay] = useState('Monday');
-  const [contentGoal, setContentGoal] = useState('20');
-  const [defaultType, setDefaultType] = useState('Idea');
-  const [defaultLayout, setDefaultLayout] = useState('Carousel');
-  const [defaultStyle, setDefaultStyle] = useState('Story');
+  const {
+    clearWorkspaceData, theme, accent, settings, setTheme, setAccent, updateSettings,
+    recordSuccessfulBackup, dismissBackupReminder, reloadWorkspaceData, importScheduleRecords,
+    campaigns, posts, pipelineItems, performanceRecords, userName, setUserName,
+  } = useContentCalendarStore();
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [hintsEnabled, setHintsEnabled] = useState(() => localStorage.getItem(CONTENT_CALENDAR_HINTS_KEY) !== 'false');
+  const [now] = useState(() => new Date());
+  const [displayName, setDisplayName] = useState(userName);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const activePlatforms = getActivePlatformOptions();
+  const reminderDue = backupReminderIsDue(settings, now);
+  const accents: ContentCalendarAccent[] = ['#d97856', '#9e6080', '#7a9db5', '#d4a843'];
+  const currentDateLabel = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const reportRows = useMemo(() => {
+    const rows = new Map<string, { id: string; composerId?: string; pipelineId?: string; title: string; status: string; date: string; platforms: string[]; type: string; campaignId?: string }>();
+    posts.forEach(post => rows.set(post.pipelineId ? `pipeline:${post.pipelineId}` : `post:${post.id}`, { id: post.id, composerId: post.composerId, pipelineId: post.pipelineId, title: post.title, status: post.status, date: post.date, platforms: post.platforms, type: post.type, campaignId: post.campaignId }));
+    pipelineItems.forEach(item => rows.set(`pipeline:${item.id}`, {
+      id: item.id,
+      composerId: item.composerId,
+      pipelineId: item.id,
+      title: item.title,
+      status: item.stage === 'published' ? 'Published' : item.stage === 'ready' ? 'Scheduled' : item.stage === 'drafting' ? 'Draft' : 'Planned',
+      date: item.scheduledDate,
+      platforms: item.platforms,
+      type: item.contentType,
+      campaignId: item.campaignId,
+    }));
+    return Array.from(rows.values()).filter(row => row.date.startsWith(monthKey)).sort((a, b) => a.date.localeCompare(b.date));
+  }, [monthKey, pipelineItems, posts]);
+  const platformReport = activePlatforms.map(platform => ({
+    label: platform.label,
+    count: reportRows.filter(row => row.platforms.includes(platform.id)).length,
+  })).filter(item => item.count > 0);
+  const campaignReport = campaigns.map(campaign => ({
+    campaign,
+    count: reportRows.filter(row => row.campaignId === campaign.id).length,
+  })).filter(item => item.count > 0);
+  const performanceReport = performanceRecords.map(record => ({
+    record,
+    row: reportRows.find(row => [row.id, row.composerId, row.pipelineId].includes(record.postId)),
+  })).filter(entry => entry.row);
 
-  const accents = ['#d97856', '#9e6080', '#7a9db5', '#d4a843'];
+  useEffect(() => setDisplayName(userName), [userName]);
+
+  function saveDisplayName() {
+    setUserName(displayName.trim());
+  }
+
+  function toggleHints(enabled: boolean) {
+    setHintsEnabled(enabled);
+    localStorage.setItem(CONTENT_CALENDAR_HINTS_KEY, String(enabled));
+    if (enabled) localStorage.removeItem(CONTENT_CALENDAR_PAGE_INTROS_KEY);
+  }
+
+  function showError(error: unknown) {
+    setMessage({ text: error instanceof Error ? error.message : 'The action could not be completed.', error: true });
+  }
+
+  async function exportJson() {
+    setBusy(true); setMessage(null);
+    try {
+      const backup = await createWorkspaceBackup(settings);
+      downloadTextFile(`content-edit-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(backup, null, 2), 'application/json');
+      recordSuccessfulBackup();
+      setMessage({ text: `Backup exported with ${backup.media.length} image${backup.media.length === 1 ? '' : 's'}.` });
+    } catch (error) { showError(error); } finally { setBusy(false); }
+  }
+
+  async function importJson(file: File) {
+    setBusy(true); setMessage(null);
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      if (!window.confirm('Replace the current content-calendar workspace with this backup?')) return;
+      await restoreWorkspaceBackup(parsed);
+      reloadWorkspaceData();
+      setMessage({ text: 'Workspace restored successfully.' });
+    } catch (error) { showError(error); } finally { setBusy(false); if (jsonInputRef.current) jsonInputRef.current.value = ''; }
+  }
+
+  function exportCsv() {
+    try {
+      const csv = createScheduleCsv(posts, pipelineItems, campaigns);
+      downloadTextFile(`content-edit-schedule-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
+      setMessage({ text: 'Content schedule exported.' });
+    } catch (error) { showError(error); }
+  }
+
+  async function importCsv(file: File) {
+    setBusy(true); setMessage(null);
+    try {
+      const result = parseScheduleCsv(await file.text(), {
+        campaigns,
+        validPlatforms: new Set(activePlatforms.map(platform => platform.id)),
+        isValidPostType: (platform, postType) => getPlatformConfig(platform).postTypes.some(type => type.id === postType),
+      });
+      if (!result.records.length) throw new Error('No valid schedule rows were found.');
+      importScheduleRecords(result.records);
+      setMessage({ text: `Imported ${result.records.length} row${result.records.length === 1 ? '' : 's'}${result.skipped ? `; skipped ${result.skipped} invalid row${result.skipped === 1 ? '' : 's'}` : ''}.` });
+    } catch (error) { showError(error); } finally { setBusy(false); if (csvInputRef.current) csvInputRef.current.value = ''; }
+  }
 
   return (
     <>
@@ -206,8 +253,8 @@ export default function Settings() {
           <div className="cc-st-header-right">
             <div className="cc-st-meta">
               <span className="cc-st-date">
-                <CalendarDays size={14} color="#c27b6a" />
-                Apr 21 – Apr 27, 2025
+                <CalendarDays size={14} color="var(--cc-accent)" />
+                <span>{currentDateLabel}</span>
               </span>
               <span className="cc-st-local">
                 <MapPin size={11} />
@@ -251,8 +298,9 @@ export default function Settings() {
                   <button
                     key={c}
                     className={`cc-st-accent-btn${accent === c ? ' active' : ''}`}
-                    style={{ background: c, borderColor: accent === c ? '#fff' : 'transparent' }}
+                    style={{ background: c, borderColor: accent === c ? '#fff' : 'transparent', boxShadow: accent === c ? `0 0 0 2.5px ${c}` : undefined }}
                     onClick={() => setAccent(c)}
+
                   >
                     {accent === c && (
                       <svg width="12" height="12" viewBox="0 0 12 12">
@@ -262,6 +310,18 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
+
+              <div className="cc-st-label">Your name</div>
+              <input
+                className="cc-st-input"
+                value={displayName}
+                onChange={event => setDisplayName(event.target.value)}
+                onBlur={saveDisplayName}
+                onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); saveDisplayName(); event.currentTarget.blur(); } }}
+                placeholder="Your name"
+                aria-label="Your name"
+              />
+              <div className="cc-st-priv-sub" style={{ marginTop: 6 }}>Used in your dashboard and post previews.</div>
 
               <div className="cc-st-caveat">
                 Small details. Big mood.
@@ -274,18 +334,13 @@ export default function Settings() {
               <h2 className="cc-st-card-title">Data &amp; backup</h2>
               <Swoop />
 
-              {[
-                { icon: <Download size={14} />, label: 'Export JSON' },
-                { icon: <Upload size={14} />,   label: 'Import JSON' },
-                { icon: <Download size={14} />, label: 'Export CSV' },
-                { icon: <Upload size={14} />,   label: 'Import CSV' },
-                { icon: <Printer size={14} />,  label: 'Print report' },
-              ].map(row => (
-                <div key={row.label} className="cc-st-action-row">
-                  <span className="cc-st-action-left" style={{ color: '#6b5a52' }}>{row.icon}{row.label}</span>
-                  <ChevronRight size={14} color="#c8bdb5" />
-                </div>
-              ))}
+              <button className="cc-st-action-row" disabled={busy} onClick={() => void exportJson()}><span className="cc-st-action-left"><Download size={14} />Export JSON</span><ChevronRight size={14} /></button>
+              <button className="cc-st-action-row" disabled={busy} onClick={() => jsonInputRef.current?.click()}><span className="cc-st-action-left"><Upload size={14} />Import JSON</span><ChevronRight size={14} /></button>
+              <button className="cc-st-action-row" disabled={busy} onClick={exportCsv}><span className="cc-st-action-left"><Download size={14} />Export CSV</span><ChevronRight size={14} /></button>
+              <button className="cc-st-action-row" disabled={busy} onClick={() => csvInputRef.current?.click()}><span className="cc-st-action-left"><Upload size={14} />Import CSV</span><ChevronRight size={14} /></button>
+              <button className="cc-st-action-row" disabled={busy} onClick={() => window.print()}><span className="cc-st-action-left"><Printer size={14} />Print report</span><ChevronRight size={14} /></button>
+              <input ref={jsonInputRef} hidden type="file" accept="application/json,.json" onChange={event => { const file = event.target.files?.[0]; if (file) void importJson(file); }} />
+              <input ref={csvInputRef} hidden type="file" accept="text/csv,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void importCsv(file); }} />
 
               <div className="cc-st-backup-row">
                 <span className="cc-st-backup-label">
@@ -297,23 +352,25 @@ export default function Settings() {
                   <div className="cc-st-select-wrap">
                     <select
                       className="cc-st-select"
-                      value={backupInterval}
-                      onChange={e => setBackupInterval(e.target.value)}
+                      value={settings.backupIntervalDays}
+                      onChange={event => updateSettings({ backupIntervalDays: Number(event.target.value) as 3 | 7 | 14 | 30 })}
                     >
-                      <option>3 days</option>
-                      <option>7 days</option>
-                      <option>14 days</option>
-                      <option>30 days</option>
+                      <option value={3}>3 days</option>
+                      <option value={7}>7 days</option>
+                      <option value={14}>14 days</option>
+                      <option value={30}>30 days</option>
                     </select>
                     <span className="cc-st-select-arrow"><ChevDown /></span>
                   </div>
                 </span>
               </div>
+              {reminderDue && <div className="cc-st-reminder">Your workspace backup is due.<br /><button type="button" onClick={dismissBackupReminder}>Remind me tomorrow</button></div>}
+              {message && <div className={`cc-st-message${message.error ? ' error' : ''}`}>{message.text}</div>}
             </div>
 
-            {/* 3. Privacy & Security */}
+            {/* 3. Privacy */}
             <div className="cc-st-card">
-              <h2 className="cc-st-card-title">Privacy &amp; Security</h2>
+              <h2 className="cc-st-card-title">Privacy</h2>
               <Swoop />
 
               {/* Local-only privacy */}
@@ -330,90 +387,17 @@ export default function Settings() {
                 <ShieldCheck size={16} color="#c8bdb5" />
               </div>
 
-              {/* PIN lock */}
-              <div className="cc-st-priv-row" style={{ flexDirection: 'column', gap: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                  <div className="cc-st-priv-left">
-                    <div className="cc-st-priv-icon-wrap">
-                      <Lock size={14} color="#9a8a82" />
-                    </div>
-                    <div>
-                      <div className="cc-st-priv-title">PIN lock</div>
-                      <div className="cc-st-priv-sub">Require a PIN to open the app</div>
-                    </div>
-                  </div>
-                  <button
-                    className={`cc-st-toggle ${pinEnabled ? 'on' : 'off'}`}
-                    onClick={() => setPinEnabled(p => !p)}
-                    aria-label="Toggle PIN lock"
-                  />
-                </div>
-                {pinEnabled && (
-                  <div className="cc-st-pin-dots">
-                    {[0, 1, 2, 3].map(i => <span key={i} className="cc-st-pin-dot" />)}
-                  </div>
-                )}
-              </div>
-
-              {/* Auto-lock */}
-              <div className="cc-st-priv-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+              <div className="cc-st-priv-row">
                 <div className="cc-st-priv-left">
                   <div className="cc-st-priv-icon-wrap">
-                    <Clock size={14} color="#9a8a82" />
+                    <HardDrive size={14} color="#9a8a82" />
                   </div>
                   <div>
-                    <div className="cc-st-priv-title">Auto-lock</div>
-                    <div className="cc-st-priv-sub">Lock after inactivity</div>
+                    <div className="cc-st-priv-title">Stored on this device</div>
+                    <div className="cc-st-priv-sub">Use JSON backup to move or protect your workspace</div>
                   </div>
                 </div>
-                <div className="cc-st-select-wrap" style={{ width: '100%' }}>
-                  <select
-                    className="cc-st-select"
-                    style={{ width: '100%' }}
-                    value={autoLock}
-                    onChange={e => setAutoLock(e.target.value)}
-                  >
-                    <option>1 minute</option>
-                    <option>5 minutes</option>
-                    <option>10 minutes</option>
-                    <option>30 minutes</option>
-                    <option>Never</option>
-                  </select>
-                  <span className="cc-st-select-arrow"><ChevDown /></span>
-                </div>
-              </div>
-            </div>
-
-            {/* 4. Cross-device sync */}
-            <div className="cc-st-card">
-              <Cloud size={24} color="#9a8a82" style={{ marginBottom: 10 }} />
-              <h2 className="cc-st-card-title" style={{ fontSize: 18, marginBottom: 6 }}>Cross-device sync</h2>
-              <p style={{ fontSize: 12, color: '#7a6a62', lineHeight: 1.5, margin: '0 0 4px' }}>
-                Sync your data across devices with a simple code.
-              </p>
-
-              <div className="cc-st-sync-code">
-                <span>7F3K-9D2Q</span>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#9a8a82', display: 'flex' }}>
-                  <Copy size={14} />
-                </button>
-              </div>
-
-              <div className="cc-st-sync-status">
-                <CheckCircle2 size={13} color="#c8bdb5" />
-                Not connected
-              </div>
-
-              <div className="cc-st-sync-curl">
-                <div style={{ textAlign: 'right' }}>
-                  <div className="cc-st-caveat" style={{ fontSize: 16, justifyContent: 'flex-end' }}>
-                    Same ideas. Everywhere.
-                  </div>
-                  <svg width="60" height="18" viewBox="0 0 60 18" fill="none" style={{ marginTop: 2 }}>
-                    <path d="M4,14 Q20,2 56,8" stroke="#d97856" strokeWidth="2" strokeLinecap="round" fill="none"/>
-                    <path d="M52,5 L56,8 L51,10" stroke="#d97856" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                  </svg>
-                </div>
+                <FileCheck size={16} color="#c8bdb5" />
               </div>
             </div>
 
@@ -422,7 +406,21 @@ export default function Settings() {
           {/* ── Row 2 ── */}
           <div className="cc-st-row2">
 
-            {/* 5. Localisation */}
+            {/* 5. Page hints */}
+            <div className="cc-st-card">
+              <h2 className="cc-st-card-title">Page hints</h2>
+              <Swoop />
+              <p className="cc-st-priv-sub" style={{ lineHeight: 1.5, marginBottom: 14 }}>
+                Show a tips dialog on first visit to each page.
+              </p>
+              <div className="cc-st-theme-btns" style={{ marginBottom: 0 }}>
+                <button type="button" className={`cc-st-theme-btn${hintsEnabled ? ' active' : ''}`} style={{ background: 'var(--cc-accent-light)', color: 'var(--cc-text)' }} onClick={() => toggleHints(true)}>On</button>
+                <button type="button" className={`cc-st-theme-btn${!hintsEnabled ? ' active' : ''}`} style={{ background: 'var(--cc-bg-2)', color: 'var(--cc-text-2)' }} onClick={() => toggleHints(false)}>Off</button>
+              </div>
+              {hintsEnabled && <div className="cc-st-message">Turning hints on resets the page explanations so you can review them again.</div>}
+            </div>
+
+            {/* 6. Localisation */}
             <div className="cc-st-card">
               <h2 className="cc-st-card-title">Localisation</h2>
               <Swoop />
@@ -433,11 +431,11 @@ export default function Settings() {
                     <CalendarDays size={13} color="#9a8a82" /> Date format
                   </div>
                   <div className="cc-st-select-wrap">
-                    <select className="cc-st-select" style={{ width: '100%' }} value={dateFormat} onChange={e => setDateFormat(e.target.value)}>
-                      <option>Apr 21, 2025</option>
-                      <option>21/04/2025</option>
-                      <option>04/21/2025</option>
-                      <option>2025-04-21</option>
+                    <select className="cc-st-select" style={{ width: '100%' }} value={settings.dateFormat} onChange={event => updateSettings({ dateFormat: event.target.value as DateFormatPreference })}>
+                      <option value="medium">Apr 21, 2025</option>
+                      <option value="day-first">21/04/2025</option>
+                      <option value="month-first">04/21/2025</option>
+                      <option value="iso">2025-04-21</option>
                     </select>
                     <span className="cc-st-select-arrow"><ChevDown /></span>
                   </div>
@@ -447,17 +445,17 @@ export default function Settings() {
                     <CalendarDays size={13} color="#9a8a82" /> First day of week
                   </div>
                   <div className="cc-st-select-wrap">
-                    <select className="cc-st-select" style={{ width: '100%' }} value={firstDay} onChange={e => setFirstDay(e.target.value)}>
-                      <option>Monday</option>
-                      <option>Sunday</option>
-                      <option>Saturday</option>
+                    <select className="cc-st-select" style={{ width: '100%' }} value={settings.weekStartsOn} onChange={event => updateSettings({ weekStartsOn: Number(event.target.value) as WeekStartPreference })}>
+                      <option value={1}>Monday</option>
+                      <option value={0}>Sunday</option>
+                      <option value={6}>Saturday</option>
                     </select>
                     <span className="cc-st-select-arrow"><ChevDown /></span>
                   </div>
                 </div>
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid #f0e8e0', margin: '18px 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--cc-border)', margin: '18px 0' }} />
 
               <div className="cc-st-loc-grid">
                 <div className="cc-st-loc-field">
@@ -468,9 +466,11 @@ export default function Settings() {
                   <div className="cc-st-goal-row">
                     <input
                       type="number"
+                      min={0}
+                      step={1}
                       className="cc-st-goal-input"
-                      value={contentGoal}
-                      onChange={e => setContentGoal(e.target.value)}
+                      value={settings.monthlyContentGoal}
+                      onChange={event => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 0) updateSettings({ monthlyContentGoal: value }); }}
                     />
                     <span className="cc-st-goal-unit">posts</span>
                   </div>
@@ -480,50 +480,26 @@ export default function Settings() {
                     <Share2 size={13} color="#9a8a82" /> Platform targets
                   </div>
                   <div className="cc-st-plat-list">
-                    {[
-                      { icon: <IgIcon />,       name: 'Instagram',  count: 10 },
-                      { icon: <TikTokIcon />,   name: 'TikTok',     count: 6 },
-                      { icon: <YoutubeIcon />,  name: 'YouTube',    count: 3 },
-                      { icon: <XIcon />,        name: 'X (Twitter)', count: 1 },
-                    ].map(p => (
-                      <div key={p.name} className="cc-st-plat-row">
-                        {p.icon}
-                        <span className="cc-st-plat-name">{p.name}</span>
-                        <span className="cc-st-plat-count">{p.count}</span>
+                    {activePlatforms.map(platform => (
+                      <div key={platform.id} className="cc-st-plat-row">
+                        <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: 5, display: 'grid', placeItems: 'center', background: platform.config.color, color: '#fff', fontSize: 9, fontWeight: 800 }}>{platform.label.charAt(0)}</span>
+                        <span className="cc-st-plat-name">{platform.label}</span>
+                        <input
+                          className="cc-st-target-input"
+                          type="number"
+                          min={0}
+                          step={1}
+                          aria-label={`${platform.label} monthly target`}
+                          value={settings.platformTargets[platform.id] ?? 0}
+                          onChange={event => {
+                            const value = Number(event.target.value);
+                            if (Number.isInteger(value) && value >= 0) updateSettings({ platformTargets: { ...settings.platformTargets, [platform.id]: value } });
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* 6. Template defaults */}
-            <div className="cc-st-card">
-              <h2 className="cc-st-card-title">
-                <LayoutTemplate size={17} color="#9a8a82" />
-                Template defaults
-              </h2>
-              <Swoop />
-
-              {[
-                { label: 'Default content type', value: defaultType,   set: setDefaultType,   opts: ['Idea', 'Post', 'Story', 'Reel'] },
-                { label: 'Default layout',        value: defaultLayout, set: setDefaultLayout, opts: ['Carousel', 'Single', 'Grid'] },
-                { label: 'Default style',         value: defaultStyle,  set: setDefaultStyle,  opts: ['Story', 'Minimal', 'Bold', 'Branded'] },
-              ].map(f => (
-                <div key={f.label} className="cc-st-tmpl-field">
-                  <div className="cc-st-tmpl-label">{f.label}</div>
-                  <div className="cc-st-tmpl-select-wrap">
-                    <select className="cc-st-tmpl-select" value={f.value} onChange={e => f.set(e.target.value)}>
-                      {f.opts.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                    <span className="cc-st-tmpl-arrow"><ChevDown /></span>
-                  </div>
-                </div>
-              ))}
-
-              <div className="cc-st-caveat" style={{ marginTop: 18 }}>
-                Start faster. Create more.
-                <Sparkles size={14} color="#d4a843" style={{ marginLeft: 4 }} />
               </div>
             </div>
 
@@ -537,15 +513,15 @@ export default function Settings() {
 
               <div className="cc-st-reset-row">
                 <RotateCw size={15} color="#9a8a82" />
-                Reset demo data
+                Clear workspace data
               </div>
               <p className="cc-st-reset-desc">
-                This will remove all sample content, including ideas, posts, and settings. This action cannot be undone.
+                This removes content-calendar records and local media from this device. This action cannot be undone.
               </p>
 
-              <button className="cc-st-reset-btn">
+              <button className="cc-st-reset-btn" onClick={() => { if (window.confirm('Clear all content-calendar data and media from this device?')) void clearWorkspaceData(); }}>
                 <RotateCw size={13} />
-                Reset demo data
+                Clear workspace data
               </button>
 
               <div className="cc-st-caveat" style={{ marginTop: 18, justifyContent: 'flex-end' }}>
@@ -560,6 +536,29 @@ export default function Settings() {
           </div>{/* end row2 */}
 
         </div>
+        <section className="cc-st-print-report" aria-hidden="true">
+          <h1>The Content Edit — Monthly Report</h1>
+          <p>{monthKey} · Generated {now.toLocaleString()}</p>
+          <p>
+            Goal: {reportRows.length} / {settings.monthlyContentGoal} posts · Planned {reportRows.filter(row => row.status === 'Planned').length} · Scheduled {reportRows.filter(row => row.status === 'Scheduled').length} · Published {reportRows.filter(row => row.status === 'Published').length}
+          </p>
+          <h2>Platform totals</h2>
+          <p>{platformReport.length ? platformReport.map(item => `${item.label}: ${item.count}`).join(' · ') : 'No platform output recorded this month.'}</p>
+          <h2>Campaign output</h2>
+          <p>{campaignReport.length ? campaignReport.map(item => `${item.campaign.name}: ${item.count}`).join(' · ') : 'No campaign output recorded this month.'}</p>
+          <h2>Content schedule</h2>
+          <table>
+            <thead><tr><th>Date</th><th>Title</th><th>Status</th><th>Platform</th><th>Type</th><th>Campaign</th></tr></thead>
+            <tbody>
+              {reportRows.map((row, index) => <tr key={`${row.title}-${row.date}-${index}`}><td>{formatContentDate(row.date, settings.dateFormat)}</td><td>{row.title}</td><td>{row.status}</td><td>{row.platforms.map(platform => getPlatformConfig(platform).label).join(', ')}</td><td>{row.type}</td><td>{campaigns.find(campaign => campaign.id === row.campaignId)?.name ?? '—'}</td></tr>)}
+            </tbody>
+          </table>
+          <h2>Recorded performance</h2>
+          {performanceReport.length ? <table>
+            <thead><tr><th>Content</th><th>Views</th><th>Likes</th><th>Comments</th><th>Saves</th><th>Shares</th><th>Clicks</th></tr></thead>
+            <tbody>{performanceReport.map(({ record, row }) => <tr key={record.id}><td>{row?.title}</td><td>{record.views}</td><td>{record.likes}</td><td>{record.comments}</td><td>{record.saves}</td><td>{record.shares}</td><td>{record.clicks}</td></tr>)}</tbody>
+          </table> : <p>No performance data recorded for this month's schedule.</p>}
+        </section>
       </div>
     </>
   );

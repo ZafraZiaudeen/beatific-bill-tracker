@@ -13,14 +13,15 @@ import {
 } from "lucide-react"
 import { useContentCalendarStore } from "../store"
 import type { IdeaItem, IdeaStatus, Platform, PostType } from "../types"
+import { getActivePlatformOptions, getActivePostTypes, getPlatformConfig } from "../platformConfig"
 import placeholderMedia from "../../../assets/content-calendar/placeholder-media.svg"
 
 const IDEA_CSS = `
-.cc-ideas{min-width:1030px;background:#faf7f2;color:#243136;min-height:100%;padding-bottom:20px}.cc-ideas-head{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 22px 3px}.cc-ideas-title{font:400 31px/1 'DM Serif Display',Georgia,serif;margin:0}.cc-ideas-title-row{display:flex;gap:10px;align-items:center}.cc-ideas-star{color:#e8af45;transform:rotate(-8deg)}.cc-ideas-line{width:150px;border-top:3px solid #d87956;border-radius:50%;margin-top:10px;transform:rotate(-2deg)}.cc-ideas-meta{display:flex;align-items:center;gap:20px;font-size:12px;font-weight:650}.cc-ideas-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px}
-.cc-ideas-layout{display:flex;gap:14px;padding:0 18px 0 18px;align-items:stretch}.cc-ideas-main{flex:1;min-width:0}.cc-ideas-toolbar{display:grid;grid-template-columns:minmax(270px,1fr) repeat(4,auto);gap:8px;margin:0 0 12px}.cc-ideas-search{height:31px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.8);border:1px solid #ece5de;border-radius:10px;padding:0 10px}.cc-ideas-search input{width:100%;border:0;outline:0;background:transparent;font-size:10.5px}.cc-ideas-select-wrap{position:relative}.cc-ideas-select{height:31px;appearance:none;padding:0 28px 0 12px;border:1px solid #ece5de;border-radius:10px;background:rgba(255,255,255,.8);font-size:10.5px;color:#263238}.cc-ideas-select-wrap svg{position:absolute;right:9px;top:10px;pointer-events:none}.cc-ideas-switch{display:flex;align-items:center;margin-bottom:14px}.cc-ideas-switch button{height:28px;padding:0 15px;display:flex;align-items:center;gap:7px;border-radius:15px;font-size:10px}.cc-ideas-switch button.active{background:#fbdcc9;color:#9e4f38}
+.cc-ideas{min-width:1030px;background:var(--cc-bg);color:#243136;min-height:100%;padding-bottom:20px}.cc-ideas-head{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 22px 3px}.cc-ideas-title{font:400 31px/1 'DM Serif Display',Georgia,serif;margin:0}.cc-ideas-title-row{display:flex;gap:10px;align-items:center}.cc-ideas-star{color:#e8af45;transform:rotate(-8deg)}.cc-ideas-line{width:150px;border-top:3px solid #d87956;border-radius:50%;margin-top:10px;transform:rotate(-2deg)}.cc-ideas-meta{display:flex;align-items:center;gap:20px;font-size:12px;font-weight:650}.cc-ideas-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px}
+.cc-ideas-layout{display:flex;gap:14px;padding:0 18px 0 18px;align-items:stretch}.cc-ideas-main{flex:1;min-width:0}.cc-ideas-toolbar{display:grid;grid-template-columns:minmax(270px,1fr) repeat(4,auto);gap:8px;margin:0 0 12px}.cc-ideas-search{height:31px;display:flex;align-items:center;gap:8px;background:var(--cc-card);border:1px solid #ece5de;border-radius:10px;padding:0 10px}.cc-ideas-search input{width:100%;border:0;outline:0;background:transparent;font-size:10.5px}.cc-ideas-select-wrap{position:relative}.cc-ideas-select{height:31px;appearance:none;padding:0 28px 0 12px;border:1px solid #ece5de;border-radius:10px;background:var(--cc-card);font-size:10.5px;color:var(--cc-text)}.cc-ideas-select-wrap svg{position:absolute;right:9px;top:10px;pointer-events:none}.cc-ideas-switch{display:flex;align-items:center;margin-bottom:14px}.cc-ideas-switch button{height:28px;padding:0 15px;display:flex;align-items:center;gap:7px;border-radius:15px;font-size:10px}.cc-ideas-switch button.active{background:#fbdcc9;color:#9e4f38}
 .cc-ideas-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.cc-idea-card{min-height:286px;background:rgba(255,255,255,.76);border:1px solid #ece4dc;border-radius:8px;overflow:hidden;display:flex;flex-direction:column}.cc-idea-image{height:96px;background-repeat:no-repeat;position:relative}.cc-theme-pill{position:absolute;right:5px;top:5px;padding:3px 14px;border-radius:99px;font-size:9px}.cc-theme-Brand,.cc-theme-Community,.cc-theme-Personal{background:#f1dfe4;color:#9b4e6d}.cc-theme-Lifestyle,.cc-theme-Visual{background:#dfedf3;color:#3d738d}.cc-idea-content{display:flex;flex-direction:column;flex:1;padding:9px 11px 9px}.cc-idea-name{font:400 16px/1.15 'DM Serif Display',Georgia,serif;margin-bottom:8px}.cc-idea-badges{display:flex;align-items:center;gap:7px;margin-bottom:8px}.cc-idea-badge{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:8px}.cc-badge-type{background:#edf2f4;color:#4f7d92}.cc-badge-platform{background:#faeef0;color:#995067}.cc-badge-status{background:#f1f0ed;color:#777}.cc-badge-status.Draft{background:#fff0d5;color:#8f6d27}.cc-badge-status.Planned{background:#e8f0f4;color:#52758a}.cc-idea-desc{font-size:9.5px;line-height:1.4;color:#667074;min-height:42px}.cc-idea-foot{margin-top:auto;display:flex;gap:6px;color:#8b9293;font-size:7.8px;line-height:1.35}.cc-idea-foot span{flex:1}.cc-convert{align-self:flex-end;margin-top:7px;padding:5px 10px;border-radius:99px;background:#ffe4cd;color:#b55335;font-size:7.8px}.cc-convert:disabled{background:#e7efeb;color:#5a8171}.cc-idea-list{display:flex;flex-direction:column;gap:7px}.cc-idea-list .cc-idea-card{min-height:110px;display:grid;grid-template-columns:180px 1fr}.cc-idea-list .cc-idea-image{height:100%}.cc-idea-list .cc-idea-content{padding:10px 13px}.cc-idea-list .cc-idea-desc{min-height:0}.cc-idea-list .cc-convert{position:absolute;right:12px;bottom:10px}.cc-idea-list .cc-idea-content{position:relative}
-.cc-prompts{width:250px;flex:0 0 250px;background:rgba(255,255,255,.72);border:1px solid #eee6df;border-radius:8px;padding:14px;display:flex;flex-direction:column}.cc-prompts h2{font:400 19px/1 'DM Serif Display',Georgia,serif;margin:0;display:flex;align-items:center;gap:8px}.cc-prompts-sub{font-size:9.5px;color:#697579;margin:9px 0 14px}.cc-prompt{min-height:70px;border-radius:7px;margin-bottom:10px;padding:11px 10px;display:grid;grid-template-columns:31px 1fr 14px;gap:8px;align-items:center;text-align:left}.cc-prompt:nth-of-type(1){background:#fbe6de}.cc-prompt:nth-of-type(2){background:#e7f0f4}.cc-prompt:nth-of-type(3){background:#f3e6ea}.cc-prompt:nth-of-type(4){background:#fff0d7}.cc-prompt:nth-of-type(5){background:#e6eff3}.cc-prompt:nth-of-type(6){background:#f2e5e9}.cc-prompt-icon{font-size:23px;color:#c96746}.cc-prompt strong{display:block;font-size:10.5px;margin-bottom:4px}.cc-prompt small{font-size:8.5px;color:#798184;line-height:1.35}.cc-add-idea{margin-top:auto;height:33px;border-radius:7px;background:linear-gradient(90deg,#d76c48,#d77957);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;gap:8px}
-.cc-idea-overlay{position:fixed;inset:0;background:rgba(30,35,35,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-idea-modal{width:min(500px,100%);max-height:90vh;overflow:auto;background:#fffaf6;border:1px solid #e9ddd3;border-radius:14px;padding:22px;box-shadow:0 18px 60px rgba(48,39,34,.2)}.cc-idea-modal h2{font:400 24px 'DM Serif Display',Georgia,serif;margin:0 0 15px}.cc-idea-form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.cc-idea-field{display:flex;flex-direction:column;gap:5px}.cc-idea-field.full{grid-column:1/-1}.cc-idea-field label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#806f66}.cc-idea-field input,.cc-idea-field select,.cc-idea-field textarea{border:1px solid #e0d6ce;border-radius:8px;background:white;padding:9px;font-size:11px;outline:0}.cc-idea-field textarea{min-height:65px;resize:vertical}.cc-idea-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.cc-idea-actions button{padding:8px 14px;border-radius:8px;font-size:10px}.cc-idea-cancel{border:1px solid #dfd5cd;background:white}.cc-idea-save{background:#d97856;color:white}
+.cc-prompts{width:250px;flex:0 0 250px;background:var(--cc-card);border:1px solid #eee6df;border-radius:8px;padding:14px;display:flex;flex-direction:column}.cc-prompts h2{font:400 19px/1 'DM Serif Display',Georgia,serif;margin:0;display:flex;align-items:center;gap:8px}.cc-prompts-sub{font-size:9.5px;color:#697579;margin:9px 0 14px}.cc-prompt{min-height:70px;border-radius:7px;margin-bottom:10px;padding:11px 10px;display:grid;grid-template-columns:31px 1fr 14px;gap:8px;align-items:center;text-align:left}.cc-prompt:nth-of-type(1){background:#fbe6de}.cc-prompt:nth-of-type(2){background:#e7f0f4}.cc-prompt:nth-of-type(3){background:#f3e6ea}.cc-prompt:nth-of-type(4){background:#fff0d7}.cc-prompt:nth-of-type(5){background:#e6eff3}.cc-prompt:nth-of-type(6){background:#f2e5e9}.cc-prompt-icon{font-size:23px;color:#c96746}.cc-prompt strong{display:block;font-size:10.5px;margin-bottom:4px}.cc-prompt small{font-size:8.5px;color:#798184;line-height:1.35}.cc-add-idea{margin-top:auto;height:33px;border-radius:7px;background:linear-gradient(90deg,#d76c48,#d77957);color:white;font-size:11px;display:flex;align-items:center;justify-content:center;gap:8px}
+.cc-idea-overlay{position:fixed;inset:0;background:rgba(30,35,35,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-idea-modal{width:min(500px,100%);max-height:90vh;overflow:auto;background:#fffaf6;border:1px solid #e9ddd3;border-radius:14px;padding:22px;box-shadow:0 18px 60px rgba(48,39,34,.2)}.cc-idea-modal h2{font:400 24px 'DM Serif Display',Georgia,serif;margin:0 0 15px}.cc-idea-form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.cc-idea-field{display:flex;flex-direction:column;gap:5px}.cc-idea-field.full{grid-column:1/-1}.cc-idea-field label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#806f66}.cc-idea-field input,.cc-idea-field select,.cc-idea-field textarea{border:1px solid #e0d6ce;border-radius:8px;background:white;padding:9px;font-size:11px;outline:0}.cc-idea-field textarea{min-height:65px;resize:vertical}.cc-idea-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.cc-idea-actions button{padding:8px 14px;border-radius:8px;font-size:10px}.cc-idea-cancel{border:1px solid #dfd5cd;background:white}.cc-idea-save{background:var(--cc-accent);color:white}
 @media(max-width:1120px){.cc-ideas{min-width:1020px}.cc-ideas-grid{gap:8px}.cc-prompts{width:225px;flex-basis:225px}}
 `
 
@@ -63,13 +64,6 @@ const PROMPTS = [
   },
 ]
 
-const PLATFORMS: { id: Platform; label: string }[] = [
-  { id: "instagram", label: "Instagram" },
-  { id: "tiktok", label: "TikTok" },
-  { id: "youtube", label: "YouTube" },
-  { id: "pinterest", label: "Pinterest" },
-]
-const TYPES: PostType[] = ["Reel", "Carousel", "Story", "Static"]
 const STATUSES: IdeaStatus[] = ["Idea", "Draft", "Planned"]
 
 function IdeaImage({ idea }: { idea: IdeaItem }) {
@@ -97,6 +91,7 @@ function IdeaImage({ idea }: { idea: IdeaItem }) {
 }
 
 function PlatformMark({ platform }: { platform: Platform }) {
+  const cfg = getPlatformConfig(platform)
   if (platform === "instagram")
     return (
       <svg
@@ -115,6 +110,7 @@ function PlatformMark({ platform }: { platform: Platform }) {
   if (platform === "tiktok")
     return <span style={{ fontWeight: 900, color: "#17272d" }}>♪</span>
   if (platform === "youtube") return <span style={{ color: "#cf3732" }}>▶</span>
+  if (platform !== "pinterest") return <span style={{ color: cfg.color, fontWeight: 800 }}>{cfg.icon?.slice(0, 2) || cfg.label.charAt(0)}</span>
   return (
     <span style={{ color: "#c33c43", fontFamily: "Georgia", fontWeight: 700 }}>
       P
@@ -149,9 +145,7 @@ function SelectBox({
 }
 
 function IdeaCard({ idea, convert }: { idea: IdeaItem; convert: () => void }) {
-  const platformName = PLATFORMS.find(
-    (item) => item.id === idea.platform
-  )?.label
+  const platformName = getPlatformConfig(idea.platform).label
   return (
     <article className="cc-idea-card">
       <IdeaImage idea={idea} />
@@ -197,10 +191,12 @@ function AddIdeaModal({
   onClose: () => void
 }) {
   const addIdea = useContentCalendarStore((state) => state.addIdea)
+  const platformOptions = getActivePlatformOptions()
+  const typeOptions = getActivePostTypes()
   const [title, setTitle] = useState(initialTitle)
   const [theme, setTheme] = useState(initialTheme)
-  const [platform, setPlatform] = useState<Platform>("instagram")
-  const [type, setType] = useState<PostType>("Reel")
+  const [platform, setPlatform] = useState<Platform>(platformOptions[0]?.id ?? "instagram")
+  const [type, setType] = useState<PostType>(typeOptions[0]?.id ?? "Post")
   const [status, setStatus] = useState<IdeaStatus>("Idea")
   const [description, setDescription] = useState("")
   const [notes, setNotes] = useState("")
@@ -260,7 +256,7 @@ function AddIdeaModal({
               value={platform}
               onChange={(event) => setPlatform(event.target.value as Platform)}
             >
-              {PLATFORMS.map((item) => (
+              {platformOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
@@ -273,8 +269,8 @@ function AddIdeaModal({
               value={type}
               onChange={(event) => setType(event.target.value as PostType)}
             >
-              {TYPES.map((item) => (
-                <option key={item}>{item}</option>
+              {typeOptions.map((item) => (
+                <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </select>
           </div>
@@ -330,6 +326,8 @@ export default function Ideas() {
   const [modal, setModal] = useState<{ title?: string; theme?: string } | null>(
     null
   )
+  const platformOptions = getActivePlatformOptions()
+  const typeOptions = getActivePostTypes()
   const themes = useMemo(
     () => Array.from(new Set(ideas.map((idea) => idea.theme))),
     [ideas]
@@ -394,7 +392,7 @@ export default function Ideas() {
             </SelectBox>
             <SelectBox label="Platform" value={platform} onChange={setPlatform}>
               <option value="all">All platforms</option>
-              {PLATFORMS.map((item) => (
+              {platformOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
@@ -402,8 +400,8 @@ export default function Ideas() {
             </SelectBox>
             <SelectBox label="Post type" value={type} onChange={setType}>
               <option value="all">All post types</option>
-              {TYPES.map((item) => (
-                <option key={item}>{item}</option>
+              {typeOptions.map((item) => (
+                <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </SelectBox>
             <SelectBox label="Status" value={status} onChange={setStatus}>

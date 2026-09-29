@@ -391,7 +391,7 @@ export default function AppStudio() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: S.bg, fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", overflowY: "auto", background: S.bg, fontFamily: "'Inter', -apple-system, sans-serif" }}>
 
       {/* Header */}
       <div style={{ padding: "40px 48px 32px", borderBottom: `1px solid ${S.border}`, background: S.white }}>
@@ -412,7 +412,7 @@ export default function AppStudio() {
           My Apps
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20, maxWidth: 1000 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, width: "100%" }}>
           {APPS.map((app) => (
             <div
               key={app.id}

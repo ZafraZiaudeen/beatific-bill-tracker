@@ -11,8 +11,8 @@ interface StatCardProps {
 export default function StatCard({ label, value, iconBg, icon, underlineColor }: StatCardProps) {
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #ece4da',
+      background: 'var(--cc-card)',
+      border: '1px solid var(--cc-border)',
       borderRadius: 12,
       padding: '16px 20px',
       display: 'flex',
@@ -23,7 +23,7 @@ export default function StatCard({ label, value, iconBg, icon, underlineColor }:
       position: 'relative',
       overflow: 'hidden',
     }}>
-      <div style={{
+      <div className="cc-stat-icon" style={{
         width: 40,
         height: 40,
         borderRadius: 10,
@@ -36,8 +36,8 @@ export default function StatCard({ label, value, iconBg, icon, underlineColor }:
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: '#3d2f2f', lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: '#8a7a72', marginTop: 3 }}>{label}</div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--cc-text)', lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: 12, color: 'var(--cc-text-3)', marginTop: 3 }}>{label}</div>
         <div style={{ width: 28, height: 2, background: underlineColor, borderRadius: 2, marginTop: 6 }} />
       </div>
     </div>

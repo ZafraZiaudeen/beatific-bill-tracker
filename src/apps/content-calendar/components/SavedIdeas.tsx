@@ -8,14 +8,14 @@ interface SavedIdeasProps {
 export default function SavedIdeas({ ideas, onViewAll }: SavedIdeasProps) {
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #ece4da',
+      background: 'var(--cc-card)',
+      border: '1px solid var(--cc-border)',
       borderRadius: 14,
       padding: '16px 18px',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#3d2f2f' }}>Saved Ideas</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cc-text)' }}>Saved Ideas</span>
         <button
           onClick={onViewAll}
           style={{
@@ -23,7 +23,7 @@ export default function SavedIdeas({ ideas, onViewAll }: SavedIdeasProps) {
             border: 'none',
             cursor: 'pointer',
             fontSize: 11.5,
-            color: '#8a7a72',
+            color: 'var(--cc-text-3)',
           }}
         >
           View all →
@@ -32,7 +32,7 @@ export default function SavedIdeas({ ideas, onViewAll }: SavedIdeasProps) {
 
       {/* Ideas list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {ideas.map((idea) => (
+        {ideas.length ? ideas.map((idea) => (
           <div key={idea.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Lightbulb icon */}
             <div style={{
@@ -55,17 +55,17 @@ export default function SavedIdeas({ ideas, onViewAll }: SavedIdeasProps) {
               <div style={{
                 fontSize: 12.5,
                 fontWeight: 600,
-                color: '#3d2f2f',
+                color: 'var(--cc-text)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>
                 {idea.title}
               </div>
-              <div style={{ fontSize: 10.5, color: '#8a7a72' }}>{idea.type}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--cc-text-3)' }}>{idea.type}</div>
             </div>
           </div>
-        ))}
+        )) : <div style={{ padding: '8px 0', fontSize: 11, color: 'var(--cc-text-3)' }}>No saved ideas yet.</div>}
       </div>
     </div>
   );
