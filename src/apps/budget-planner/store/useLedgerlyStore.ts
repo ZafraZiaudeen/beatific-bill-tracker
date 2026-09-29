@@ -513,10 +513,13 @@ interface LedgerlyStore extends ReturnType<typeof load> {
   view: LedgerlyView;
   selectedGoalId: number | null;
   selectedDebtId: number | null;
+  debtDetailOpen: boolean;
 
   setView(v: LedgerlyView): void;
   setSelectedGoalId(id: number | null): void;
   setSelectedDebtId(id: number | null): void;
+  openDebtDetail(id: number): void;
+  closeDebtDetail(): void;
 
   // Goals
   addGoal(g: Omit<Goal, 'id' | 'contributions'>): void;
@@ -587,9 +590,12 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
     view: 'dashboard',
     selectedGoalId: null,
     selectedDebtId: null,
+    debtDetailOpen: false,
     setView(v) { set({ view: v }); },
     setSelectedGoalId(id) { set({ selectedGoalId: id }); },
     setSelectedDebtId(id) { set({ selectedDebtId: id }); },
+    openDebtDetail(id) { set({ selectedDebtId: id, debtDetailOpen: true }); },
+    closeDebtDetail() { set({ selectedDebtId: null, debtDetailOpen: false }); },
 
     addGoal(g) {
       set(s => {
@@ -665,6 +671,7 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
           debtPayments,
           transactions,
           selectedDebtId: s.selectedDebtId === id ? null : s.selectedDebtId,
+          debtDetailOpen: s.selectedDebtId === id ? false : s.debtDetailOpen,
         };
         save({ ...s, ...upd });
         return upd;
@@ -1108,13 +1115,13 @@ export const useLedgerlyStore = create<LedgerlyStore>((set, get) => {
       if (!raw || typeof raw !== 'object') return false;
       const next = mergeImportedData(raw as Partial<typeof DEFAULTS>);
       save(next);
-      set({ ...next, view: get().view, selectedGoalId: null, selectedDebtId: null });
+      set({ ...next, view: get().view, selectedGoalId: null, selectedDebtId: null, debtDetailOpen: false });
       return true;
     },
     resetLedgerlyData() {
       const next = mergeImportedData({});
       save(next);
-      set({ ...next, view: 'dashboard', selectedGoalId: null, selectedDebtId: null });
+      set({ ...next, view: 'dashboard', selectedGoalId: null, selectedDebtId: null, debtDetailOpen: false });
     },
     recordBackup() {
       get().updateSecuritySettings({ lastBackupAt: new Date().toISOString() });

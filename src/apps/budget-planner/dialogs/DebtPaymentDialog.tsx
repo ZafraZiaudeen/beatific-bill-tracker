@@ -48,7 +48,7 @@ export function DebtPaymentDialog({ debt, onClose, onSaved }: Props) {
     <div className="ldg-debt-dialog-backdrop" onClick={event => { if (event.target === event.currentTarget && !submitting) onClose(); }}>
       <form className="ldg-debt-dialog ldg-debt-payment-dialog" role="dialog" aria-modal="true" aria-labelledby="debt-payment-title" onSubmit={save} noValidate>
         <div className="ldg-debt-dialog-header">
-          <div><span id="debt-payment-title">Record payment</span><small>{debt.name} · {fmt(debt.balance)} remaining</small></div>
+          <div><span id="debt-payment-title">Add payment</span><small>{debt.name} · {fmt(debt.balance)} remaining</small></div>
           <button type="button" onClick={onClose} disabled={submitting} aria-label="Close payment dialog">×</button>
         </div>
         <div className="ldg-debt-dialog-body">
@@ -62,7 +62,7 @@ export function DebtPaymentDialog({ debt, onClose, onSaved }: Props) {
           {error && <div className="ldg-debt-dialog-error" role="alert">{error}</div>}
           <div>
             <button type="button" className="ldg-budget-secondary-btn" onClick={onClose} disabled={submitting}>Cancel</button>
-            <button type="submit" className="ldg-budget-primary-btn" disabled={submitting}>{submitting ? 'Recording…' : 'Record payment'}</button>
+            <button type="submit" className="ldg-budget-primary-btn" disabled={submitting}>{submitting ? 'Adding…' : 'Add payment'}</button>
           </div>
         </div>
       </form>

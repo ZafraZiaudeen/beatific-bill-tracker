@@ -6,6 +6,7 @@ import sbDecoBotLeft from '../../assets/budget-assets/botanical-sprigs/botanical
 import { useLedgerlyStore } from './store/useLedgerlyStore';
 import { GoalsPage }        from './pages/GoalsPage';
 import { GoalDetailPage }   from './pages/GoalDetailPage';
+import { DebtDetailPage }   from './pages/DebtDetailPage';
 import { DebtPlannerPage }  from './pages/DebtPlannerPage';
 import { BillsPage }        from './pages/BillsPage';
 import { AccountsPage }     from './pages/AccountsPage';
@@ -242,7 +243,7 @@ function LicenseGateOverlay({ viewName, onUnlock, onCancel }: { viewName: string
     if (!window.__LDG_LICENSE_HASH__) { setError('This file is missing its license hash.'); return; }
     const hash = await sha256(LDG_HASH_SALT + trimmed);
     if (hash === window.__LDG_LICENSE_HASH__) {
-      try { sessionStorage.setItem('ldg-license-activated', '1'); } catch {}
+      try { sessionStorage.setItem('ldg-license-activated', '1'); } catch { /* Session storage may be unavailable. */ }
       setCode('');
       setError('');
       onUnlock();
@@ -298,6 +299,8 @@ export function LedgerlyApp() {
   const view    = useLedgerlyStore(s => s.view);
   const setView = useLedgerlyStore(s => s.setView);
   const setSelectedGoalId = useLedgerlyStore(s => s.setSelectedGoalId);
+  const debtDetailOpen = useLedgerlyStore(s => s.debtDetailOpen);
+  const closeDebtDetail = useLedgerlyStore(s => s.closeDebtDetail);
   const securitySettings = useLedgerlyStore(s => s.securitySettings);
   const [locked, setLocked] = useState(() => securitySettings.pinEnabled && Boolean(securitySettings.pinHash));
   const [licenseActive, setLicenseActive] = useState(() =>
@@ -310,7 +313,10 @@ export function LedgerlyApp() {
   const lockTimer = useRef<number | null>(null);
 
   const handleNav = (id: LedgerlyView) => {
-    if (id === 'goals') setSelectedGoalId(null);
+    closeDebtDetail();
+    if (id === 'goals') {
+      setSelectedGoalId(null);
+    }
     setView(id);
     setSidebarOpen(false);
   };
@@ -433,6 +439,7 @@ export function LedgerlyApp() {
           </div>
         </div>
         <LedgerlyOnboardingModal />
+        {debtDetailOpen && <DebtDetailPage />}
         {locked && securitySettings.pinHash && (
           <LockOverlay pinHash={securitySettings.pinHash} onUnlock={() => setLocked(false)} />
         )}

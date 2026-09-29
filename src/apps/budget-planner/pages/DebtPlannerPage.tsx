@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react';
 import { useLedgerlyStore } from '../store/useLedgerlyStore';
 import { fmt, fmtYM, fmtYMFull } from '../utils/formatters';
 import { DebtEditorDialog as DebtDialog } from '../dialogs/DebtEditorDialog';
-import { DebtPaymentDialog } from '../dialogs/DebtPaymentDialog';
 import { payoffDateLabel, simulateDebtPayoff, type SimResult } from '../utils/debtSimulator';
-import type { Debt, DebtPayment } from '../types';
+import type { Debt } from '../types';
 import flower03 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-03.png';
 import flower05 from '../../../assets/budget-assets/flowers-and-leaves/flowers-and-leaves-05.png';
 import sprig02 from '../../../assets/budget-assets/botanical-sprigs/botanical-sprigs-02.png';
@@ -66,12 +65,9 @@ export function DebtPlannerPage() {
   const setView = useLedgerlyStore(s => s.setView);
   const setDebtPlan = useLedgerlyStore(s => s.setDebtPlan);
   const deleteDebt = useLedgerlyStore(s => s.deleteDebt);
-  const removeDebtPayment = useLedgerlyStore(s => s.removeDebtPayment);
-  const selectedDebtId = useLedgerlyStore(s => s.selectedDebtId);
-  const setSelectedDebtId = useLedgerlyStore(s => s.setSelectedDebtId);
+  const openDebtDetail = useLedgerlyStore(s => s.openDebtDetail);
   const currentMonth = useLedgerlyStore(s => s.currentMonth);
   const [showDebtDialog, setShowDebtDialog] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [editDebt, setEditDebt] = useState<Debt | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
 
@@ -86,11 +82,6 @@ export function DebtPlannerPage() {
   const totalBalance = debts.reduce((sum, debt) => sum + debt.balance, 0);
   const totalMin = debts.filter(debt => debt.balance > 0).reduce((sum, debt) => sum + debt.minimumPayment, 0);
   const totalExtra = debts.filter(debt => debt.balance > 0).reduce((sum, debt) => sum + debt.extraPayment, 0);
-  const selectedDebt = debts.find(debt => debt.id === selectedDebtId) ?? null;
-  const selectedPayoff = selectedDebt ? active.payoffOrder.find(item => item.id === selectedDebt.id) : null;
-  const selectedPayments = selectedDebt
-    ? debtPayments.filter(payment => payment.debtId === selectedDebt.id).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
-    : [];
   const interestDifference = Math.abs(snowball.totalInterest - avalanche.totalInterest);
   const lowerInterestStrategy = snowball.totalInterest === avalanche.totalInterest
     ? 'Same cost'
@@ -111,40 +102,17 @@ export function DebtPlannerPage() {
     }
   };
 
-  const handlePaymentSaved = (payment: DebtPayment) => {
-    const remaining = Math.max(0, (selectedDebt?.balance ?? 0) - payment.amount);
-    setStatusMessage(`${fmt(payment.amount)} payment recorded for ${selectedDebt?.name ?? 'debt'}. Remaining balance: ${fmt(remaining)}.`);
-  };
-
-  const handleRemovePayment = (payment: DebtPayment) => {
-    if (!confirm(`Remove the ${fmt(payment.amount)} payment from ${payment.date}? The debt and linked account balances will be restored.`)) return;
-    try {
-      if (!removeDebtPayment(payment.id)) throw new Error('This payment is no longer available.');
-      setStatusMessage(`${fmt(payment.amount)} payment removed and balances restored.`);
-    } catch (reason) {
-      setStatusMessage(reason instanceof Error ? reason.message : 'Payment could not be removed.');
-    }
-  };
-
   return (
     <div className="ldg-debt-planner-page">
       <div className="ldg-debt-planner-header">
         <div>
           <button className="ldg-goal-detail-back" onClick={() => setView('goals')}>← Goals &amp; Debt</button>
-          <h1>{selectedDebt ? selectedDebt.name : 'Debt payoff planner'} <img src={heart01} alt="" /></h1>
-          <p>{selectedDebt ? 'Record real payments, review progress, and see how this debt fits the saved payoff plan.' : 'Compare payoff strategies, then record real payments against each debt.'}</p>
+          <h1>Debt payoff planner <img src={heart01} alt="" /></h1>
+          <p>Compare payoff strategies and save a future plan. Add real payments from an individual debt.</p>
         </div>
         <div className="ldg-goal-detail-actions">
           <span className="ldg-budget-method-pill">{fmtYMFull(startMonth)}</span>
-          {selectedDebt ? (
-            <>
-              <button className="ldg-budget-secondary-btn" onClick={() => setSelectedDebtId(null)}>Show all debts</button>
-              <button className="ldg-budget-secondary-btn" onClick={() => { setEditDebt(selectedDebt); setShowDebtDialog(true); }}>Edit debt</button>
-              <button className="ldg-budget-primary-btn" disabled={selectedDebt.balance <= 0} onClick={() => setShowPaymentDialog(true)}>{selectedDebt.balance <= 0 ? 'Paid off' : 'Record payment'}</button>
-            </>
-          ) : (
-            <button className="ldg-goals-add-btn ldg-goals-add-debt" onClick={() => { setEditDebt(null); setShowDebtDialog(true); }}>+ Add debt</button>
-          )}
+          <button className="ldg-goals-add-btn ldg-goals-add-debt" onClick={() => { setEditDebt(null); setShowDebtDialog(true); }}>+ Add debt</button>
         </div>
       </div>
 
@@ -162,44 +130,6 @@ export function DebtPlannerPage() {
         </section>
       ) : (
         <>
-          {selectedDebt && (
-            <section className="ldg-card ldg-debt-focus-card">
-              <div className="ldg-debt-focus-summary">
-                <div className="ldg-long-icon" style={{ background: selectedDebt.bg, color: selectedDebt.color }}>{selectedDebt.icon}</div>
-                <div>
-                  <span className={`ldg-debt-state${selectedDebt.balance <= 0 ? ' is-paid' : ''}`}>{selectedDebt.balance <= 0 ? 'Paid off' : 'In progress'}</span>
-                  <h2>{selectedDebt.name}</h2>
-                  <p>{selectedDebt.institution || 'Manual debt'}{selectedDebt.accountNumber ? ` · ••••${selectedDebt.accountNumber}` : ''}</p>
-                </div>
-                <button className="ldg-sec-btn ldg-sec-btn-danger" onClick={() => handleDeleteDebt(selectedDebt)}>Delete debt</button>
-              </div>
-              <div className="ldg-debt-focus-metrics">
-                <div><span>Current balance</span><strong>{fmt(selectedDebt.balance)}</strong></div>
-                <div><span>APR</span><strong>{selectedDebt.apr.toFixed(2)}%</strong></div>
-                <div><span>Monthly commitment</span><strong>{fmt(selectedDebt.minimumPayment + selectedDebt.extraPayment)}</strong><small>{fmt(selectedDebt.minimumPayment)} minimum + {fmt(selectedDebt.extraPayment)} planned extra</small></div>
-                <div><span>Projected payoff</span><strong>{selectedDebt.balance <= 0 ? 'Paid off' : selectedPayoff?.payoffDate ? fmtYM(selectedPayoff.payoffDate) : 'Needs review'}</strong><small>Using the {activeStrategy} forecast</small></div>
-              </div>
-              <div className="ldg-debt-payment-history">
-                <div className="ldg-card-hdr">
-                  <div><div className="ldg-card-title">Payment history</div><div className="ldg-card-sub">{selectedPayments.length} recorded payment{selectedPayments.length === 1 ? '' : 's'}</div></div>
-                  {selectedDebt.balance > 0 && <button className="ldg-goals-add-btn" onClick={() => setShowPaymentDialog(true)}>+ Record payment</button>}
-                </div>
-                {selectedPayments.length === 0 ? <div className="ldg-long-empty">No payments recorded yet. Use Record payment to reduce this balance.</div> : (
-                  <div className="ldg-debt-payment-list">
-                    {selectedPayments.map(payment => (
-                      <div key={payment.id} className="ldg-debt-payment-row">
-                        <span>{new Date(`${payment.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                        <strong>−{fmt(payment.amount)}</strong>
-                        <em>{payment.account || 'Unlinked'}{payment.notes ? ` · ${payment.notes}` : ''}</em>
-                        <button onClick={() => handleRemovePayment(payment)}>Remove</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
           <div className="ldg-stat-row">
             {[
               { label: 'Total balance', value: fmt(totalBalance), sub: `Across ${debts.length} debt${debts.length !== 1 ? 's' : ''}`, deco: flower05, tint: 'ldg-stat-blush' },
@@ -291,7 +221,7 @@ export function DebtPlannerPage() {
                 <input type="month" value={startMonth} onChange={event => { setStartMonth(event.target.value || currentMonth); setStatusMessage(''); }} />
               </label>
               <button className="ldg-budget-primary-btn" onClick={savePlan} disabled={!planDirty}>Save payoff plan</button>
-              <small className="ldg-debt-forecast-help">{planDirty ? 'You have unsaved forecast changes.' : 'Saved. Record actual payments from a debt’s detail view.'}</small>
+              <small className="ldg-debt-forecast-help">{planDirty ? 'You have unsaved forecast changes.' : 'Saved. Open a debt to add an actual payment.'}</small>
               <div className="ldg-debt-sim-summary">
                 <span>Total monthly debt effort</span>
                 <strong>{fmt(totalMin + totalExtra + simExtra)}</strong>
@@ -308,12 +238,8 @@ export function DebtPlannerPage() {
                 </div>
               </div>
               <div className="ldg-debt-order-list">
-                {active.payoffOrder.map((item, index) => (
-                  <button
-                    key={item.id}
-                    className={`ldg-debt-order-row${selectedDebtId === item.id ? ' is-focused' : ''}`}
-                    onClick={() => setSelectedDebtId(item.id)}
-                  >
+                {active.payoffOrder.length === 0 ? <div className="ldg-long-empty">All debts are paid off.</div> : active.payoffOrder.map((item, index) => (
+                  <button key={item.id} className="ldg-debt-order-row" onClick={() => openDebtDetail(item.id)}>
                     <span>{index + 1}</span>
                     <div>
                       <strong>{item.name}</strong>
@@ -329,12 +255,12 @@ export function DebtPlannerPage() {
               <div className="ldg-card-hdr">
                 <div>
                   <div className="ldg-card-title">Your debts</div>
-                  <div className="ldg-card-sub">Open a debt to record payments or review its history.</div>
+                  <div className="ldg-card-sub">Open a debt to add payments or review its history.</div>
                 </div>
               </div>
               <div className="ldg-debt-list">
                 {debts.map(debt => (
-                  <article key={debt.id} className={`ldg-debt-list-card${selectedDebt?.id === debt.id ? ' is-focused' : ''}`}>
+                  <article key={debt.id} className="ldg-debt-list-card">
                     <div className="ldg-long-icon" style={{ background: debt.bg, color: debt.color }}>{debt.icon}</div>
                     <div>
                       <strong>{debt.name}</strong>
@@ -342,7 +268,7 @@ export function DebtPlannerPage() {
                       {debt.notes ? <small>{debt.notes}</small> : null}
                     </div>
                     <div className="ldg-debt-list-actions">
-                      <button onClick={() => setSelectedDebtId(debt.id)}>Open</button>
+                      <button onClick={() => openDebtDetail(debt.id)}>Open</button>
                       <button onClick={() => { setEditDebt(debt); setShowDebtDialog(true); }}>Edit</button>
                       <button className="danger" onClick={() => handleDeleteDebt(debt)}>Delete</button>
                     </div>
@@ -358,14 +284,12 @@ export function DebtPlannerPage() {
         <DebtDialog
           debt={editDebt}
           onSaved={saved => {
-            setSelectedDebtId(saved.id);
-            setStatusMessage(`${saved.name} was saved successfully.`);
+            setShowDebtDialog(false);
+            setEditDebt(null);
+            openDebtDetail(saved.id);
           }}
           onClose={() => { setShowDebtDialog(false); setEditDebt(null); }}
         />
-      )}
-      {showPaymentDialog && selectedDebt && (
-        <DebtPaymentDialog debt={selectedDebt} onSaved={handlePaymentSaved} onClose={() => setShowPaymentDialog(false)} />
       )}
     </div>
   );

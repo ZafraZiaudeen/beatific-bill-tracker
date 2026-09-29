@@ -232,8 +232,7 @@ export function TransactionsPage() {
   const updateTransaction = useLedgerlyStore(s => s.updateTransaction);
   const deleteTransaction = useLedgerlyStore(s => s.deleteTransaction);
   const debts = useLedgerlyStore(s => s.debts);
-  const setView = useLedgerlyStore(s => s.setView);
-  const setSelectedDebtId = useLedgerlyStore(s => s.setSelectedDebtId);
+  const openDebtDetail = useLedgerlyStore(s => s.openDebtDetail);
   const addCategory = useLedgerlyStore(s => s.addCategory);
   const accounts = useLedgerlyStore(s => s.accounts);
   const categories = useLedgerlyStore(s => s.categories);
@@ -579,7 +578,7 @@ export function TransactionsPage() {
                   <td className="ldg-txn-td ldg-txn-row-actions">
                     {transaction.debtPaymentId ? (
                       transaction.debtId && debts.some(debt => debt.id === transaction.debtId) ? (
-                        <button className="ldg-txn-row-btn" onClick={() => { setSelectedDebtId(transaction.debtId ?? null); setView('debt-planner'); }}>Manage in Debt Planner</button>
+                        <button className="ldg-txn-row-btn" onClick={() => transaction.debtId && openDebtDetail(transaction.debtId)}>View debt</button>
                       ) : <span className="ldg-txn-managed-label">Historical debt payment</span>
                     ) : (
                       <>

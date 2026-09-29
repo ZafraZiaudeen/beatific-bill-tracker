@@ -94,15 +94,14 @@ function DebtCard({ debt, index, result, totalBalance, onEdit, onDelete }: {
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const setView = useLedgerlyStore(s => s.setView);
-  const setSelectedDebtId = useLedgerlyStore(s => s.setSelectedDebtId);
+  const openDebtDetail = useLedgerlyStore(s => s.openDebtDetail);
   const [menuOpen, setMenuOpen] = useState(false);
   const payoff = result.payoffOrder.find(item => item.id === debt.id);
   const share = totalBalance > 0 ? Math.round((debt.balance / totalBalance) * 100) : 0;
   const monthly = debt.minimumPayment + debt.extraPayment;
 
   return (
-    <article className={`ldg-stat-card ${TINTS[(index + 1) % TINTS.length]} ldg-long-card ldg-long-debt`} onClick={() => { setSelectedDebtId(debt.id); setView('debt-planner'); }}>
+    <article className={`ldg-stat-card ${TINTS[(index + 1) % TINTS.length]} ldg-long-card ldg-long-debt`} onClick={() => openDebtDetail(debt.id)}>
       <img src={CARD_DECOS[(index + 2) % CARD_DECOS.length]} alt="" className="ldg-long-card-deco" />
       <div className="ldg-long-card-top">
         <div className="ldg-long-icon" style={{ background: debt.bg || 'rgba(196,138,138,.15)', color: debt.color || '#a05050' }}>{debt.icon}</div>
