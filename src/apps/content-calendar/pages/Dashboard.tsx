@@ -40,7 +40,7 @@ function periodBounds(period: DashboardPeriod, weekStart?: string) {
 }
 
 function dashboardKey(item: { id: string; composerId?: string; pipelineId?: string }) {
-  return item.composerId ? `composer:${item.composerId}` : item.pipelineId ? `pipeline:${item.pipelineId}` : `id:${item.id}`;
+  return item.pipelineId ? `pipeline:${item.pipelineId}` : item.composerId ? `composer:${item.composerId}` : `id:${item.id}`;
 }
 
 function pipelineStatus(stage: PipelineItem['stage']): ContentPost['status'] {
@@ -49,14 +49,20 @@ function pipelineStatus(stage: PipelineItem['stage']): ContentPost['status'] {
 
 function buildDashboardPosts(posts: ContentPost[], pipelineItems: PipelineItem[], composerDrafts: ComposerDraft[]): DashboardPost[] {
   const keys = new Set<string>();
+  const pipelineKeys = new Set<string>();
   const result: DashboardPost[] = [];
   posts.forEach(post => {
+    if (post.pipelineId) {
+      if (pipelineKeys.has(post.pipelineId)) return;
+      pipelineKeys.add(post.pipelineId);
+    }
     keys.add(dashboardKey(post));
     result.push({ ...post, mediaIds: post.mediaIds ?? [], searchText: `${post.title} ${post.category} ${post.type} ${post.platforms.join(' ')}` });
   });
   pipelineItems.forEach(item => {
-    if (keys.has(`pipeline:${item.id}`) || (item.composerId && keys.has(`composer:${item.composerId}`))) return;
+    const alreadyTracked = keys.has(`pipeline:${item.id}`) || (item.composerId && keys.has(`composer:${item.composerId}`));
     keys.add(`pipeline:${item.id}`);
+    if (alreadyTracked) return;
     result.push({
       id: item.id,
       title: item.title,
@@ -176,11 +182,12 @@ export default function Dashboard() {
   }).filter(draft => {
     const normalizedQuery = query.trim().toLowerCase();
     const source = draft.source;
-    return (!normalizedQuery || `${draft.title} ${draft.type} ${source?.caption ?? ''} ${source?.hashtags.join(' ') ?? ''}`.toLowerCase().includes(normalizedQuery))
+    if (source?.pipelineId && posts.some(p => p.pipelineId === source.pipelineId && p.status === 'Scheduled')) return false;
+    return (!normalizedQuery || `${draft.title} ${draft.type} ${source?.caption ?? ''} ${source?.hashtags?.join(' ') ?? ''}`.toLowerCase().includes(normalizedQuery))
       && (platform === 'all' || Boolean(source?.platforms.includes(platform)))
       && (type === 'all' || draft.type === type)
       && (!source?.publishDate || (source.publishDate >= bounds.from && source.publishDate <= bounds.to));
-  }), [drafts, composerDrafts, query, platform, type, bounds.from, bounds.to]);
+  }), [drafts, composerDrafts, posts, query, platform, type, bounds.from, bounds.to]);
   const currentDateLabel = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 
   return (

@@ -151,19 +151,31 @@ function AddPipelineModal({ onClose, initial, defaultStage }: { onClose: () => v
   const updateItem = useContentCalendarStore(state => state.updatePipelineItem);
   const campaigns = useContentCalendarStore(state => state.campaigns);
   const platformOptions = getActivePlatformOptions();
-  const contentTypes = getActivePostTypes();
+  const initialPlatform = initial?.platforms[0] ?? platformOptions[0]?.id ?? 'instagram';
+  const initialContentTypes = getPlatformConfig(initialPlatform).postTypes;
   const [title, setTitle] = useState(initial?.title ?? '');
   const [stage, setStage] = useState<PipelineStage>(initial?.stage ?? defaultStage ?? 'ideas');
-  const [contentType, setContentType] = useState<PostType>(initial?.contentType ?? contentTypes[0]?.id ?? 'Post');
+  const [contentType, setContentType] = useState<PostType>(() => (
+    initial?.contentType && initialContentTypes.some(type => type.id === initial.contentType)
+      ? initial.contentType
+      : (initialContentTypes[0]?.id ?? 'Post')
+  ));
   const [campaignId, setCampaignId] = useState(initial?.campaignId ?? '');
   const [scheduledDate, setScheduledDate] = useState(initial?.scheduledDate ?? new Date().toISOString().slice(0, 10));
   const [scheduledTime, setScheduledTime] = useState(initial?.scheduledTime ?? '10:00');
-  const [platforms, setPlatforms] = useState<Platform[]>(initial?.platforms ?? (platformOptions[0] ? [platformOptions[0].id] : ['instagram']));
+  const [platforms, setPlatforms] = useState<Platform[]>(initial?.platforms?.length ? initial.platforms : [initialPlatform]);
   const [mediaIds, setMediaIds] = useState<string[]>(initial?.mediaIds ?? []);
   const [checklist, setChecklist] = useState(() => Array.from({ length: 6 }, (_, index) => index < (initial?.checklistComplete ?? 0)));
 
-  function togglePlatform(platform: Platform) {
-    setPlatforms(current => current.includes(platform) ? current.filter(item => item !== platform) : [...current, platform]);
+  const selectedPlatform = platforms[0] ?? initialPlatform;
+  const contentTypes = getPlatformConfig(selectedPlatform).postTypes;
+
+  function selectPlatform(platform: Platform) {
+    setPlatforms([platform]);
+    const nextTypes = getPlatformConfig(platform).postTypes;
+    if (!nextTypes.some(type => type.id === contentType)) {
+      setContentType((nextTypes[0]?.id ?? 'Post') as PostType);
+    }
   }
 
   function submit(event: FormEvent) {
@@ -186,7 +198,7 @@ function AddPipelineModal({ onClose, initial, defaultStage }: { onClose: () => v
           <div className="cc-field full"><label>Media attachments</label><LocalImageUpload value={mediaIds} multiple folder="brand" label={mediaIds.length ? 'Add another image' : 'Upload images'} onChange={setMediaIds} /></div>
           <div className="cc-field"><label htmlFor="pipeline-date">Publishing date</label><input id="pipeline-date" type="date" required value={scheduledDate} onChange={event => setScheduledDate(event.target.value)} /></div>
           <div className="cc-field"><label htmlFor="pipeline-time">Time</label><input id="pipeline-time" type="time" value={scheduledTime} onChange={event => setScheduledTime(event.target.value)} /></div>
-          <div className="cc-field full"><label>Platforms</label><div className="cc-platform-checks">{platformOptions.map(platform => <label key={platform.id}><input type="checkbox" checked={platforms.includes(platform.id)} onChange={() => togglePlatform(platform.id)} />{platform.label}</label>)}</div></div>
+          <div className="cc-field full"><label>Platform</label><div className="cc-platform-checks">{platformOptions.map(platform => <label key={platform.id}><input type="radio" name="pipeline-platform" checked={selectedPlatform === platform.id} onChange={() => selectPlatform(platform.id)} />{platform.label}</label>)}</div></div>
         </div>
         <div className="cc-field full"><label>Checklist</label><div className="cc-pipeline-checklist">{CHECKLIST_LABELS.map((label, index) => <label key={label}><input type="checkbox" checked={checklist[index]} onChange={event => setChecklist(current => current.map((value, itemIndex) => itemIndex === index ? event.target.checked : value))} />{label}</label>)}</div></div>
         <div className="cc-modal-actions"><button type="button" className="cc-modal-secondary" onClick={onClose}>Cancel</button><button type="submit" className="cc-modal-primary">{initial ? 'Save changes' : 'Add item'}</button></div>

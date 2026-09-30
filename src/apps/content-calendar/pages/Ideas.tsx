@@ -231,11 +231,11 @@ function IdeaModal({
 }) {
   const { addIdea, updateIdea, deleteIdea } = useContentCalendarStore()
   const platformOptions = getActivePlatformOptions()
-  const typeOptions = getActivePostTypes()
   const isEdit = Boolean(idea)
   const [title, setTitle] = useState(idea?.title ?? initialTitle)
   const [theme, setTheme] = useState(idea?.theme ?? initialTheme)
   const [platform, setPlatform] = useState<Platform>(idea?.platform ?? (platformOptions[0]?.id ?? "instagram"))
+  const typeOptions = getPlatformConfig(platform).postTypes
   const [type, setType] = useState<PostType>(idea?.type ?? (typeOptions[0]?.id ?? "Post"))
   const [status, setStatus] = useState<IdeaStatus>(idea?.status ?? "Idea")
   const [description, setDescription] = useState(idea?.description ?? "")
@@ -313,7 +313,12 @@ function IdeaModal({
             <label>Platform</label>
             <select
               value={platform}
-              onChange={(event) => setPlatform(event.target.value as Platform)}
+              onChange={(event) => {
+                const next = event.target.value as Platform
+                setPlatform(next)
+                const nextTypes = getPlatformConfig(next).postTypes
+                setType(nextTypes[0]?.id ?? "Post")
+              }}
             >
               {platformOptions.map((item) => (
                 <option key={item.id} value={item.id}>

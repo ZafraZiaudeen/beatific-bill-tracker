@@ -10,6 +10,7 @@ export type ContentCalendarView =
   | 'dashboard' | 'calendar' | 'pipeline'
   | 'ideas'
   | 'templates' | 'analytics' | 'campaigns'
+  | 'performance'
   | 'settings' | 'composer' | 'platforms' | 'management';
 
 declare global {
@@ -232,9 +233,16 @@ export interface ContentTemplate {
   description: string;
   postType: PostType;
   platform: Platform;
+  // Core content fields (kept for back-compat; empty string when not applicable)
   hook: string;
   body: string;
   cta: string;
+  // Platform-specific text fields
+  caption?: string;
+  altText?: string;
+  firstComment?: string;
+  // Arbitrary platform extras (headline, contentDescription, board, destinationUrl, playlist, visibility, audience, sticker…)
+  platformExtras?: Record<string, string>;
   hashtags: string[];
   mediaIds: string[];
   checklist: ComposerChecklist;

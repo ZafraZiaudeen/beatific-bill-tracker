@@ -510,7 +510,6 @@ export function CampaignForm({ initial, onClose }: { initial?: Campaign; onClose
     event.preventDefault();
     if (!form.name.trim()) return setError('Campaign name is required.');
     if (!form.startDate || !form.endDate || form.endDate < form.startDate) return setError('Choose a valid date range.');
-    if (!form.platforms.length) return setError('Select at least one platform.');
     const campaign = { ...form, name: form.name.trim(), goal: form.goal.trim(), badge: form.badge.trim() || 'Campaign', timelineItems: form.timelineItems.map(item => item.trim()).filter(Boolean), coverMediaId: form.coverMediaId || undefined };
     if (initial) updateCampaign(initial.id, campaign); else addCampaign(campaign);
     onClose();
@@ -527,7 +526,7 @@ export function CampaignForm({ initial, onClose }: { initial?: Campaign; onClose
         <label>End date<input type="date" value={form.endDate} onChange={event => update('endDate', event.target.value)} /></label>
         <label className="full">Goal<textarea value={form.goal} onChange={event => update('goal', event.target.value)} /></label>
         <label className="full">Cover image<LocalImageUpload value={form.coverMediaId ? [form.coverMediaId] : []} multiple={false} folder="campaigns" label={form.coverMediaId ? 'Replace cover image' : 'Upload cover image'} onChange={ids => update('coverMediaId', ids[0])} /></label>
-        <label className="full">Platforms<div className="cc-camp-platform-checks">{options.map(option => <button type="button" key={option.id} className={form.platforms.includes(option.id) ? 'selected' : ''} onClick={() => togglePlatform(option.id)}>{option.label}</button>)}</div></label>
+        <label className="full">Platforms <span style={{ fontWeight: 400, fontSize: '.8em', color: 'var(--cc-text-3)' }}>(optional)</span><div className="cc-camp-platform-checks">{options.map(option => <button type="button" key={option.id} className={form.platforms.includes(option.id) ? 'selected' : ''} onClick={() => togglePlatform(option.id)}>{option.label}</button>)}</div></label>
         <label className="full">Timeline items<div className="cc-camp-timeline-inputs">{form.timelineItems.map((item, index) => <div key={index}><input value={item} placeholder="Milestone" onChange={event => update('timelineItems', form.timelineItems.map((value, i) => i === index ? event.target.value : value))} /><button type="button" onClick={() => update('timelineItems', form.timelineItems.filter((_, i) => i !== index))} aria-label="Remove milestone">×</button></div>)}<button type="button" onClick={() => update('timelineItems', [...form.timelineItems, ''])}>+ Add milestone</button></div></label>
       </div>
       {error && <p className="cc-camp-form-error">{error}</p>}

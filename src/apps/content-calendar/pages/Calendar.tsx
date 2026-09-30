@@ -233,9 +233,17 @@ export default function Calendar() {
   const activeCampaignFilter = campaignFilter !== 'all' && campaigns.some(campaign => campaign.id === campaignFilter)
     ? campaignFilter
     : 'all';
-  const filteredPosts = activeCampaignFilter === 'all'
+  const seenPipelineIds = new Set<string>();
+  const filteredPosts = (activeCampaignFilter === 'all'
     ? posts
-    : posts.filter(post => post.campaignId === activeCampaignFilter);
+    : posts.filter(post => post.campaignId === activeCampaignFilter)
+  ).filter(post => {
+    if (post.pipelineId) {
+      if (seenPipelineIds.has(post.pipelineId)) return false;
+      seenPipelineIds.add(post.pipelineId);
+    }
+    return true;
+  });
 
   const postsByDate: Record<string, ContentPost[]> = {};
   for (const p of filteredPosts) {

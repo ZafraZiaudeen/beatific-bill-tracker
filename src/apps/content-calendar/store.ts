@@ -286,7 +286,16 @@ function readComposerPosts(): ContentPost[] {
   if (typeof window === 'undefined') return [];
   try {
     const parsed = JSON.parse(window.localStorage.getItem(COMPOSER_POSTS_STORAGE_KEY) ?? '[]') as ContentPost[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    // For posts sharing a pipelineId, keep only the last (most recently added = up-to-date)
+    const lastIdx = new Map<string, number>();
+    parsed.forEach((p, i) => { if (p.pipelineId) lastIdx.set(p.pipelineId, i); });
+    const deduped = parsed.filter((p, i) => !p.pipelineId || lastIdx.get(p.pipelineId) === i);
+    // Permanently remove old duplicates from localStorage
+    if (deduped.length < parsed.length) {
+      window.localStorage.setItem(COMPOSER_POSTS_STORAGE_KEY, JSON.stringify(deduped));
+    }
+    return deduped;
   } catch { return []; }
 }
 
@@ -361,6 +370,12 @@ function composerPrimarySlot(draft: ComposerDraft): PlatformSlot | undefined {
     .map(platform => selectedSlotForPlatform(draft, platform))
     .find(slot => Boolean(slot && ((slot.extras.headline as string | undefined)?.trim() || slot.hook.trim() || slot.caption.trim() || slot.mediaIds.length)))
     ?? selectedSlotForPlatform(draft, draft.platforms[0] ?? 'instagram');
+}
+
+function composerSlotTitle(slot: PlatformSlot | undefined): string {
+  if (!slot) return '';
+  const headline = (slot.extras.headline as string | undefined)?.trim();
+  return (headline || slot.hook || slot.caption.split('\n')[0] || '').replaceAll('✨', '').replaceAll('💛', '').trim();
 }
 
 function composerContentType(draft: ComposerDraft) {
@@ -643,6 +658,207 @@ void DEMO_POSTS;
 void DEMO_DRAFTS;
 void IDEA_SEED;
 
+function draftTimestamp(draft: ComposerDraft) {
+  const parsed = Date.parse(draft.updatedAt);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function matchesComposerLinks(draft: ComposerDraft, links: { composerId?: string; calendarPostId?: string; pipelineId?: string }) {
+  return Boolean(
+    (links.composerId && draft.id === links.composerId) ||
+    (links.calendarPostId && draft.calendarPostId === links.calendarPostId) ||
+    (links.pipelineId && draft.pipelineId === links.pipelineId)
+  );
+}
+
+function chooseComposerDraft(drafts: ComposerDraft[], links: { composerId?: string; calendarPostId?: string; pipelineId?: string }) {
+  return drafts
+    .filter(draft => matchesComposerLinks(draft, links))
+    .sort((a, b) => {
+      const score = (draft: ComposerDraft) =>
+        (links.composerId && draft.id === links.composerId ? 1000 : 0) +
+        (links.calendarPostId && draft.calendarPostId === links.calendarPostId ? 100 : 0) +
+        (links.pipelineId && draft.pipelineId === links.pipelineId ? 10 : 0);
+      return score(b) - score(a) || draftTimestamp(b) - draftTimestamp(a);
+    })[0];
+}
+
+function findComposerDraftForPost(post: ContentPost, drafts: ComposerDraft[], pipelineItems: PipelineItem[]) {
+  const linkedPipeline = post.pipelineId ? pipelineItems.find(item => item.id === post.pipelineId) : undefined;
+  return chooseComposerDraft(drafts, {
+    composerId: post.composerId ?? linkedPipeline?.composerId,
+    calendarPostId: post.id,
+    pipelineId: post.pipelineId,
+  });
+}
+
+function findComposerDraftForPipelineItem(item: PipelineItem, drafts: ComposerDraft[], posts: ContentPost[]) {
+  const linkedPost = posts.find(post => post.pipelineId === item.id);
+  return chooseComposerDraft(drafts, {
+    composerId: item.composerId ?? linkedPost?.composerId,
+    calendarPostId: linkedPost?.id,
+    pipelineId: item.id,
+  });
+}
+
+function composerDraftFromPost(post: ContentPost): ComposerDraft {
+  const platforms = post.platforms.length ? post.platforms : undefined;
+  return {
+    ...composerTemplate(post.type, { publishDate: post.date, platforms }),
+    postType: post.type,
+    platforms: platforms ?? ['instagram'],
+    caption: post.title,
+    hook: post.title,
+    publishDate: post.date,
+    publishTime: post.time ?? '10:00',
+    mediaIds: post.mediaIds ?? [],
+    campaignId: post.campaignId,
+    pipelineId: post.pipelineId,
+    calendarPostId: post.id,
+    status: post.status === 'Scheduled' || post.status === 'Published' ? 'scheduled' : 'draft',
+  };
+}
+
+function composerDraftFromPipelineItem(item: PipelineItem, linkedPost?: ContentPost): ComposerDraft {
+  const platforms = item.platforms.length ? item.platforms : undefined;
+  return {
+    ...composerTemplate(item.contentType, { publishDate: item.scheduledDate, platforms }),
+    postType: item.contentType,
+    platforms: platforms ?? ['instagram'],
+    caption: item.title,
+    hook: item.title,
+    publishDate: item.scheduledDate,
+    publishTime: item.scheduledTime ?? '10:00',
+    mediaIds: item.mediaIds ?? linkedPost?.mediaIds ?? [],
+    campaignId: item.campaignId ?? linkedPost?.campaignId,
+    pipelineId: item.id,
+    calendarPostId: linkedPost?.id,
+    status: item.stage === 'ready' || item.stage === 'published' ? 'scheduled' : 'draft',
+  };
+}
+
+function repairComposerDraftLinks(draft: ComposerDraft, links: { pipelineId?: string; calendarPostId?: string }) {
+  return {
+    ...draft,
+    pipelineId: links.pipelineId ?? draft.pipelineId,
+    calendarPostId: links.calendarPostId ?? draft.calendarPostId,
+  };
+}
+
+function rootSlotFromComposerDraft(draft: ComposerDraft, postType = draft.postType): PlatformSlot {
+  return {
+    postType,
+    caption: draft.caption,
+    hashtags: draft.hashtags,
+    altText: draft.altText,
+    hook: draft.hook,
+    cta: draft.cta,
+    mediaIds: draft.mediaIds,
+    firstComment: draft.firstComment,
+    extras: draft.platformExtras ?? {},
+    previewDesign: draft.previewDesign,
+    previewDesigns: draft.previewDesigns,
+  };
+}
+
+function syncComposerDraftPrimarySlot(draft: ComposerDraft, updates: {
+  title?: string;
+  postType?: string;
+  platforms?: Platform[];
+  publishDate?: string;
+  publishTime?: string;
+  mediaIds?: string[];
+  campaignId?: string;
+  status?: ComposerDraft['status'];
+  updatedAt?: string;
+}) {
+  const platforms = updates.platforms?.length ? updates.platforms : (draft.platforms.length ? draft.platforms : ['instagram']);
+  const postType = updates.postType ?? draft.postType;
+  const platform = platforms[0] ?? 'instagram';
+  const existingSlot = draft.contentSlots?.[contentSlotKey(platform, postType)]
+    ?? draft.platformSlots?.[platform]
+    ?? selectedSlotForPlatform(draft, platform)
+    ?? rootSlotFromComposerDraft(draft, postType);
+  const nextSlot: PlatformSlot = {
+    ...existingSlot,
+    postType,
+    caption: updates.title !== undefined ? updates.title : existingSlot.caption,
+    hook: updates.title !== undefined ? updates.title : existingSlot.hook,
+    mediaIds: updates.mediaIds ?? existingSlot.mediaIds,
+  };
+  const contentSlots = { ...(draft.contentSlots ?? {}), [contentSlotKey(platform, postType)]: nextSlot };
+  const platformSlots = platforms.length > 1
+    ? { ...(draft.platformSlots ?? {}), [platform]: nextSlot }
+    : draft.platformSlots;
+  const hasCampaignUpdate = Object.prototype.hasOwnProperty.call(updates, 'campaignId');
+  return {
+    ...draft,
+    postType,
+    platforms,
+    caption: nextSlot.caption,
+    hook: nextSlot.hook,
+    mediaIds: nextSlot.mediaIds,
+    publishDate: updates.publishDate ?? draft.publishDate,
+    publishTime: updates.publishTime ?? draft.publishTime,
+    campaignId: hasCampaignUpdate ? updates.campaignId : draft.campaignId,
+    status: updates.status ?? draft.status,
+    updatedAt: updates.updatedAt ?? draft.updatedAt,
+    platformExtras: nextSlot.extras,
+    previewDesign: nextSlot.previewDesign,
+    previewDesigns: nextSlot.previewDesigns,
+    contentSlots,
+    platformSlots,
+    activePlatformTab: draft.activePlatformTab && platforms.includes(draft.activePlatformTab) ? draft.activePlatformTab : platform,
+  };
+}
+
+function syncComposerDraftFromPost(draft: ComposerDraft, post: ContentPost, forceTitle = false) {
+  return syncComposerDraftPrimarySlot(repairComposerDraftLinks(draft, { pipelineId: post.pipelineId, calendarPostId: post.id }), {
+    title: forceTitle || composerTitle(draft) !== post.title ? post.title : undefined,
+    postType: post.type,
+    platforms: post.platforms,
+    publishDate: post.date,
+    publishTime: post.time,
+    mediaIds: post.mediaIds ?? [],
+    campaignId: post.campaignId,
+    status: post.status === 'Scheduled' || post.status === 'Published' ? 'scheduled' : draft.status,
+  });
+}
+
+function syncComposerDraftFromPipelineItem(draft: ComposerDraft, item: PipelineItem, linkedPost?: ContentPost, forceTitle = false, updatedAt?: string) {
+  const linked = repairComposerDraftLinks(draft, { pipelineId: item.id, calendarPostId: linkedPost?.id });
+  return syncComposerDraftPrimarySlot(linked, {
+    title: forceTitle || composerTitle(linked) !== item.title ? item.title : undefined,
+    postType: item.contentType,
+    platforms: item.platforms,
+    publishDate: item.scheduledDate,
+    publishTime: item.scheduledTime,
+    mediaIds: item.mediaIds ?? linkedPost?.mediaIds ?? [],
+    campaignId: item.campaignId ?? linkedPost?.campaignId,
+    status: item.stage === 'ready' || item.stage === 'published' ? 'scheduled' : linked.status,
+    updatedAt,
+  });
+}
+
+function mergeDuplicateComposerDrafts(canonical: ComposerDraft, duplicates: ComposerDraft[]) {
+  return duplicates.reduce((merged, duplicate) => ({
+    ...merged,
+    contentSlots: { ...(duplicate.contentSlots ?? {}), ...(merged.contentSlots ?? {}) },
+    platformSlots: { ...(duplicate.platformSlots ?? {}), ...(merged.platformSlots ?? {}) },
+    previewDesign: merged.previewDesign ?? duplicate.previewDesign,
+    previewDesigns: { ...(duplicate.previewDesigns ?? {}), ...(merged.previewDesigns ?? {}) },
+  }), canonical);
+}
+
+function upsertComposerDraft(drafts: ComposerDraft[], draft: ComposerDraft) {
+  const duplicates = drafts.filter(item =>
+    item.id !== draft.id &&
+    ((draft.pipelineId && item.pipelineId === draft.pipelineId) || (draft.calendarPostId && item.calendarPostId === draft.calendarPostId))
+  );
+  const merged = mergeDuplicateComposerDrafts(draft, duplicates);
+  return [...drafts.filter(item => item.id !== draft.id && !duplicates.some(duplicate => duplicate.id === item.id)), merged];
+}
+
 const initialSettings = readContentCalendarSettings();
 
 export const useContentCalendarStore = create<ContentCalendarStore>()((set, get) => ({
@@ -666,46 +882,30 @@ export const useContentCalendarStore = create<ContentCalendarStore>()((set, get)
   openComposer: (options = {}) => {
     const returnView = options.returnView ?? get().activeView;
     let draft: ComposerDraft | undefined;
+    const currentDrafts = get().composerDrafts;
+    const currentPosts = get().posts;
+    const currentPipelineItems = get().pipelineItems;
     if (options.resumeLatest) {
-      draft = [...get().composerDrafts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+      draft = [...currentDrafts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
     }
     if (options.sourcePost) {
       const post = options.sourcePost;
-      draft = get().composerDrafts.find(item => item.id === post.composerId || item.calendarPostId === post.id);
+      draft = findComposerDraftForPost(post, currentDrafts, currentPipelineItems);
       if (!draft) {
-        draft = {
-          ...composerTemplate(post.type, { publishDate: post.date, platforms: post.platforms }),
-          postType: post.type,
-          platforms: post.platforms,
-          caption: post.title,
-          hook: post.title,
-          publishDate: post.date,
-          publishTime: post.time ?? '10:00',
-          mediaIds: post.mediaIds ?? [],
-          campaignId: post.campaignId,
-          pipelineId: post.pipelineId,
-          calendarPostId: (post.composerId || post.pipelineId) ? post.id : undefined,
-          status: post.status === 'Scheduled' ? 'scheduled' : 'draft',
-        };
+        draft = composerDraftFromPost(post);
+      } else {
+        draft = syncComposerDraftFromPost(draft, post);
       }
     }
     if (options.pipelineId) {
-      const pipelineItem = get().pipelineItems.find(item => item.id === options.pipelineId);
-      draft = get().composerDrafts.find(item => item.pipelineId === options.pipelineId || item.id === pipelineItem?.composerId);
+      const pipelineItem = currentPipelineItems.find(item => item.id === options.pipelineId);
+      const linkedPost = pipelineItem ? currentPosts.find(p => p.pipelineId === pipelineItem.id) : undefined;
+      draft = pipelineItem ? findComposerDraftForPipelineItem(pipelineItem, currentDrafts, currentPosts) : undefined;
       if (!draft && pipelineItem) {
-        draft = {
-          ...composerTemplate(pipelineItem.contentType, { platforms: pipelineItem.platforms }),
-          postType: pipelineItem.contentType,
-          platforms: pipelineItem.platforms,
-          caption: pipelineItem.title,
-          hook: pipelineItem.title,
-          publishDate: pipelineItem.scheduledDate,
-          publishTime: pipelineItem.scheduledTime ?? '10:00',
-          mediaIds: pipelineItem.mediaIds ?? [],
-          campaignId: pipelineItem.campaignId,
-          pipelineId: pipelineItem.id,
-          status: pipelineItem.stage === 'ready' ? 'scheduled' : 'draft',
-        };
+        draft = composerDraftFromPipelineItem(pipelineItem, linkedPost);
+      }
+      if (draft && pipelineItem) {
+        draft = syncComposerDraftFromPipelineItem(draft, pipelineItem, linkedPost);
       }
     }
     if (options.sourceTemplate) {
@@ -735,67 +935,160 @@ export const useContentCalendarStore = create<ContentCalendarStore>()((set, get)
         platforms: options.platforms?.length ? options.platforms : draft.platforms,
       };
     }
-    const drafts = [...get().composerDrafts.filter(item => item.id !== draft.id), draft];
+    const drafts = upsertComposerDraft(currentDrafts, draft);
+    let posts = currentPosts;
+    let pipelineItems = currentPipelineItems;
+    if (draft.calendarPostId) {
+      posts = posts.map(post => post.id === draft.calendarPostId
+        ? { ...post, composerId: draft.id, pipelineId: draft.pipelineId ?? post.pipelineId }
+        : post);
+    }
+    if (draft.pipelineId) {
+      pipelineItems = pipelineItems.map(item => item.id === draft.pipelineId
+        ? { ...item, composerId: draft.id }
+        : item);
+    }
     persistComposerDrafts(drafts);
-    set({ composerDrafts: drafts, activeComposerId: draft.id, composerReturnView: returnView, activeView: 'composer' });
+    if (posts !== currentPosts) persistComposerPosts(posts);
+    if (pipelineItems !== currentPipelineItems) persistPipelineItems(pipelineItems);
+    set({ composerDrafts: drafts, posts, pipelineItems, activeComposerId: draft.id, composerReturnView: returnView, activeView: 'composer' });
   },
   closeComposer: () => set(state => ({ activeView: state.composerReturnView, activeComposerId: null })),
   saveComposerDraft: (draft) => {
     const now = new Date().toISOString();
-    let pipelineId = draft.pipelineId;
-    const existing = pipelineId ? get().pipelineItems.find(item => item.id === pipelineId) : undefined;
-    if (!pipelineId) pipelineId = `pipeline-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const targetStage = existing?.stage ?? 'drafting';
-    const order = existing?.order ?? get().pipelineItems.filter(item => item.stage === targetStage && item.id !== pipelineId).length;
-    const saved: ComposerDraft = { ...draft, pipelineId, status: draft.calendarPostId ? draft.status : 'draft', updatedAt: now };
-    const pipeline: PipelineItem = {
-      ...existing,
-      id: pipelineId, title: composerTitle(saved), stage: targetStage, order,
-      platforms: saved.platforms, contentType: composerContentType(saved), campaign: existing?.campaign, campaignId: saved.campaignId ?? existing?.campaignId,
-      scheduledDate: saved.publishDate, scheduledTime: saved.publishTime,
-      thumbnail: existing?.thumbnail ?? { x: 953, y: 176, source: 'composer' },
-      checklistComplete: Object.values(saved.checklist).filter(Boolean).length,
-      checklistTotal: 6, mediaIds: composerMediaIds(saved), composerId: saved.id,
+    const currentPipelineItems = get().pipelineItems;
+    const currentPosts = get().posts;
+    const linkedCalendarPost = draft.calendarPostId ? currentPosts.find(post => post.id === draft.calendarPostId) : undefined;
+    let pipelineId = draft.pipelineId ?? linkedCalendarPost?.pipelineId;
+    let existing = pipelineId ? currentPipelineItems.find(item => item.id === pipelineId) : undefined;
+    existing ??= currentPipelineItems.find(item => item.composerId === draft.id);
+    pipelineId ??= existing?.id;
+    const shouldUpsertPipeline = Boolean(pipelineId || !draft.calendarPostId);
+    if (shouldUpsertPipeline && !pipelineId) pipelineId = `pipeline-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const saved: ComposerDraft = {
+      ...draft,
+      ...(pipelineId ? { pipelineId } : {}),
+      status: draft.calendarPostId ? draft.status : 'draft',
+      updatedAt: now,
     };
-    const pipelineItems = normalizeOrders([...get().pipelineItems.filter(item => item.id !== pipelineId), pipeline]);
-    const composerDrafts = [...get().composerDrafts.filter(item => item.id !== saved.id), saved];
-    let posts = get().posts;
+    let pipelineItems = currentPipelineItems;
+    if (shouldUpsertPipeline && pipelineId) {
+      const targetStage = existing?.stage ?? 'drafting';
+      const order = existing?.order ?? currentPipelineItems.filter(item => item.stage === targetStage && item.id !== pipelineId).length;
+      const pipeline: PipelineItem = {
+        ...existing,
+        id: pipelineId, title: composerTitle(saved), stage: targetStage, order,
+        platforms: saved.platforms, contentType: composerContentType(saved), campaign: saved.campaignId ? existing?.campaign : undefined, campaignId: saved.campaignId,
+        scheduledDate: saved.publishDate, scheduledTime: saved.publishTime,
+        thumbnail: existing?.thumbnail ?? { x: 953, y: 176, source: 'composer' },
+        checklistComplete: Object.values(saved.checklist).filter(Boolean).length,
+        checklistTotal: 6, mediaIds: composerMediaIds(saved), composerId: saved.id,
+      };
+      pipelineItems = normalizeOrders([...currentPipelineItems.filter(item => item.id !== pipelineId), pipeline]);
+    }
+    const composerDrafts = upsertComposerDraft(get().composerDrafts, saved);
+    let posts = currentPosts;
     if (saved.calendarPostId) {
       posts = posts.map(p =>
         p.id === saved.calendarPostId
-          ? { ...p, title: composerTitle(saved), type: composerContentType(saved), platforms: saved.platforms, date: saved.publishDate ?? p.date, time: saved.publishTime, mediaIds: composerMediaIds(saved) }
+          ? {
+              ...p,
+              title: composerTitle(saved), type: composerContentType(saved),
+              platforms: saved.platforms, date: saved.publishDate ?? p.date, time: saved.publishTime,
+              mediaIds: composerMediaIds(saved), composerId: saved.id, pipelineId: pipelineId ?? p.pipelineId,
+              campaignId: saved.campaignId,
+            }
           : p
       );
       persistComposerPosts(posts);
     }
-    persistPipelineItems(pipelineItems); persistComposerDrafts(composerDrafts);
+    // Sync other per-platform pipeline items and posts for this draft
+    const otherPlatformItems = pipelineItems.filter(item => item.composerId === saved.id && item.id !== pipelineId);
+    if (otherPlatformItems.length) {
+      pipelineItems = pipelineItems.map(item => {
+        if (item.composerId !== saved.id || item.id === pipelineId) return item;
+        const platform = item.platforms[0];
+        if (!platform) return item;
+        const slot = selectedSlotForPlatform(saved, platform);
+        const postType = slot?.postType ?? saved.postType;
+        const title = composerSlotTitle(slot) || composerTitle(saved);
+        const mediaIds = slot?.mediaIds ?? saved.mediaIds;
+        return { ...item, title, contentType: postType, scheduledDate: saved.publishDate, scheduledTime: saved.publishTime, mediaIds, campaignId: saved.campaignId };
+      });
+      posts = posts.map(p => {
+        if (p.composerId !== saved.id || p.id === saved.calendarPostId) return p;
+        const platform = p.platforms[0];
+        if (!platform) return p;
+        const slot = selectedSlotForPlatform(saved, platform);
+        const postType = slot?.postType ?? saved.postType;
+        const title = composerSlotTitle(slot) || composerTitle(saved);
+        const mediaIds = slot?.mediaIds ?? saved.mediaIds;
+        return { ...p, title, type: postType, date: saved.publishDate ?? p.date, time: saved.publishTime, mediaIds, campaignId: saved.campaignId };
+      });
+      persistComposerPosts(posts);
+    }
+    if (pipelineItems !== currentPipelineItems) persistPipelineItems(pipelineItems);
+    persistComposerDrafts(composerDrafts);
     set({ pipelineItems, composerDrafts, posts, drafts: composerDrafts.map(item => ({ id: item.id, title: composerTitle(item), type: composerContentType(item), updatedAt: item.updatedAt })), activeComposerId: saved.id });
     return saved;
   },
   scheduleComposer: (draft) => {
     const now = new Date().toISOString();
-    let pipelineId = draft.pipelineId;
-    const existingPipeline = pipelineId ? get().pipelineItems.find(item => item.id === pipelineId) : undefined;
-    if (!pipelineId) pipelineId = `pipeline-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const calendarPostId = draft.calendarPostId ?? `composer-post-${draft.id}`;
-    const order = existingPipeline?.stage === 'ready' ? existingPipeline.order : get().pipelineItems.filter(item => item.stage === 'ready' && item.id !== pipelineId).length;
-    const saved: ComposerDraft = { ...draft, pipelineId, calendarPostId, status: 'scheduled', updatedAt: now };
-    const pipeline: PipelineItem = {
-      ...existingPipeline,
-      id: pipelineId, title: composerTitle(saved), stage: 'ready', order,
-      platforms: saved.platforms, contentType: composerContentType(saved), campaign: existingPipeline?.campaign, campaignId: saved.campaignId ?? existingPipeline?.campaignId,
-      scheduledDate: saved.publishDate, scheduledTime: saved.publishTime,
-      thumbnail: existingPipeline?.thumbnail ?? { x: 953, y: 176, source: 'composer' },
-      checklistComplete: Object.values(saved.checklist).filter(Boolean).length,
-      checklistTotal: 6, mediaIds: composerMediaIds(saved), composerId: saved.id,
-    };
-    const calendarPost: ContentPost = {
-      id: calendarPostId, title: composerTitle(saved), type: composerContentType(saved), status: 'Scheduled',
-      date: saved.publishDate, time: saved.publishTime, platforms: saved.platforms,
-      category: 'Composer', mediaIds: composerMediaIds(saved), composerId: saved.id, pipelineId, campaignId: saved.campaignId,
-    };
-    const pipelineItems = normalizeOrders([...get().pipelineItems.filter(item => item.id !== pipelineId), pipeline]);
-    const posts = [...get().posts.filter(post => post.id !== calendarPostId), calendarPost];
+    const isNewPipeline = !draft.pipelineId;
+    const oldPipelineId = draft.pipelineId;
+    const oldCalendarPostId = draft.calendarPostId;
+
+    let pipelineItems = get().pipelineItems.filter(item => item.composerId !== draft.id && item.id !== oldPipelineId);
+    let posts = get().posts.filter(post => {
+      if (post.composerId === draft.id) return false;
+      if (post.id === oldCalendarPostId) return false;
+      if (oldPipelineId && post.pipelineId === oldPipelineId) return false;
+      return true;
+    });
+
+    let firstPipelineId: string | undefined;
+    let firstCalendarPostId: string | undefined;
+    const checklistComplete = Object.values(draft.checklist).filter(Boolean).length;
+    const baseOrder = pipelineItems.filter(item => item.stage === 'ready').length;
+
+    for (let i = 0; i < draft.platforms.length; i++) {
+      const platform = draft.platforms[i];
+      const platPipelineId = `pipeline-${draft.id}-${platform}`;
+      const platCalendarPostId = `cpost-${draft.id}-${platform}`;
+      if (!firstPipelineId) firstPipelineId = platPipelineId;
+      if (!firstCalendarPostId) firstCalendarPostId = platCalendarPostId;
+
+      const slot = selectedSlotForPlatform(draft, platform);
+      const postType = slot?.postType ?? draft.postType;
+      const title = composerSlotTitle(slot) || composerTitle(draft);
+      const mediaIds = slot?.mediaIds ?? draft.mediaIds;
+
+      pipelineItems.push({
+        id: platPipelineId, title, stage: 'ready', order: baseOrder + i,
+        platforms: [platform], contentType: postType, campaignId: draft.campaignId,
+        scheduledDate: draft.publishDate, scheduledTime: draft.publishTime,
+        thumbnail: { x: 953, y: 176, source: 'composer' as const },
+        checklistComplete, checklistTotal: 6, mediaIds, composerId: draft.id,
+      });
+
+      // Remove orphaned Pipeline-placeholder posts
+      if (isNewPipeline) {
+        posts = posts.filter(post => !(
+          post.category === 'Pipeline' && !post.composerId
+          && post.date === draft.publishDate
+          && post.platforms.includes(platform)
+        ));
+      }
+
+      posts.push({
+        id: platCalendarPostId, title, type: postType, status: 'Scheduled',
+        date: draft.publishDate, time: draft.publishTime, platforms: [platform],
+        category: 'Composer', mediaIds, composerId: draft.id, pipelineId: platPipelineId, campaignId: draft.campaignId,
+      });
+    }
+
+    pipelineItems = normalizeOrders(pipelineItems);
+    const saved: ComposerDraft = { ...draft, pipelineId: firstPipelineId, calendarPostId: firstCalendarPostId, status: 'scheduled', updatedAt: now };
     const composerDrafts = [...get().composerDrafts.filter(item => item.id !== saved.id), saved];
     persistPipelineItems(pipelineItems); persistComposerDrafts(composerDrafts); persistComposerPosts(posts);
     set({ pipelineItems, posts, composerDrafts, drafts: composerDrafts.map(item => ({ id: item.id, title: composerTitle(item), type: composerContentType(item), updatedAt: item.updatedAt })), activeComposerId: saved.id, activeView: 'calendar' });
@@ -808,14 +1101,20 @@ export const useContentCalendarStore = create<ContentCalendarStore>()((set, get)
     let composerDrafts = get().composerDrafts;
     if (post?.pipelineId) {
       pipelineItems = pipelineItems.filter(item => item.id !== post.pipelineId);
-      composerDrafts = composerDrafts.map(d =>
-        d.pipelineId === post.pipelineId ? { ...d, pipelineId: undefined } : d
-      );
       persistPipelineItems(pipelineItems);
     }
-    composerDrafts = composerDrafts.map(d =>
-      d.calendarPostId === id ? { ...d, calendarPostId: undefined, status: 'draft' } : d
-    );
+    if (post?.composerId) {
+      const remaining = pipelineItems.filter(item => item.composerId === post.composerId);
+      if (remaining.length === 0) {
+        composerDrafts = composerDrafts.map(d =>
+          d.id === post.composerId ? { ...d, pipelineId: undefined, calendarPostId: undefined, status: 'draft' } : d
+        );
+      }
+    } else {
+      composerDrafts = composerDrafts.map(d =>
+        d.calendarPostId === id ? { ...d, calendarPostId: undefined, status: 'draft' } : d
+      );
+    }
     persistComposerDrafts(composerDrafts);
     persistComposerPosts(posts);
     set({ posts, pipelineItems, composerDrafts, drafts: composerDrafts.map(d => ({ id: d.id, title: composerTitle(d), type: composerContentType(d), updatedAt: d.updatedAt })) });
@@ -976,10 +1275,19 @@ export const useContentCalendarStore = create<ContentCalendarStore>()((set, get)
       checklistComplete: 1, checklistTotal: 3,
     };
     const pipelineItems = [...get().pipelineItems, pipelineItem];
+    const calendarPost: ContentPost = {
+      id: `pipeline-post-${pipelineId}`,
+      title: idea.title, type: idea.type, status: pipelineStagePostStatus('drafting'),
+      date: localDateKey(), platforms: [idea.platform],
+      category: 'Pipeline', mediaIds: [],
+      pipelineId,
+    };
+    const posts = [...get().posts, calendarPost];
     const ideas = get().ideas.map(candidate => candidate.id === id ? { ...candidate, status: 'Planned' as const, linkedPipelineId: pipelineId } : candidate);
     persistPipelineItems(pipelineItems);
+    persistComposerPosts(posts);
     persistIdeas(ideas);
-    set({ pipelineItems, ideas });
+    set({ pipelineItems, posts, ideas });
   },
   stats: { planned: 0, scheduled: 0, published: 0, ideas: 0 },
 
@@ -1010,7 +1318,7 @@ export const useContentCalendarStore = create<ContentCalendarStore>()((set, get)
   updatePipelineItem: (id, updates) => {
     const next = normalizeOrders(get().pipelineItems.map(item => item.id === id ? { ...item, ...updates } : item));
     const updatedItem = next.find(item => item.id === id);
-    const posts = updatedItem
+    let posts = updatedItem
       ? get().posts.map(p =>
           p.pipelineId === id
             ? {
@@ -1022,42 +1330,48 @@ export const useContentCalendarStore = create<ContentCalendarStore>()((set, get)
                 time: updatedItem.scheduledTime ?? p.time,
                 platforms: updatedItem.platforms ?? p.platforms,
                 mediaIds: updatedItem.mediaIds ?? p.mediaIds,
-                campaignId: updatedItem.campaignId ?? p.campaignId,
+                campaignId: updatedItem.campaignId,
               }
             : p
         )
       : get().posts;
-    const composerDrafts = updatedItem?.composerId
-      ? get().composerDrafts.map(d =>
-          d.id === updatedItem.composerId
-            ? {
-                ...d,
-                caption: updates.title !== undefined ? updates.title : d.caption,
-                hook: updates.title !== undefined ? updates.title : d.hook,
-                postType: updates.contentType !== undefined ? updates.contentType : d.postType,
-                platforms: updates.platforms !== undefined ? updates.platforms : d.platforms,
-                publishDate: updates.scheduledDate !== undefined ? updates.scheduledDate : d.publishDate,
-                publishTime: updates.scheduledTime !== undefined ? updates.scheduledTime : d.publishTime,
-                campaignId: updates.campaignId !== undefined ? updates.campaignId : d.campaignId,
-                updatedAt: new Date().toISOString(),
-              }
-            : d
-        )
-      : get().composerDrafts;
-    persistPipelineItems(next); persistComposerPosts(posts); persistComposerDrafts(composerDrafts);
+    let pipelineItems = next;
+    let composerDrafts = get().composerDrafts;
+    if (updatedItem) {
+      const linkedPost = posts.find(post => post.pipelineId === id);
+      const draft = findComposerDraftForPipelineItem(updatedItem, composerDrafts, posts);
+      if (draft) {
+        const syncedDraft = syncComposerDraftFromPipelineItem(draft, updatedItem, linkedPost, updates.title !== undefined, new Date().toISOString());
+        composerDrafts = upsertComposerDraft(composerDrafts, syncedDraft);
+        pipelineItems = pipelineItems.map(item => item.id === id ? { ...item, composerId: syncedDraft.id } : item);
+        posts = posts.map(post => post.pipelineId === id ? { ...post, composerId: syncedDraft.id } : post);
+      }
+    }
+    persistPipelineItems(pipelineItems); persistComposerPosts(posts); persistComposerDrafts(composerDrafts);
     recalculateMediaUsage();
-    set({ pipelineItems: next, posts, composerDrafts, drafts: composerDrafts.map(d => ({ id: d.id, title: composerTitle(d), type: composerContentType(d), updatedAt: d.updatedAt })) });
+    set({ pipelineItems, posts, composerDrafts, drafts: composerDrafts.map(d => ({ id: d.id, title: composerTitle(d), type: composerContentType(d), updatedAt: d.updatedAt })) });
   },
   deletePipelineItem: (id) => {
+    const deletedItem = get().pipelineItems.find(item => item.id === id);
     const next = get().pipelineItems.filter(item => item.id !== id);
-    const deletedPostIds = new Set(get().posts.filter(p => p.pipelineId === id).map(p => p.id));
     const posts = get().posts.filter(post => post.pipelineId !== id);
-    const composerDrafts = get().composerDrafts.map(draft => {
-      let updated = draft;
-      if (draft.pipelineId === id) updated = { ...updated, pipelineId: undefined };
-      if (draft.calendarPostId && deletedPostIds.has(draft.calendarPostId)) updated = { ...updated, calendarPostId: undefined, status: 'draft' };
-      return updated;
-    });
+    let composerDrafts = get().composerDrafts;
+    if (deletedItem?.composerId) {
+      const remaining = next.filter(item => item.composerId === deletedItem.composerId);
+      if (remaining.length === 0) {
+        composerDrafts = composerDrafts.map(draft =>
+          draft.id === deletedItem.composerId ? { ...draft, pipelineId: undefined, calendarPostId: undefined, status: 'draft' } : draft
+        );
+      }
+    } else {
+      composerDrafts = composerDrafts.map(draft => {
+        let updated = draft;
+        if (draft.pipelineId === id) updated = { ...updated, pipelineId: undefined };
+        const deletedPostIds = new Set(get().posts.filter(p => p.pipelineId === id).map(p => p.id));
+        if (draft.calendarPostId && deletedPostIds.has(draft.calendarPostId)) updated = { ...updated, calendarPostId: undefined, status: 'draft' };
+        return updated;
+      });
+    }
     persistPipelineItems(next); persistComposerDrafts(composerDrafts); persistComposerPosts(posts);
     recalculateMediaUsage();
     set({ pipelineItems: normalizeOrders(next), composerDrafts, posts, drafts: composerDrafts.map(draft => ({ id: draft.id, title: composerTitle(draft), type: composerContentType(draft), updatedAt: draft.updatedAt })) });

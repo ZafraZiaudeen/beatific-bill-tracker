@@ -29,6 +29,7 @@ import type { WeekStartPreference } from "../types"
 
 const CSS = `
 .cc-an-page{background:radial-gradient(circle at 75% 8%,rgba(255,255,255,.7),transparent 28%),var(--cc-bg);color:var(--cc-text);min-height:100%;padding-bottom:32px}.cc-an-header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:16px 22px 14px;border-bottom:1px solid var(--cc-border)}.cc-an-heading-row{display:flex;align-items:center;gap:9px}.cc-an-heading{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:29px;line-height:1;letter-spacing:-.02em;margin:0;color:var(--cc-text);white-space:nowrap}.cc-an-swoop{display:block;width:115px;height:11px;margin-top:8px;border-top:3px solid var(--cc-accent);border-radius:50%;transform:rotate(-3deg)}.cc-an-header-right{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:10px}.cc-an-meta{display:flex;align-items:center;gap:18px;font-weight:650;font-size:12px}.cc-an-date{display:flex;align-items:center;gap:7px;color:var(--cc-text)}.cc-an-local{display:flex;align-items:center;gap:7px;padding:6px 14px;background:#fae7c5;border-radius:99px;font-size:11px;color:#7a5a2a}.cc-an-toolbar{display:flex;align-items:center;gap:8px;padding:10px 22px 12px;border-bottom:1px solid var(--cc-border);justify-content:flex-end;flex-wrap:wrap}.cc-an-search{height:31px;min-width:220px;display:flex;align-items:center;gap:8px;padding:0 11px;background:var(--cc-card);border:1px solid var(--cc-border);border-radius:11px;font-size:10.5px;color:var(--cc-text-3)}.cc-an-search input{border:0;outline:0;width:100%;background:transparent;font:inherit;color:var(--cc-text)}.cc-an-select-wrap{position:relative}.cc-an-select{appearance:none;height:31px;padding:0 26px 0 11px;border:1px solid var(--cc-border);border-radius:11px;background:var(--cc-card);font-size:10.5px;color:var(--cc-text);outline:0;cursor:pointer;font-family:inherit}.cc-an-select-wrap>svg{position:absolute;right:8px;top:10px;pointer-events:none;color:var(--cc-text-2)}.cc-an-create-btn{height:32px;display:flex;align-items:center;gap:6px;padding:0 16px;border-radius:18px;background:linear-gradient(90deg,#d96d49,#dc815f);color:#fff;font-size:11px;font-weight:700;border:none;cursor:pointer;white-space:nowrap}.cc-an-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 22px 0}.cc-an-stat{background:rgba(255,255,255,.88);border:1px solid var(--cc-border);border-radius:11px;padding:14px 16px;display:flex;gap:13px;align-items:flex-start}.cc-an-stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.cc-an-stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cc-text-3);margin-bottom:4px}.cc-an-stat-value{font-family:'DM Serif Display',Georgia,serif;font-size:28px;font-weight:400;color:var(--cc-text);line-height:1;margin-bottom:3px}.cc-an-stat-sub{font-size:10px;color:var(--cc-text-3);line-height:1.3}.cc-an-body{display:grid;grid-template-columns:1fr 258px;gap:16px;padding:16px 22px 0;align-items:start}.cc-an-main{display:grid;grid-template-columns:1fr 1fr;gap:14px}.cc-an-card,.cc-an-insights{background:rgba(255,255,255,.88);border:1px solid var(--cc-border);border-radius:11px;padding:16px}.cc-an-card-hdr,.cc-an-insights-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.cc-an-card-title,.cc-an-insights-title{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:16px;color:var(--cc-text);margin:0;display:flex;align-items:center;gap:7px}.cc-an-details-btn{font-size:10.5px;font-weight:700;color:var(--cc-accent);background:none;border:none;cursor:pointer;padding:0;font-family:inherit}.cc-an-donut-wrap{display:flex;align-items:center;gap:12px}.cc-an-legend{display:flex;flex-direction:column;gap:10px;flex:1}.cc-an-legend-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--cc-text-2)}.cc-an-legend-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}.cc-an-legend-label{flex:1}.cc-an-legend-count{font-weight:700;color:var(--cc-text)}.cc-an-legend-pct{color:var(--cc-text-3);min-width:34px;text-align:right}.cc-an-chart-empty{height:150px;display:grid;place-items:center;color:#9a8a82;font-size:11px;text-align:center;border:1px dashed #eadfd6;border-radius:8px}.cc-an-table-hdr,.cc-an-table-row{display:grid;grid-template-columns:1fr 70px 82px;gap:8px}.cc-an-table-hdr{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--cc-text-3);margin-bottom:8px}.cc-an-table-row{align-items:center;padding:8px 2px;border-top:1px solid #f0e8e0}.cc-an-post-info{display:flex;align-items:center;gap:9px;min-width:0}.cc-an-post-thumb{width:36px;height:36px;border-radius:6px;flex-shrink:0;object-fit:cover;background:#eee3d9}.cc-an-post-title{font-size:11px;font-weight:600;color:var(--cc-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-an-post-meta{font-size:9.5px;color:var(--cc-text-3)}.cc-an-type-pill{display:inline-block;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-an-rate-col{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.cc-an-rate{font-size:11px;font-weight:700;color:var(--cc-text)}.cc-an-rate-sub{font-size:9px;color:var(--cc-text-3)}.cc-an-insights-title{font-size:17px}.cc-an-insight-card{margin-bottom:14px}.cc-an-insight-row{display:flex;align-items:flex-start;gap:10px}.cc-an-insight-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}.cc-an-insight-body{flex:1;min-width:0}.cc-an-insight-title{font-size:12px;font-weight:700;color:var(--cc-text);margin-bottom:4px}.cc-an-insight-text{font-size:10.5px;color:var(--cc-text-3);line-height:1.45}.cc-an-insight-line{width:28px;border-top:2px solid var(--cc-border);border-radius:50%;margin-top:8px;transform:rotate(-2deg)}.cc-an-overlay{position:fixed;inset:0;background:rgba(35,31,29,.28);z-index:1000;display:grid;place-items:center;padding:20px}.cc-an-dialog{width:min(560px,100%);max-height:92vh;overflow:auto;background:#fffaf6;border:1px solid #e9ddd3;border-radius:14px;padding:20px;box-shadow:0 18px 60px rgba(48,39,34,.2)}.cc-an-dialog-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px}.cc-an-dialog-title{font:400 24px 'DM Serif Display',Georgia,serif;margin:0;color:var(--cc-text)}.cc-an-dialog-sub{font-size:10px;color:var(--cc-text-3);margin:6px 0 0}.cc-an-close{width:28px;height:28px;border:1px solid #e0d6ce;border-radius:8px;background:var(--cc-card);color:#806f66;display:grid;place-items:center;cursor:pointer}.cc-an-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-an-field{display:flex;flex-direction:column;gap:5px}.cc-an-field.full{grid-column:1/-1}.cc-an-field label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#806f66}.cc-an-field input,.cc-an-field select,.cc-an-field textarea{border:1px solid #e0d6ce;border-radius:8px;background:var(--cc-card);padding:9px;font-size:11px;outline:0;font-family:inherit;color:var(--cc-text)}.cc-an-field textarea{min-height:70px;resize:vertical}.cc-an-field input:focus,.cc-an-field select:focus,.cc-an-field textarea:focus{border-color:var(--cc-accent)}.cc-an-error{font-size:10px;color:#ad5144;grid-column:1/-1}.cc-an-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.cc-an-dialog-actions button{padding:8px 13px;border-radius:8px;border:1px solid #dfd5cd;background:var(--cc-card);color:#806f66;font-size:10px;cursor:pointer}.cc-an-dialog-actions .primary{background:var(--cc-accent);border-color:var(--cc-accent);color:#fff}@media(max-width:1050px){.cc-an-page{min-width:900px}}@media(max-width:800px){.cc-an-page{min-width:0}.cc-an-stats{grid-template-columns:1fr 1fr}.cc-an-body{grid-template-columns:1fr}.cc-an-insights{order:-1}.cc-an-main{grid-template-columns:1fr}}@media(max-width:520px){.cc-an-stats{grid-template-columns:1fr}.cc-an-toolbar{justify-content:flex-start}.cc-an-search{min-width:100%;order:-1}.cc-an-form{grid-template-columns:1fr}.cc-an-field.full{grid-column:auto}}
+.cc-an-pd-group{margin-bottom:18px}.cc-an-pd-group:last-child{margin-bottom:0}.cc-an-pd-group-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0e8e0}.cc-an-pd-group-name{font-size:13px;font-weight:700;color:var(--cc-text)}.cc-an-pd-group-count{font-size:10px;font-weight:700;color:#fff;background:var(--cc-accent);border-radius:99px;padding:1px 8px}.cc-an-pd-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f8f0ea}.cc-an-pd-item:last-child{border-bottom:0}.cc-an-pd-title{flex:1;min-width:0;font-size:11px;font-weight:600;color:var(--cc-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-an-pd-date{font-size:9.5px;color:var(--cc-text-3);white-space:nowrap}.cc-an-pd-pill{display:inline-block;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:800;white-space:nowrap}.cc-an-pd-status{font-size:9px;font-weight:700;white-space:nowrap}
 `
 
 type Period = "week" | "month" | "30days" | "custom"
@@ -89,10 +90,10 @@ function itemKey(item: {
   composerId?: string
   pipelineId?: string
 }) {
-  return item.composerId
-    ? `composer:${item.composerId}`
-    : item.pipelineId
-      ? `pipeline:${item.pipelineId}`
+  return item.pipelineId
+    ? `pipeline:${item.pipelineId}`
+    : item.composerId
+      ? `composer:${item.composerId}`
       : `id:${item.id}`
 }
 function buildItems(
@@ -174,11 +175,13 @@ function buildItems(
         text: `${existing.text} ${item.notes ?? ""}`.trim(),
       }
       keys.add(itemKey(item))
+      keys.add(`pipeline:${item.id}`)
       return
     }
     const key = itemKey(item)
     if (keys.has(key)) return
     keys.add(key)
+    keys.add(`pipeline:${item.id}`)
     items.push({
       id: item.id,
       title: item.title || "Untitled pipeline item",
@@ -620,6 +623,7 @@ export default function AnalyticsDataPage() {
     deletePerformanceRecord,
     openComposer,
     settings,
+    setActiveView,
   } = useContentCalendarStore()
   const { items: mediaItems, urls: mediaUrls } = useMediaAssets()
   const [query, setQuery] = useState("")
@@ -631,6 +635,7 @@ export default function AnalyticsDataPage() {
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
   const [dialog, setDialog] = useState<{ mode: DialogMode; id?: string }>()
+  const [platformDetailView, setPlatformDetailView] = useState(false)
   const [createMenu, setCreateMenu] = useState(false)
   const [now] = useState(() => new Date())
   const platformOptions = getActivePlatformOptions()
@@ -721,7 +726,7 @@ export default function AnalyticsDataPage() {
     })
     .filter((entry) => entry.item)
     .sort((a, b) => b.rate - a.rate || b.interactions - a.interactions)
-    .slice(0, 5)
+    .slice(0, 3)
   const selectedRecord = dialog?.id
     ? performanceRecords.find((record) => record.id === dialog.id)
     : undefined
@@ -1106,12 +1111,20 @@ export default function AnalyticsDataPage() {
               <h3 className="cc-an-card-title">
                 Top-Performing Content <Sparkles size={14} color="#e6ad3f" />
               </h3>
-              <button
-                className="cc-an-details-btn"
-                onClick={() => setDialog({ mode: "create" })}
-              >
-                Add performance →
-              </button>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  className="cc-an-details-btn"
+                  onClick={() => setDialog({ mode: "create" })}
+                >
+                  Add →
+                </button>
+                <button
+                  className="cc-an-details-btn"
+                  onClick={() => setActiveView("performance")}
+                >
+                  View all →
+                </button>
+              </div>
             </div>
             {top.length ? (
               <>
@@ -1187,7 +1200,7 @@ export default function AnalyticsDataPage() {
               </h3>
               <button
                 className="cc-an-details-btn"
-                onClick={() => setPlatform("all")}
+                onClick={() => setPlatformDetailView(true)}
               >
                 View details →
               </button>
@@ -1278,6 +1291,101 @@ export default function AnalyticsDataPage() {
           </button>
         </div>
       </div>
+      {platformDetailView && (
+        <div
+          className="cc-an-overlay"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget &&
+            setPlatformDetailView(false)
+          }
+        >
+          <div
+            className="cc-an-dialog"
+            style={{ width: "min(640px, 100%)" }}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="cc-an-dialog-head">
+              <div>
+                <h2 className="cc-an-dialog-title">Content by Platform</h2>
+                <p className="cc-an-dialog-sub">
+                  All content items grouped by platform for the selected period.
+                </p>
+              </div>
+              <button
+                className="cc-an-close"
+                onClick={() => setPlatformDetailView(false)}
+                aria-label="Close platform details"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {platformCounts.length ? (
+              <div>
+                {platformCounts.map((entry, groupIndex) => {
+                  const items = filtered.filter((item) =>
+                    item.platforms.includes(entry.label)
+                  )
+                  return (
+                    <div className="cc-an-pd-group" key={entry.label}>
+                      <div className="cc-an-pd-group-hdr">
+                        <span className="cc-an-pd-group-name">
+                          {platformName(entry.label)}
+                        </span>
+                        <span
+                          className="cc-an-pd-group-count"
+                          style={{
+                            background:
+                              COLORS[groupIndex % COLORS.length],
+                          }}
+                        >
+                          {entry.count}
+                        </span>
+                      </div>
+                      {items.map((item) => (
+                        <div className="cc-an-pd-item" key={item.id}>
+                          <span className="cc-an-pd-title">
+                            {item.title}
+                          </span>
+                          <span
+                            className="cc-an-pd-pill"
+                            style={{
+                              background: "#fce7dc",
+                              color: "#e06d45",
+                            }}
+                          >
+                            {item.type}
+                          </span>
+                          <span
+                            className="cc-an-pd-status"
+                            style={{
+                              color:
+                                item.status === "Published"
+                                  ? "#5a9a6e"
+                                  : item.status === "Scheduled"
+                                    ? "#b08a2e"
+                                    : "#9a8a82",
+                            }}
+                          >
+                            {item.status}
+                          </span>
+                          <span className="cc-an-pd-date">
+                            {item.date}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="cc-an-chart-empty">
+                No platform data in this period.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {dialog && (
         <PerformanceDialog
           key={`${dialog.mode}-${dialog.id ?? "new"}`}

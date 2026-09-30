@@ -28,7 +28,7 @@ import {
   getActivePostTypes,
   getPlatformConfig,
 } from "../platformConfig"
-import { MediaAssetPicker } from "../components/MediaAssetPicker"
+import { LocalImageUpload } from "../components/LocalImageUpload"
 import { useMediaAssets } from "../components/useMediaAssets"
 import { mediaUrl } from "../mediaStorage"
 
@@ -69,6 +69,10 @@ function templateForm(template?: ContentTemplate) {
     hook: template?.hook ?? "",
     body: template?.body ?? "",
     cta: template?.cta ?? "",
+    caption: template?.caption ?? "",
+    altText: template?.altText ?? "",
+    firstComment: template?.firstComment ?? "",
+    platformExtras: { ...(template?.platformExtras ?? {}) },
     hashtags: template?.hashtags.map((tag) => `#${tag}`).join(" ") ?? "",
     mediaIds: [...(template?.mediaIds ?? [])],
     checklist: { ...(template?.checklist ?? EMPTY_CHECKLIST) },
@@ -160,15 +164,22 @@ function TemplateCard({
           {template.description || "Platform-specific reusable content."}
         </p>
         <div className="cc-template-structure">
-          <div>
-            <b>Hook</b> · {template.hook || "Not set"}
-          </div>
-          <div>
-            <b>Body</b> · {template.body || "Not set"}
-          </div>
-          <div>
-            <b>CTA</b> · {template.cta || "Not set"}
-          </div>
+          {(() => {
+            const cf = getPlatformConfig(template.platform).postTypes
+              .find(t => t.id === template.postType)?.fields
+            const cx = template.platformExtras ?? {}
+            const pairs: [string, string | undefined][] = [
+              [cf?.headlineLabel || "Title", cf?.headline ? cx.headline : undefined],
+              [cf?.captionLabel || "Caption", cf?.caption ? template.caption : undefined],
+              ["Hook", cf?.hook ? template.hook : undefined],
+              ["Script", template.body || undefined],
+              ["CTA", cf?.cta ? template.cta : undefined],
+            ]
+            const visible = pairs.filter(([, v]) => v).slice(0, 3)
+            return visible.length ? visible.map(([label, value]) => (
+              <div key={label}><b>{label}</b> · {value}</div>
+            )) : <div style={{ color: 'var(--cc-text-3)' }}>No content saved.</div>
+          })()}
         </div>
         <div className="cc-template-foot">
           <span className="cc-template-check">
@@ -256,7 +267,6 @@ function TemplateDialog({
   const platformOptions = getActivePlatformOptions()
   const [form, setForm] = useState(() => templateForm(template))
   const [error, setError] = useState("")
-  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     const previous = document.body.style.overflow
@@ -285,11 +295,18 @@ function TemplateDialog({
     const validType = getPlatformConfig(form.platform).postTypes.some(
       (type) => type.id === form.postType
     )
+    const af = getPlatformConfig(form.platform).postTypes.find(t => t.id === form.postType)?.fields
+    const hasContent = !!(
+      (af?.caption && form.caption?.trim()) ||
+      (af?.hook && form.hook.trim()) ||
+      form.body.trim() ||
+      (af?.headline && (form.platformExtras?.headline ?? "").trim())
+    )
     if (!form.name.trim()) return setError("Add a template name.")
     if (!validType)
       return setError("Choose a valid post type for this platform.")
-    if (!form.hook.trim() || !form.body.trim() || !form.cta.trim())
-      return setError("Complete the hook, body, and CTA fields.")
+    if (!hasContent)
+      return setError("Add at least one content field (caption, hook, script, or title).")
     onSave({
       name: form.name.trim(),
       description: form.description.trim(),
@@ -298,6 +315,12 @@ function TemplateDialog({
       hook: form.hook.trim(),
       body: form.body.trim(),
       cta: form.cta.trim(),
+      caption: form.caption?.trim() || undefined,
+      altText: form.altText?.trim() || undefined,
+      firstComment: form.firstComment?.trim() || undefined,
+      platformExtras: Object.keys(form.platformExtras ?? {}).length
+        ? form.platformExtras
+        : undefined,
       hashtags: tags,
       mediaIds: Array.from(new Set(form.mediaIds)),
       checklist: form.checklist,
@@ -313,6 +336,12 @@ function TemplateDialog({
         ? current.postType
         : (types[0]?.id ?? "Post"),
     }))
+  }
+  const activeFields = getPlatformConfig(form.platform).postTypes
+    .find(t => t.id === form.postType)?.fields
+  const extras = form.platformExtras ?? {}
+  function setExtra(key: string, value: string) {
+    setForm(c => ({ ...c, platformExtras: { ...(c.platformExtras ?? {}), [key]: value } }))
   }
   const title =
     mode === "create"
@@ -376,45 +405,65 @@ function TemplateDialog({
                 {template.description || "No description added."}
               </div>
             </div>
-            <div>
-              <div className="cc-template-detail-label">Hook</div>
-              <div className="cc-template-detail-value">{template.hook}</div>
-            </div>
-            <div>
-              <div className="cc-template-detail-label">Body</div>
-              <div className="cc-template-detail-value">{template.body}</div>
-            </div>
-            <div>
-              <div className="cc-template-detail-label">CTA</div>
-              <div className="cc-template-detail-value">{template.cta}</div>
-            </div>
-            <div>
-              <div className="cc-template-detail-label">Hashtags</div>
-              <div className="cc-template-detail-value">
-                {template.hashtags.length
-                  ? template.hashtags.map((tag) => `#${tag}`).join(" ")
-                  : "None"}
-              </div>
-            </div>
-            <div className="cc-template-detail-media">
-              {template.mediaIds.length ? (
-                template.mediaIds.map((id) => {
-                  const media = items.find((item) => item.id === id)
-                  const src = media ? mediaUrl(media, urls) : ""
-                  return src ? (
-                    <img key={id} src={src} alt={media?.filename || ""} />
-                  ) : (
-                    <span className="cc-template-detail-placeholder" key={id}>
-                      <ImagePlus size={14} />
-                    </span>
-                  )
-                })
-              ) : (
-                <span className="cc-template-detail-value">
-                  No suggested media.
-                </span>
-              )}
-            </div>
+            {(() => {
+              const vf = getPlatformConfig(template.platform).postTypes
+                .find(t => t.id === template.postType)?.fields
+              const vx = template.platformExtras ?? {}
+              const row = (label: string, value: string | undefined) =>
+                value ? (
+                  <div key={label}>
+                    <div className="cc-template-detail-label">{label}</div>
+                    <div className="cc-template-detail-value">{value}</div>
+                  </div>
+                ) : null
+              return (
+                <>
+                  {vf?.headline && row(vf.headlineLabel || "Title", vx.headline)}
+                  {vf?.caption && row(vf.captionLabel || "Caption", template.caption)}
+                  {vf?.hook && row("Hook", template.hook || undefined)}
+                  {row("Script / notes", template.body || undefined)}
+                  {vf?.cta && row("CTA", template.cta || undefined)}
+                  {vf?.description && row("Video description", vx.contentDescription)}
+                  {vf?.hashtags && (
+                    <div>
+                      <div className="cc-template-detail-label">Hashtags</div>
+                      <div className="cc-template-detail-value">
+                        {template.hashtags.length
+                          ? template.hashtags.map(tag => `#${tag}`).join(" ")
+                          : "None"}
+                      </div>
+                    </div>
+                  )}
+                  {vf?.altText && row("Alt text", template.altText)}
+                  {vf?.firstComment && row("First comment", template.firstComment)}
+                  {vf?.sticker && row("Sticker / poll", vx.sticker)}
+                  {vf?.board && row("Pinterest board", vx.board)}
+                  {vf?.destinationUrl && row("Destination URL", vx.destinationUrl)}
+                  {vf?.playlist && row("Playlist", vx.playlist)}
+                  {vf?.visibility && row("Visibility", vx.visibility)}
+                  {vf?.audience && row("Audience", vx.audience)}
+                  {vf?.media && (
+                    <div className="cc-template-detail-media">
+                      {template.mediaIds.length ? (
+                        template.mediaIds.map((id) => {
+                          const media = items.find((item) => item.id === id)
+                          const src = media ? mediaUrl(media, urls) : ""
+                          return src ? (
+                            <img key={id} src={src} alt={media?.filename || ""} />
+                          ) : (
+                            <span className="cc-template-detail-placeholder" key={id}>
+                              <ImagePlus size={14} />
+                            </span>
+                          )
+                        })
+                      ) : (
+                        <span className="cc-template-detail-value">No suggested media.</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
             <div className="cc-template-detail-actions">
               {onUse && (
                 <button className="primary" onClick={onUse}>
@@ -502,110 +551,202 @@ function TemplateDialog({
                 ))}
               </select>
             </div>
+            {activeFields?.headline && (
+              <div className="cc-template-field full">
+                <label>{activeFields.headlineLabel || "Title"}</label>
+                <input
+                  className="cc-template-input"
+                  value={extras.headline ?? ""}
+                  onChange={(e) => setExtra("headline", e.target.value)}
+                  maxLength={activeFields.headlineMaxLength || 100}
+                />
+              </div>
+            )}
+            {activeFields?.caption && (
+              <div className="cc-template-field full">
+                <label>{activeFields.captionLabel || "Caption"}</label>
+                <textarea
+                  className="cc-template-textarea"
+                  value={form.caption ?? ""}
+                  onChange={(e) => setForm(c => ({ ...c, caption: e.target.value }))}
+                  maxLength={activeFields.captionMaxLength || 2200}
+                />
+              </div>
+            )}
+            {activeFields?.hook && (
+              <div className="cc-template-field full">
+                <label>Hook</label>
+                <textarea
+                  className="cc-template-textarea"
+                  value={form.hook}
+                  onChange={(e) => setForm(c => ({ ...c, hook: e.target.value }))}
+                  maxLength={100}
+                />
+              </div>
+            )}
             <div className="cc-template-field full">
-              <label>
-                Hook <span>*</span>
-              </label>
-              <textarea
-                className="cc-template-textarea"
-                value={form.hook}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    hook: event.target.value,
-                  }))
-                }
-                maxLength={100}
-              />
-            </div>
-            <div className="cc-template-field full">
-              <label>
-                Body <span>*</span>
-              </label>
+              <label>Script / notes</label>
               <textarea
                 className="cc-template-textarea"
                 value={form.body}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    body: event.target.value,
-                  }))
-                }
+                onChange={(e) => setForm(c => ({ ...c, body: e.target.value }))}
                 maxLength={500}
               />
             </div>
-            <div className="cc-template-field full">
-              <label>
-                CTA <span>*</span>
-              </label>
-              <textarea
-                className="cc-template-textarea"
-                value={form.cta}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    cta: event.target.value,
-                  }))
-                }
-                maxLength={100}
-              />
-            </div>
-            <div className="cc-template-field full">
-              <label>Hashtags</label>
-              <input
-                className="cc-template-input"
-                value={form.hashtags}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    hashtags: event.target.value,
-                  }))
-                }
-                placeholder="#launch #behindthescenes"
-              />
-            </div>
-            <div className="cc-template-field full">
-              <label>Suggested media</label>
-              <button
-                type="button"
-                className="cc-template-dialog-actions"
-                onClick={() => setPickerOpen((value) => !value)}
-              >
-                {pickerOpen
-                  ? "Close media picker"
-                  : `${form.mediaIds.length ? `${form.mediaIds.length} selected · edit media` : "Choose from library or upload"}`}
-              </button>
-              {pickerOpen && (
-                <MediaAssetPicker
-                  selectedIds={form.mediaIds}
-                  onChange={(mediaIds) =>
-                    setForm((current) => ({ ...current, mediaIds }))
-                  }
-                  onClose={() => setPickerOpen(false)}
-                  multiple
-                  title="Template media"
+            {activeFields?.cta && (
+              <div className="cc-template-field full">
+                <label>CTA</label>
+                <textarea
+                  className="cc-template-textarea"
+                  value={form.cta}
+                  onChange={(e) => setForm(c => ({ ...c, cta: e.target.value }))}
+                  maxLength={100}
                 />
-              )}
-            </div>
+              </div>
+            )}
+            {activeFields?.description && (
+              <div className="cc-template-field full">
+                <label>Video description</label>
+                <textarea
+                  className="cc-template-textarea"
+                  value={extras.contentDescription ?? ""}
+                  onChange={(e) => setExtra("contentDescription", e.target.value)}
+                  maxLength={5000}
+                />
+              </div>
+            )}
+            {activeFields?.hashtags && (
+              <div className="cc-template-field full">
+                <label>Hashtags</label>
+                <input
+                  className="cc-template-input"
+                  value={form.hashtags}
+                  onChange={(e) => setForm(c => ({ ...c, hashtags: e.target.value }))}
+                  placeholder="#launch #behindthescenes"
+                />
+              </div>
+            )}
+            {activeFields?.altText && (
+              <div className="cc-template-field full">
+                <label>Alt text</label>
+                <input
+                  className="cc-template-input"
+                  value={form.altText ?? ""}
+                  onChange={(e) => setForm(c => ({ ...c, altText: e.target.value }))}
+                />
+              </div>
+            )}
+            {activeFields?.firstComment && (
+              <div className="cc-template-field full">
+                <label>First comment</label>
+                <textarea
+                  className="cc-template-textarea"
+                  value={form.firstComment ?? ""}
+                  onChange={(e) => setForm(c => ({ ...c, firstComment: e.target.value }))}
+                  maxLength={500}
+                />
+              </div>
+            )}
+            {activeFields?.sticker && (
+              <div className="cc-template-field full">
+                <label>Sticker / poll text</label>
+                <input
+                  className="cc-template-input"
+                  value={extras.sticker ?? ""}
+                  onChange={(e) => setExtra("sticker", e.target.value)}
+                />
+              </div>
+            )}
+            {(activeFields?.board || activeFields?.destinationUrl) && (
+              <>
+                {activeFields.board && (
+                  <div className="cc-template-field">
+                    <label>Pinterest board</label>
+                    <input
+                      className="cc-template-input"
+                      value={extras.board ?? ""}
+                      onChange={(e) => setExtra("board", e.target.value)}
+                    />
+                  </div>
+                )}
+                {activeFields.destinationUrl && (
+                  <div className="cc-template-field">
+                    <label>Destination URL</label>
+                    <input
+                      className="cc-template-input"
+                      value={extras.destinationUrl ?? ""}
+                      onChange={(e) => setExtra("destinationUrl", e.target.value)}
+                      placeholder="https://"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+            {(activeFields?.playlist || activeFields?.visibility || activeFields?.audience) && (
+              <>
+                {activeFields.playlist && (
+                  <div className="cc-template-field">
+                    <label>Playlist</label>
+                    <input
+                      className="cc-template-input"
+                      value={extras.playlist ?? ""}
+                      onChange={(e) => setExtra("playlist", e.target.value)}
+                    />
+                  </div>
+                )}
+                {activeFields.visibility && (
+                  <div className="cc-template-field">
+                    <label>Visibility</label>
+                    <select
+                      className="cc-template-input"
+                      value={extras.visibility ?? "public"}
+                      onChange={(e) => setExtra("visibility", e.target.value)}
+                    >
+                      <option value="public">Public</option>
+                      <option value="unlisted">Unlisted</option>
+                      <option value="private">Private</option>
+                    </select>
+                  </div>
+                )}
+                {activeFields.audience && (
+                  <div className="cc-template-field">
+                    <label>Audience</label>
+                    <select
+                      className="cc-template-input"
+                      value={extras.audience ?? "general"}
+                      onChange={(e) => setExtra("audience", e.target.value)}
+                    >
+                      <option value="general">General</option>
+                      <option value="kids">Made for kids</option>
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+            {activeFields?.media && (
+              <div className="cc-template-field full">
+                <label>Suggested media</label>
+                <LocalImageUpload
+                  value={form.mediaIds}
+                  onChange={(mediaIds) => setForm(c => ({ ...c, mediaIds }))}
+                  multiple
+                  folder="brand"
+                  label="Upload images"
+                />
+              </div>
+            )}
             <div className="cc-template-field full">
               <label>Checklist defaults</label>
               <div className="cc-template-checklist">
-                {(
-                  Object.keys(CHECKLIST_LABELS) as Array<
-                    keyof ComposerChecklist
-                  >
-                ).map((key) => (
+                {(Object.keys(CHECKLIST_LABELS) as Array<keyof ComposerChecklist>).map((key) => (
                   <label key={key}>
                     <input
                       type="checkbox"
                       checked={form.checklist[key]}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          checklist: {
-                            ...current.checklist,
-                            [key]: event.target.checked,
-                          },
+                      onChange={(e) =>
+                        setForm(c => ({
+                          ...c,
+                          checklist: { ...c.checklist, [key]: e.target.checked },
                         }))
                       }
                     />
@@ -619,7 +760,10 @@ function TemplateDialog({
                 {error}
               </div>
             )}
-            <div className="cc-template-dialog-actions full">
+            <div
+              className="cc-template-dialog-actions full"
+              style={{ gridColumn: "1 / -1" }}
+            >
               <button type="button" onClick={onClose}>
                 Cancel
               </button>

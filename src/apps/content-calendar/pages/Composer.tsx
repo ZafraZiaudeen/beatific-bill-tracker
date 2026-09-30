@@ -19,6 +19,7 @@ import {
   ImagePlus,
   Image as ImageIcon,
   Link,
+  ListVideo,
   MessageCircle,
   MousePointer2,
   Music2,
@@ -38,10 +39,11 @@ import {
 } from "lucide-react"
 import { useContentCalendarStore } from "../store"
 import type { ComposerDraft, ComposerChecklist, PlatformSlot, PreviewDesign, PreviewLayer } from "../types"
-import { loadMedia, mediaUrl } from "../mediaStorage"
+import { mediaUrl } from "../mediaStorage"
 import type { StoredMediaItem } from "../mediaStorage"
 import { LocalImageUpload } from "../components/LocalImageUpload"
 import type { LocalImageUploadHandle } from "../components/LocalImageUpload"
+import { useMediaAssets } from "../components/useMediaAssets"
 import placeholderMedia from "../../../assets/content-calendar/placeholder-media.svg"
 import {
   getAllPlatforms,
@@ -66,12 +68,13 @@ const COMPOSER_CSS = `
 .cc-platform-tabs{border-top:1px solid #eee6df;margin-top:8px;padding-top:8px}
 .cc-platform-check,.cc-platform-tab{height:29px;padding:0 10px;border:1.5px solid #e3ddd7;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:9px;background:var(--cc-input);color:var(--cc-text-2);cursor:pointer;transition:background .12s,border-color .12s}
 .cc-platform-check.selected{background:#fff0e8;border-color:#DA7652;color:#3d2010}
-.cc-platform-tab.active{background:var(--cc-accent-light);border-color:#52848a;color:var(--cc-text);font-weight:600}
+.cc-platform-tab.active{background:#fff0e8;border:2px solid #DA7652;box-shadow:0 0 0 2px rgba(218,118,82,.18),0 3px 8px rgba(124,75,52,.14);color:#3d2010;font-weight:800;position:relative}
+.cc-platform-tab.active::after{content:"";width:5px;height:5px;border-radius:50%;background:#DA7652;position:absolute;right:5px;top:5px}
 .cc-platform-strip{border:1px solid #e9e2db;border-radius:8px;padding:8px;margin-bottom:10px;background:var(--cc-card);display:flex;gap:7px;flex-wrap:wrap}
 .cc-strip-btn{height:29px;padding:0 10px;border:1.5px solid #e3ddd7;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:9px;background:var(--cc-input);color:var(--cc-text-2);cursor:pointer;transition:background .12s,border-color .12s}
 .cc-strip-btn.selected{background:#fff7f2;border-color:#ead6c8;color:#3d2010}
 .cc-strip-btn.active{background:#fff0e8;border-color:#DA7652;color:#3d2010;font-weight:700}
-.cc-input-wrap{position:relative}.cc-composer textarea,.cc-composer input,.cc-composer select{font:inherit;color:inherit}.cc-textarea,.cc-text-input,.cc-select{width:100%;border:1px solid #e6dfd8;border-radius:7px;background:var(--cc-card);outline:none;font-size:9px;padding:9px}.cc-textarea{height:93px;resize:none;line-height:1.45}.cc-text-input{height:30px}.cc-select{height:30px;appearance:none}.cc-counter{position:absolute;right:8px;bottom:5px;font-size:7.5px;color:#6f7b7e}.cc-hashtags{min-height:72px;border:1px solid #e5ded7;border-radius:7px;padding:7px}.cc-hashtag-list{display:flex;flex-wrap:wrap;gap:6px}.cc-hashtag{padding:4px 8px;border-radius:99px;background:#e8f0f4;color:#52748a;font-size:10px}.cc-hashtag button{margin-left:5px}.cc-hashtag-entry{border:0!important;background:transparent!important;height:25px!important;padding:3px!important;width:120px!important;font-size:8px!important;outline:0}.cc-hash-count{float:right;font-size:8px;color:#7c8587}
+.cc-input-wrap{position:relative}.cc-composer textarea,.cc-composer input,.cc-composer select{font:inherit;color:inherit}.cc-textarea,.cc-text-input,.cc-select{width:100%;border:1px solid #e6dfd8;border-radius:7px;background:var(--cc-card);outline:none;font-size:9px;padding:9px}.cc-textarea{height:93px;resize:none;line-height:1.45}.cc-text-input{height:30px}.cc-select{height:30px;appearance:none;padding:0 28px 0 9px;line-height:28px}.cc-counter{position:absolute;right:8px;bottom:5px;font-size:7.5px;color:#6f7b7e}.cc-hashtags{min-height:72px;border:1px solid #e5ded7;border-radius:7px;padding:7px}.cc-hashtag-list{display:flex;flex-wrap:wrap;gap:6px}.cc-hashtag{padding:4px 8px;border-radius:99px;background:#e8f0f4;color:#52748a;font-size:10px}.cc-hashtag button{margin-left:5px}.cc-hashtag-entry{border:0!important;background:transparent!important;height:25px!important;padding:3px!important;width:120px!important;font-size:8px!important;outline:0}.cc-hash-count{float:right;font-size:8px;color:#7c8587}
 .cc-publish-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-select-arrow{position:absolute;right:8px;top:9px;pointer-events:none}.cc-publish-help{font-size:7.5px;color:#869092;margin-top:5px}
 .cc-media-box{border:1px dashed #d6dee0;border-radius:7px;padding:8px}.cc-media-items{display:flex;gap:6px}.cc-media-attachment{width:60px;height:54px;border-radius:5px;background-size:cover;background-position:center;position:relative}.cc-media-attachment.reference{background-size:1280px 720px}.cc-remove-media{position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.65);display:grid;place-items:center}.cc-add-media{width:58px;height:54px;border-radius:5px;background:var(--cc-bg-2);display:grid;place-items:center;color:#74909d}.cc-media-note{text-align:center;font-size:7.5px;color:#859093;margin-top:7px}
 .cc-frames-list{display:flex;gap:6px;flex-wrap:wrap}.cc-frame-thumb{width:52px;height:46px;border-radius:5px;background-size:cover;background-position:center;position:relative;border:1px solid #e2dcd6}.cc-frame-num{position:absolute;top:2px;left:4px;font-size:7px;color:white;background:rgba(0,0,0,.45);padding:1px 4px;border-radius:3px}
@@ -90,6 +93,7 @@ const COMPOSER_CSS = `
 @media(max-width:1120px){.cc-composer{width:100%;min-width:0;box-sizing:border-box}.cc-composer-body{min-width:0}}
 @media(max-width:900px){.cc-composer-body{flex-direction:column}.cc-composer-form{width:100%}.cc-preview-panel{width:100%;flex-basis:auto;position:static;max-height:none;box-sizing:border-box}.cc-composer-head{flex-wrap:wrap}.cc-composer-actions{width:100%;margin-left:0;flex-wrap:wrap}}
 @media(max-width:620px){.cc-composer{padding:12px}.cc-form-columns{grid-template-columns:1fr}.cc-form-col:first-child{border-right:0;border-bottom:1px solid #ece5de}.cc-composer-action{flex:1;justify-content:center;padding:0 10px}}
+.cc-carousel-nav{position:absolute;bottom:18%;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:6px;z-index:10;pointer-events:auto}.cc-carousel-prev,.cc-carousel-next{background:rgba(0,0,0,.35);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}.cc-carousel-prev:disabled,.cc-carousel-next:disabled{opacity:.3;cursor:default}.cc-carousel-dots{display:flex;gap:4px;align-items:center}.cc-carousel-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.5);border:none;cursor:pointer;padding:0}.cc-carousel-dot.active{background:#fff}
 `
 
 // ─── Platform Icon ─────────────────────────────────────────────────────────────
@@ -228,20 +232,12 @@ export function PlatformStrip({ draft, onPlatformsChange, previewPlatform, onPre
         const isActive = isSelected && previewPlatform === platform
         return (
           <button key={platform}
+            type="button"
+            aria-pressed={isActive}
             className={`cc-strip-btn${isSelected ? " selected" : ""}${isActive ? " active" : ""}`}
             onClick={() => {
-              if (!isSelected) {
-                // Add to post and switch preview to it
-                onPlatformsChange([...draft.platforms, platform])
-                onPreviewChange(platform)
-              } else if (!isActive) {
-                // Already in post — just switch preview
-                onPreviewChange(platform)
-              } else {
-                // Active platform — deselect (keep at least 1)
-                const next = draft.platforms.filter(p => p !== platform)
-                if (next.length) { onPlatformsChange(next); onPreviewChange(next[0]) }
-              }
+              onPlatformsChange([platform])
+              onPreviewChange(platform)
             }}>
             <PlatformIcon platform={platform} />
             {getPlatformConfig(platform).label}
@@ -415,17 +411,30 @@ function ComposerFields({
               {slides.map((slide, i) => {
                 const item = media.find(m => m.id === slide.mediaId)
                 return (
-                  <div key={i} className="cc-slide-item">
-                    <span style={{ fontSize: 8, color: "#7c8587", minWidth: 14 }}>{i + 1}</span>
-                    <div className="cc-slide-thumb" style={item ? mediaStyle(item, urls) : {}} />
-                    <input className="cc-slide-cap" placeholder="Slide caption…"
-                      value={slide.caption}
-                      onChange={e => {
-                        const next = slides.map((s, idx) => idx === i ? { ...s, caption: e.target.value } : s)
-                        updateExtra("slides", next)
-                      }} />
-                    <button className="cc-slide-remove"
-                      onClick={() => updateExtra("slides", slides.filter((_, idx) => idx !== i))}>×</button>
+                  <div key={i} className="cc-slide-item" style={{ flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
+                      <span style={{ fontSize: 8, color: "#7c8587", minWidth: 14 }}>{i + 1}</span>
+                      <div className="cc-slide-thumb" style={item ? mediaStyle(item, urls) : { background: "#f0eeeb", border: "1px dashed #c8bfb5" }} />
+                      <input className="cc-slide-cap" placeholder="Slide caption…"
+                        value={slide.caption}
+                        onChange={e => {
+                          const next = slides.map((s, idx) => idx === i ? { ...s, caption: e.target.value } : s)
+                          updateExtra("slides", next)
+                        }} />
+                      <button className="cc-slide-remove"
+                        onClick={() => updateExtra("slides", slides.filter((_, idx) => idx !== i))}>×</button>
+                    </div>
+                    <div style={{ paddingLeft: 20, width: "100%" }}>
+                      <LocalImageUpload
+                        value={slide.mediaId ? [slide.mediaId] : []}
+                        folder="brand"
+                        label={slide.mediaId ? "Replace image" : "Upload image"}
+                        onChange={ids => {
+                          const next = slides.map((s, idx) => idx === i ? { ...s, mediaId: ids[0] ?? "" } : s)
+                          updateExtra("slides", next)
+                        }}
+                      />
+                    </div>
                   </div>
                 )
               })}
@@ -500,8 +509,8 @@ function ComposerFields({
 
         {fields.playlist && (
           <div className="cc-field-block">
-            <div className="cc-field-title"><ImageIcon size={13} />Playlist</div>
-            <input className="cc-text-input" placeholder="Select playlist…"
+            <div className="cc-field-title"><ListVideo size={13} />Playlist</div>
+            <input className="cc-text-input" placeholder="Add playlist name…"
               value={(extra.playlist as string) ?? ""}
               onChange={e => updateExtra("playlist", e.target.value)} />
           </div>
@@ -574,8 +583,15 @@ function ComposerFields({
         {fields.thumbnail && (
           <div className="cc-field-block">
             <div className="cc-field-title"><ImageIcon size={13} />Thumbnail</div>
-            <div className="cc-media-box" style={{ textAlign: "center" }}>
-              <div className="cc-media-note" style={{ padding: "12px 0" }}>Upload thumbnail (JPG, PNG · 16:9 recommended)</div>
+            <div className="cc-youtube-thumbnail-upload">
+              <LocalImageUpload
+                value={extra.thumbnailMediaId ? [String(extra.thumbnailMediaId)] : []}
+                multiple={false}
+                folder="brand"
+                label={extra.thumbnailMediaId ? "Replace thumbnail" : "Upload thumbnail"}
+                onChange={ids => updateExtra("thumbnailMediaId", ids[0] ?? "")}
+              />
+              <div className="cc-media-note">JPG or PNG · 16:9 recommended</div>
             </div>
           </div>
         )}
@@ -1007,7 +1023,13 @@ function PreviewPanel({ draft, media, urls, previewRef, previewPlatform, onDesig
   const activeHashtags = activeSlot?.hashtags ?? draft.hashtags
   const ptConfig = getPostTypeConfig(activePreview, activePostType)
   const layout: PreviewLayout = ptConfig.previewLayout ?? "feed"
-  const previewItem = activeMediaIds.map(id => media.find(i => i.id === id)).find(Boolean)
+  const carouselSlides = (activeExtras.slides as { mediaId: string; caption: string }[] | undefined) ?? []
+  const isCarousel = activePostType === "Carousel" && carouselSlides.length > 0
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+  useEffect(() => { setCurrentSlideIndex(0) }, [activePostType])
+  const previewItem = isCarousel
+    ? media.find(i => i.id === (carouselSlides[currentSlideIndex]?.mediaId ?? ""))
+    : activeMediaIds.map(id => media.find(i => i.id === id)).find(Boolean)
   const key = previewDesignKey(activePreview, activePostType)
   const design = activeSlot?.previewDesigns?.[key]
     ?? draft.previewDesigns?.[key]
@@ -1195,6 +1217,17 @@ function PreviewPanel({ draft, media, urls, previewRef, previewPlatform, onDesig
         <div className={`cc-canvas-art${useReferencePreview ? " reference" : ""}`} style={previewStyle}>
           <div className="cc-canvas-shade" />
         </div>
+        {isCarousel && carouselSlides.length > 1 && (
+          <div className="cc-carousel-nav">
+            <button className="cc-carousel-prev" onClick={() => setCurrentSlideIndex(i => Math.max(0, i - 1))} disabled={currentSlideIndex === 0}>‹</button>
+            <div className="cc-carousel-dots">
+              {carouselSlides.map((_, i) => (
+                <button key={i} className={`cc-carousel-dot${i === currentSlideIndex ? " active" : ""}`} onClick={() => setCurrentSlideIndex(i)} />
+              ))}
+            </div>
+            <button className="cc-carousel-next" onClick={() => setCurrentSlideIndex(i => Math.min(carouselSlides.length - 1, i + 1))} disabled={currentSlideIndex === carouselSlides.length - 1}>›</button>
+          </div>
+        )}
         <PreviewLayers design={design} editing={false} selectedId={effectiveSelectedId}
           media={media} urls={urls} onSelect={setSelectedId} onLayerChange={updateLayerById}
           values={values} />
@@ -1315,7 +1348,7 @@ function PreviewPanel({ draft, media, urls, previewRef, previewPlatform, onDesig
 }
 
 export default function Composer() {
-  const { composerDrafts, activeComposerId, campaigns, userName, saveComposerDraft, scheduleComposer, closeComposer } = useContentCalendarStore()
+  const { composerDrafts, activeComposerId, composerReturnView, campaigns, userName, saveComposerDraft, scheduleComposer, closeComposer } = useContentCalendarStore()
   const stored = composerDrafts.find(d => d.id === activeComposerId)
   function prepareInitialDraft(source: ComposerDraft | undefined) {
     if (!source) return source
@@ -1368,41 +1401,17 @@ export default function Composer() {
   const [draft, setDraft] = useState<ComposerDraft | undefined>(() => prepareInitialDraft(stored))
   const [hashtag, setHashtag] = useState("")
   const [slotHashtag, setSlotHashtag] = useState("")
-  const [media, setMedia] = useState<StoredMediaItem[]>([])
-  const [urls, setUrls] = useState<Record<string, string>>({})
+  const { items: media, urls, error: mediaError } = useMediaAssets()
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null)
   const [previewPlatform, setPreviewPlatform] = useState<string>(stored?.platforms[0] ?? "instagram")
   const previewRef = useRef<HTMLElement>(null)
-  const urlRef = useRef<string[]>([])
   const addMediaRef = useRef<LocalImageUploadHandle>(null)
-
-  useEffect(() => {
-    let active = true
-    loadMedia()
-      .then(items => {
-        if (!active) return
-        const next: Record<string, string> = {}
-        for (const item of items) {
-          if (item.blob) {
-            const url = URL.createObjectURL(item.blob)
-            next[item.id] = url
-            urlRef.current.push(url)
-          }
-        }
-        setMedia(items); setUrls(next)
-      })
-      .catch(() => setMessage({ kind: "error", text: "Local images could not be loaded. Your form is still safe." }))
-    return () => {
-      active = false
-      urlRef.current.forEach(URL.revokeObjectURL)
-      urlRef.current = []
-    }
-  }, [])
 
   if (!draft) return (
     <div className="cc-placeholder"><div>No composer draft is open.</div><button onClick={closeComposer}>Return</button></div>
   )
   const currentDraft = draft
+  const feedbackMessage = message ?? (mediaError ? { kind: "error" as const, text: mediaError } : null)
 
   function activeEditPlatform(source: ComposerDraft = currentDraft) {
     return source.platforms.includes(previewPlatform) ? previewPlatform : (source.platforms[0] ?? "instagram")
@@ -1567,7 +1576,11 @@ export default function Composer() {
   function save() {
     const saved = saveComposerDraft(currentDraft)
     setDraft(saved)
-    setMessage({ kind: "success", text: "Draft saved locally and added to Drafting." })
+    if (saved.calendarPostId || composerReturnView === 'pipeline') {
+      closeComposer()
+    } else {
+      setMessage({ kind: "success", text: "Draft saved locally and added to Drafting." })
+    }
   }
 
   function schedule() {
@@ -1701,9 +1714,9 @@ export default function Composer() {
               )}
 
 
-              {message && (
-                <div className={message.kind === "error" ? "cc-composer-error" : "cc-composer-success"} style={{ marginTop: 8 }}>
-                  {message.text}
+              {feedbackMessage && (
+                <div className={feedbackMessage.kind === "error" ? "cc-composer-error" : "cc-composer-success"} style={{ marginTop: 8 }}>
+                  {feedbackMessage.text}
                 </div>
               )}
             </>
@@ -1770,9 +1783,9 @@ export default function Composer() {
                   </div>
                 </div>
 
-                {message && (
-                  <div className={message.kind === "error" ? "cc-composer-error" : "cc-composer-success"}>
-                    {message.text}
+                {feedbackMessage && (
+                  <div className={feedbackMessage.kind === "error" ? "cc-composer-error" : "cc-composer-success"}>
+                    {feedbackMessage.text}
                   </div>
                 )}
               </section>
@@ -1795,6 +1808,7 @@ export default function Composer() {
             else
               updateDraft("mediaIds", ids)
           }}
+          onError={text => setMessage({ kind: "error", text })}
         />
       </div>
     </div>

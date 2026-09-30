@@ -15,13 +15,14 @@ export interface LocalImageUploadHandle {
 interface LocalImageUploadProps {
   value: string[];
   onChange: (ids: string[]) => void;
+  onError?: (message: string) => void;
   multiple?: boolean;
   folder?: MediaFolder;
   label?: string;
 }
 
 export const LocalImageUpload = forwardRef<LocalImageUploadHandle, LocalImageUploadProps>(
-  function LocalImageUploadInner({ value, onChange, multiple = false, folder = 'brand', label }, ref) {
+  function LocalImageUploadInner({ value, onChange, onError, multiple = false, folder = 'brand', label }, ref) {
     const inputRef = useRef<HTMLInputElement>(null);
     useImperativeHandle(ref, () => ({ open: () => inputRef.current?.click() }));
     const { items, urls } = useMediaAssets();
@@ -34,7 +35,11 @@ export const LocalImageUpload = forwardRef<LocalImageUploadHandle, LocalImageUpl
       setError('');
       onChange(value.filter(item => item !== id));
       removeMediaReferences(id);
-      await deleteMedia(id).catch(reason => setError(reason instanceof Error ? reason.message : 'The old image could not be removed.'));
+      await deleteMedia(id).catch(reason => {
+        const message = reason instanceof Error ? reason.message : 'The old image could not be removed.';
+        setError(message);
+        onError?.(message);
+      });
     }
 
     async function filesChanged(event: ChangeEvent<HTMLInputElement>) {
@@ -63,7 +68,11 @@ export const LocalImageUpload = forwardRef<LocalImageUploadHandle, LocalImageUpl
             await deleteMedia(oldId).catch(reason => failures.push(reason instanceof Error ? reason.message : 'The replaced image could not be removed.'));
           }
         }
-        if (failures.length) setError(failures.join(' '));
+        if (failures.length) {
+          const message = failures.join(' ');
+          setError(message);
+          onError?.(message);
+        }
       } finally {
         setBusy(false);
       }

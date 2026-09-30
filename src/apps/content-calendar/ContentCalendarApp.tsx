@@ -8,6 +8,7 @@ import Composer from './pages/Composer';
 import Templates from './pages/Templates';
 import Campaigns from './pages/CampaignsLive';
 import Analytics from './pages/Analytics';
+import PerformancePage from './pages/Performance';
 import Settings from './pages/Settings';
 import Platforms from './pages/Platforms';
 import { ManagementPage } from './pages/ManagementPage';
@@ -79,7 +80,7 @@ function LicenseGateOverlay({ viewName, onUnlock, onCancel }: { viewName: string
     if (!window.__CC_LICENSE_HASH__) { setError('This file is missing its license hash.'); return; }
     const hash = await sha256(CC_HASH_SALT + trimmed);
     if (hash === window.__CC_LICENSE_HASH__) {
-      try { sessionStorage.setItem('cc-license-activated', '1'); } catch { /* Storage can be unavailable in embedded HTML previews. */ }
+      try { localStorage.setItem('cc-license-activated', '1'); } catch { /* Storage can be unavailable in embedded HTML previews. */ }
       setCode(''); setError(''); onUnlock(); return;
     }
     setError('Invalid license code. Try again.');
@@ -701,6 +702,7 @@ const NAV_ITEMS: { id: ContentCalendarView; label: string }[] = [
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'ideas', label: 'Ideas' },
   { id: 'analytics', label: 'Analytics' },
+  { id: 'performance', label: 'Performance' },
   { id: 'templates', label: 'Templates' },
   { id: 'platforms', label: 'Platforms' },
   { id: 'composer', label: 'Post Composer' },
@@ -774,6 +776,11 @@ const NAV_ICONS: Record<ContentCalendarView, React.ReactNode> = {
       <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
     </svg>
   ),
+  performance: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+  ),
   management: (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="7.5" cy="14.5" r="3.5"/><path d="M10 12l8-8 2 2-2 2 2 2-2 2-2-2-4 4"/>
@@ -785,6 +792,7 @@ const VIEW_LABELS: Record<ContentCalendarView, string> = {
   dashboard: 'Dashboard', calendar: 'Calendar', pipeline: 'Pipeline',
   ideas: 'Ideas',
   templates: 'Templates', analytics: 'Analytics', campaigns: 'Campaigns',
+  performance: 'Performance',
   settings: 'Settings',
   platforms: 'Platforms',
   composer: 'Post Composer',
@@ -809,7 +817,7 @@ export default function ContentCalendarApp() {
     !IS_CUSTOMER_CC_BUILD ||
     !window.__CC_LICENSE_HASH__ ||
     localStorage.getItem(CC_ACTIVATED_KEY) === '1' ||
-    sessionStorage.getItem('cc-license-activated') === '1'
+    localStorage.getItem('cc-license-activated') === '1'
   );
 
   const needsLicense = HAS_LOCKED_VIEWS && LOCKED_VIEWS.includes(activeView) && !licenseActive;
@@ -821,6 +829,7 @@ export default function ContentCalendarApp() {
     if (activeView === 'pipeline')    return <Pipeline />;
     if (activeView === 'ideas')       return <Ideas />;
     if (activeView === 'analytics')   return <Analytics />;
+    if (activeView === 'performance') return <PerformancePage />;
     if (activeView === 'templates')   return <Templates />;
     if (activeView === 'composer')    return <Composer />;
     if (activeView === 'platforms')   return <Platforms />;
@@ -848,7 +857,7 @@ export default function ContentCalendarApp() {
                   key={item.id}
                   className={`cc-nav-item${activeView === item.id ? ' active' : ''}`}
                   onClick={() => item.id === 'composer'
-                    ? openComposer({ resumeLatest: true, returnView: activeView === 'composer' ? composerReturnView : activeView })
+                    ? openComposer({ returnView: activeView === 'composer' ? composerReturnView : activeView })
                     : setActiveView(item.id)}
                 >
                   <span style={{ opacity: 0.7 }}>{NAV_ICONS[item.id]}</span>
